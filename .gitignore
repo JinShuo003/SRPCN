@@ -1,0 +1,7 @@
+.idea/
+*.bak
+*/__pycache__
+.vscode/
+*/sftp.json
+/tensorboard_logs
+*.pth

@@ -1,0 +1,15 @@
+{
+    "Description" : "Compute two SDF fields",
+    "DataSource" : "D:\\dataset\\IBSNet",
+    "TestSplit" : "configs/test_scan_split/test_scene1.json",
+    "TestResult" : "test_result",
+    "Device" : 0,
+    "SamplesPerScene" : 30000,
+    "ScenesPerBatch" : 4,
+    "DataLoaderThreads" : 4,
+    "IBSSurfaceThreshold": 0.001,
+    "Visualize": true,
+    "Save": true,
+    "SaveDir": "test_result\\sdf"
+
+}

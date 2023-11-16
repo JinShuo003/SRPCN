@@ -275,22 +275,24 @@ def main_function(experiment_config_file):
 
 if __name__ == '__main__':
     import argparse
+    from utils.cmd import add_common_args
+    from utils.logging import configure_logging
 
     arg_parser = argparse.ArgumentParser(description="Train a IBS Net")
     arg_parser.add_argument(
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/scan/specs.json",
+        default="configs/specs/specs_train.json",
         required=False,
         help="The experiment config file."
     )
 
     # 添加日志参数
-    utils.cmd.add_common_args(arg_parser)
+    add_common_args(arg_parser)
 
     args = arg_parser.parse_args()
 
-    utils.logging.configure_logging(args)
+    configure_logging(args)
 
     main_function(args.experiment_config_file)

@@ -5,3 +5,4 @@
 */sftp.json
 /tensorboard_logs
 *.pth
+*.ply

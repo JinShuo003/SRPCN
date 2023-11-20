@@ -5,6 +5,9 @@
 4. 所有球的集合可以看做填充了两物体之间的空间，若补全结果落在球的范围内，则必然需要惩罚（因为球的获取采取了保守的策略）
 缺陷：求出的球集合无法填充整个空间，需要提高密度
 思路：已知Medial Axis，如何求出所有填充球？
+1. 输入Mesh形式的IBS，然后随机采一批点，计算他们的Occupied Sphere
+2. 遍历每一对计算结果，如果两个球相离，则求出球心连线中点，找到该点到Mesh表面的最近点，再次进行计算，将计算结果合并
+3. 直到每一对球都相交为止
 """
 
 import os
@@ -85,15 +88,13 @@ def get_nearest_points(query, pcd):
             self.nearest = nearest
             self.dist = dist
 
-    query.paint_uniform_color((0, 0, 0))
-    pcd.paint_uniform_color((0.5, 0.5, 0.5))
-
     pcd_kdTree = o3d.geometry.KDTreeFlann(pcd)
     pcd_np = np.asarray(pcd.points)
     nearest_point_info = list()
     for point in np.asarray(query.points):
-        [k, idx, dist] = pcd_kdTree.search_knn_vector_3d(point, 1)
-        nearest_point_info.append(queryPointInfo(point, pcd_np[idx[0]], dist[0]))
+        [k, idx, _] = pcd_kdTree.search_knn_vector_3d(point, 1)
+        dist = np.linalg.norm(point-pcd_np[idx[0]])
+        nearest_point_info.append(queryPointInfo(point, pcd_np[idx[0]], dist))
     return nearest_point_info
 
 
@@ -106,6 +107,7 @@ def get_sphere_list(nearest1, nearest2):
         sphere.paint_uniform_color((1, 0, 0))
         sphere.translate(info.query)
         sphere_list.append(sphere)
+        # break
     return sphere_list
 
 
@@ -125,6 +127,11 @@ def handle_scene(specs, scene):
     # calculate nearest point
     nearest1 = get_nearest_points(IBS, pcd1)
     nearest2 = get_nearest_points(IBS, pcd2)
+
+    # visualize
+    IBS.paint_uniform_color((0, 0, 0))
+    pcd1.paint_uniform_color((0, 1, 0))
+    pcd2.paint_uniform_color((0, 0, 1))
     sphere_list = get_sphere_list(nearest1, nearest2)
     sphere_list.append(pcd1)
     sphere_list.append(pcd2)

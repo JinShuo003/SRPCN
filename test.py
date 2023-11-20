@@ -34,7 +34,7 @@ def visualize_data(pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2, specs):
         pcd1_2.paint_uniform_color([0, 0, 1])
         pcd2_2.paint_uniform_color([1, 0, 1])
 
-        o3d.visualization.draw_geometries([pcd1_1, pcd2_1, pcd1_2, pcd2_2])
+        o3d.visualization.draw_geometries([pcd1_2, pcd2_2])
 
 
 def get_dataloader(specs):

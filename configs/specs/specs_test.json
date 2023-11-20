@@ -8,8 +8,8 @@
         "CacheCapacity": 3
     },
     "LossSpecs": {
-        "WeightOutGt": 0.5,
-        "WeightOutOut": 0.5
+        "WeightOutGt": 1,
+        "WeightOutOut": 0
     },
     "Device" : 0,
     "ScenesPerBatch" : 4,

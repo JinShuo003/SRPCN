@@ -153,7 +153,6 @@ class PCDCompletionNet(nn.Module):
         feature_global = self.feature_transform(feature_global)
 
         # decode
-        # TODO: 网络写错了，第四个decoder和第三个用的一个
         pcd1_path1 = self.decoder_path1_pcd1(feature_global).permute(0, 2, 1)
         pcd2_path1 = self.decoder_path1_pcd2(feature_global).permute(0, 2, 1)
         pcd1_path2 = self.decoder_path2_pcd1(feature_global).permute(0, 2, 1)

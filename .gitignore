@@ -4,5 +4,6 @@
 .vscode/
 */sftp.json
 /tensorboard_logs
+/test_result
 *.pth
 *.ply

@@ -8,17 +8,6 @@
     "DataLoaderSpecs": {
         "CacheCapacity": 3
     },
-    "NetworkSpecs" : {
-        "dims" : [1024, 1024, 1024, 1024, 1024, 1024, 1024, 1024],
-        "dropout" : [0, 1, 2, 3, 4, 5, 6, 7],
-        "dropout_prob" : 0.2,
-        "norm_layers" : [0, 1, 2, 3, 4, 5, 6, 7],
-        "latent_in" : [4],
-        "xyz_in_all" : false,
-        "use_tanh" : false,
-        "latent_dropout" : false,
-        "weight_norm" : true
-    },
     "LearningRateSchedule" : {
 	    "Type" : "Step",
 	    "Initial" : 0.0001,

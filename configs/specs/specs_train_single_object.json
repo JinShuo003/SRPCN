@@ -1,0 +1,27 @@
+{
+    "Description" : "Compute two SDF fields",
+    "DataSource" : "D:\\dataset\\PCDCompletion",
+    "TrainSplit" : "configs/train_scan_512/train.json",
+    "TestSplit" : "configs/test_scan_512/test.json",
+    "ParaSaveDir" : "trained_models",
+    "Device" : 0,
+    "DataLoaderSpecs": {
+        "CacheCapacity": 3
+    },
+    "LearningRateSchedule" : {
+	    "Type" : "Step",
+	    "Initial" : 0.0001,
+	    "Interval" : 5,
+	    "Factor" : 0.5
+    },
+    "LossSpecs": {
+        "WeightOutCD": 0.5,
+        "WeightOutEMD": 0.5
+    },
+    "NumEpochs" : 200,
+    "CodeLength": 512,
+    "PcdPointNum": 512,
+
+    "ScenesPerBatch" : 2,
+    "DataLoaderThreads" : 4
+}

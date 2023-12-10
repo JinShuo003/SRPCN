@@ -23,13 +23,16 @@ def get_sphere_mesh(radius=1.0):
     return sphere_mesh
 
 
+def get_sphere_pcd(radius=0.5, points_num=256):
+    sphere_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=radius)
+    sphere_pcd = sphere_mesh.sample_points_uniformly(points_num)
+    return sphere_pcd
+
+
 def get_unit_coordinate(size=0.5):
     coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=size)
     coord_frame.compute_vertex_normals()
     return coord_frame
 
 
-def get_sphere_pcd(radius=0.5, points_num=256):
-    sphere_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=radius)
-    sphere_pcd = sphere_mesh.sample_points_uniformly(points_num)
-    return sphere_pcd
+

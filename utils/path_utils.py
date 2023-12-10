@@ -63,11 +63,11 @@ def getFilenameTree(specs: dict, base_path: str):
     return filename_tree_copy
 
 
-def generatePath(specs: dict, path_list: list):
-    """检查specs中的path是否存在，不存在则创建"""
-    for path in path_list:
-        if not os.path.isdir(specs[path]):
-            os.makedirs(specs[path])
+def generatePath(path: str):
+    if not isinstance(path, str):
+        print("The type of path should be str")
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 
 def regular_match(regExp: str, target: str):

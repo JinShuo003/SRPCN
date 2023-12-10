@@ -2,14 +2,19 @@
 从成对的Mesh采集具有遮挡关系的残缺点云
 """
 
+import json
+import logging
 import math
+import multiprocessing
 import os
 import re
-import multiprocessing
-import open3d as o3d
+
 import numpy as np
-import json
-from utils import path_utils, geometry_utils, time_utils, random_utils
+import open3d as o3d
+
+from utils import path_utils, geometry_utils, random_utils, log_utils
+
+logger = None
 
 
 class SampleMethodException(Exception):
@@ -213,11 +218,11 @@ class ScanPcdGenerator:
         plane.set_border(self.get_border_points(rays))
         return plane
 
-    def get_projection_points(self, theta, camera_height, r, fov_deg):
+    def get_projection_points(self, theta, phi, r, fov_deg):
         """
         Args:
-            theta: 相机在xy平面上与极轴的夹角
-            camera_height: 相机的z值
+            theta: 球坐标天顶角
+            phi: 球坐标方位角
             r: 相机所在球的半径
             fov_deg: 视场角
         Returns:
@@ -225,7 +230,12 @@ class ScanPcdGenerator:
             光线，open3d.Tensor
         """
         # 视点
-        eye = [r * math.cos(theta), camera_height, r * math.sin(theta)]
+        theta_radian = math.radians(theta)
+        phi_radian = math.radians(phi)
+
+        eye = [r * math.sin(theta_radian) * math.cos(phi_radian),
+               r * math.cos(theta_radian),
+               r * math.sin(theta_radian) * math.sin(phi_radian)]
         # 将视点朝向(0, 0, 0)，发射8*8条光线
         rays = self.scene.create_rays_pinhole(fov_deg=fov_deg,
                                               center=[0, 0, 0],
@@ -272,17 +282,6 @@ class ScanPcdGenerator:
         right_up = rays_[row - 1][0]
         right_down = rays_[0][0]
         return left_up, left_down, right_up, right_down
-
-    def get_rays(self, theta, camera_height, r, fov_deg):
-        """获取当前视角的光线"""
-        eye = [r * math.cos(theta), camera_height, r * math.sin(theta)]
-        rays = self.scene.create_rays_pinhole(fov_deg=fov_deg,
-                                              center=[0, 0, 0],
-                                              eye=eye,
-                                              up=[0, 1, 0],
-                                              width_px=self.specs["scan_options"]["width_px"],
-                                              height_px=self.specs["scan_options"]["height_px"])
-        return rays
 
     def visualize_rays_from_projection_points(self, points: np.ndarray, eye: np.ndarray):
         required_data_type = np.ndarray
@@ -332,8 +331,8 @@ class ScanPcdGenerator:
         # 对于每一个点：
         # 以该点为中心，以当前像素尺寸得到一个像素，在像素内随机扩充
         for i in range(points.shape[0]):
-            x_list = random_utils.randNormalFloat(-self.pixel_width/2, self.pixel_width/2, expand_points_num)
-            y_list = random_utils.randNormalFloat(-self.pixel_height/2, self.pixel_height/2, expand_points_num)
+            x_list = random_utils.randNormalFloat(-self.pixel_width / 2, self.pixel_width / 2, expand_points_num)
+            y_list = random_utils.randNormalFloat(-self.pixel_height / 2, self.pixel_height / 2, expand_points_num)
             expanded_points.append(points[i])
             for j in range(expand_points_num):
                 expanded_points.append(points[i]
@@ -348,13 +347,21 @@ class ScanPcdGenerator:
         # 对于每一个点：
         # 以该点为中心，以当前像素尺寸得到一个像素，在像素的四条边上随机选取一个点
         for i in range(points.shape[0]):
-            x_list = random_utils.randNormalFloat(-self.pixel_width/2, self.pixel_width/2, 2)
-            y_list = random_utils.randNormalFloat(-self.pixel_height/2, self.pixel_height/2, 2)
+            x_list = random_utils.randNormalFloat(-self.pixel_width / 2, self.pixel_width / 2, 2)
+            y_list = random_utils.randNormalFloat(-self.pixel_height / 2, self.pixel_height / 2, 2)
             expanded_points.append(points[i])
-            expanded_points.append(points[i] + self.scan_plane.get_dir_left() * self.pixel_width/2 + self.scan_plane.get_dir_up() * y_list[0])
-            expanded_points.append(points[i] + self.scan_plane.get_dir_right() * self.pixel_width/2 + self.scan_plane.get_dir_up() * y_list[1])
-            expanded_points.append(points[i] + self.scan_plane.get_dir_up() * self.pixel_height/2 + self.scan_plane.get_dir_right() * x_list[0])
-            expanded_points.append(points[i] + self.scan_plane.get_dir_down() * self.pixel_height/2 + self.scan_plane.get_dir_right() * x_list[1])
+            expanded_points.append(
+                points[i] + self.scan_plane.get_dir_left() * self.pixel_width / 2 + self.scan_plane.get_dir_up() *
+                y_list[0])
+            expanded_points.append(
+                points[i] + self.scan_plane.get_dir_right() * self.pixel_width / 2 + self.scan_plane.get_dir_up() *
+                y_list[1])
+            expanded_points.append(
+                points[i] + self.scan_plane.get_dir_up() * self.pixel_height / 2 + self.scan_plane.get_dir_right() *
+                x_list[0])
+            expanded_points.append(
+                points[i] + self.scan_plane.get_dir_down() * self.pixel_height / 2 + self.scan_plane.get_dir_right() *
+                x_list[1])
         return np.array(expanded_points).reshape(-1, 3)
 
     def get_points_intersect(self, projection_points: np.ndarray, cast_result):
@@ -370,71 +377,119 @@ class ScanPcdGenerator:
         points_intersect_with_obj2 = np.array(points_intersect_with_obj2).reshape(-1, 3)
         return points_intersect_with_obj1, points_intersect_with_obj2
 
-    def get_current_view_scan_pcd(self, view_index):
+    def is_view_legal(self, points_obj1, points_obj2, cast_result, min_init_point_num, min_init_radius):
+        """
+        判断当前射线求交结果是否满足要求
+        Args:
+            points_obj1: 与obj1相交的射线在投影平面上投影点
+            points_obj2: 与obj2相交的射线在投影平面上投影点
+            cast_result: 射线求交结果
+            legal_point_num: 最小能接受的相交点
+            legal_radius: 最小能接受的外接球半径
+        Returns:
+            当前求交结果是否满足要求
+        """
+        if points_obj1.shape[0] == 0 or points_obj2.shape[0] == 0:
+            return False
+        pcd1, pcd2 = self.get_cur_view_pcd(cast_result)
+        if points_obj1.shape[0] < min_init_point_num:
+            logger.debug(f"points_obj1 not enough, points_num: {points_obj1.shape[0]}")
+            centroid, diameter = geometry_utils.get_pcd_normalize_para(pcd1)
+            if diameter/2 < min_init_radius:
+                logger.debug(f"points_obj1 radius too small, radius: {diameter/2}")
+                return False
+        if points_obj2.shape[0] < min_init_point_num:
+            logger.debug(f"points_obj2 not enough, points_num: {points_obj2.shape[0]}")
+            centroid, diameter = geometry_utils.get_pcd_normalize_para(pcd2)
+            if diameter/2 < min_init_radius:
+                logger.debug(f"points_obj2 radius too small, radius: {diameter/2}")
+                return False
+        return True
+
+    def get_current_view_scan_pcd(self, theta, phi):
         scan_options = self.specs["scan_options"]
-        view_num = scan_options["view_num"]
-        camera_height = scan_options["camera_height"]
         camera_ridius = scan_options["camera_ridius"]
         fov_deg = scan_options["fov_deg"]
+        min_init_point_num = scan_options["min_init_point_num"]
+        min_init_radius = scan_options["min_init_radius"]
         pcd_point_num = scan_options["points_num"]
         pcd_sample_num = 1.5 * pcd_point_num
         assert pcd_sample_num > pcd_point_num
 
         # 按照配置分辨率获取初始光线的相关信息
-        eye, projection_points = self.get_projection_points(theta=2 * math.pi * view_index / view_num,
-                                                            camera_height=camera_height,
+        eye, projection_points = self.get_projection_points(theta=theta,
+                                                            phi=phi,
                                                             r=camera_ridius,
                                                             fov_deg=fov_deg)
         rays = self.get_rays_from_projection_points(eye, projection_points)
         cast_result = self.get_ray_cast_result(rays)
         points_obj1, points_obj2 = self.get_points_intersect(projection_points, cast_result)
+        logger.info("init rays num: {}, intersect with obj1: {}, intersect with obj2: {}"
+                     .format(rays.shape[0], points_obj1.shape[0], points_obj2.shape[0]))
+        # 如果初始射线与模型的交点小于阈值，且交点的外接球半径非常小，则说明遮挡过于严重，直接舍弃
+        if not self.is_view_legal(points_obj1, points_obj2, cast_result, min_init_point_num, min_init_radius):
+            logger.warning("not enough init points, theta: {}, phi: {}".format(theta, phi))
+            return None, None, False
         rays_obj1 = self.get_rays_from_projection_points(eye, points_obj1)
         rays_obj2 = self.get_rays_from_projection_points(eye, points_obj2)
+
         # 细分射线，直到足够的射线与两模型相交
         while points_obj1.shape[0] < pcd_sample_num or points_obj2.shape[0] < pcd_sample_num:
             # 与某个物体相交的光线数量不够，则将原有光线在投影平面上进行扩充
             if points_obj1.shape[0] < pcd_sample_num:
-                print("intersect points with obj1 not enough, cur: {}, target: {}"
-                      .format(points_obj1.shape[0], pcd_sample_num))
+                logger.info("intersect points with obj1 not enough, cur: {}, target: {}"
+                            .format(points_obj1.shape[0], pcd_sample_num))
                 points_obj1 = self.expand_points_in_rectangle(points_obj1)
                 rays_obj1 = self.get_rays_from_projection_points(eye, points_obj1)
             if points_obj2.shape[0] < pcd_sample_num:
-                print("intersect points with obj2 not enough, cur: {}, target: {}"
-                      .format(points_obj2.shape[0], pcd_sample_num))
+                logger.info("intersect points with obj2 not enough, cur: {}, target: {}"
+                            .format(points_obj2.shape[0], pcd_sample_num))
                 points_obj2 = self.expand_points_in_rectangle(points_obj2)
                 rays_obj2 = self.get_rays_from_projection_points(eye, points_obj2)
             # 每次都获取新的rays，重新进行光线求交
             rays = np.concatenate((rays_obj1.numpy(), rays_obj2.numpy()), axis=0)
             rays = o3d.core.Tensor(np.array(rays), dtype=o3d.core.Dtype.Float32)
             cast_result = self.get_ray_cast_result(rays)
-            points_obj1, points_obj2 = self.get_points_intersect(np.concatenate((points_obj1, points_obj2), axis=0), cast_result)
+            points_obj1, points_obj2 = self.get_points_intersect(np.concatenate((points_obj1, points_obj2), axis=0),
+                                                                 cast_result)
             rays_obj1 = self.get_rays_from_projection_points(eye, points_obj1)
             rays_obj2 = self.get_rays_from_projection_points(eye, points_obj2)
 
         # 多采集一些点，然后用fps保证均匀性
-        pcd1, pcd2 = self.get_cur_view_pcd(rays, cast_result)
+        pcd1, pcd2 = self.get_cur_view_pcd(cast_result)
         pcd1 = pcd1.farthest_point_down_sample(pcd_point_num)
         pcd2 = pcd2.farthest_point_down_sample(pcd_point_num)
-        # view_direction = self.get_rays_visualization_single_view(rays)
-        # o3d.visualization.draw_geometries([pcd1, pcd2, view_direction, self.mesh1, self.mesh2])
+        pcd1.paint_uniform_color((0, 0, 1))
+        pcd2.paint_uniform_color((0, 1, 0))
 
-        return pcd1, pcd2
+        sphere = geometry_utils.get_sphere_pcd()
+        coor = geometry_utils.get_unit_coordinate()
+        view_direction = self.get_rays_visualization_single_view(rays)
+        o3d.visualization.draw_geometries([pcd1, pcd2, sphere, view_direction, self.mesh1, self.mesh2]
+                                          , mesh_show_wireframe=True)
+
+        return pcd1, pcd2, True
 
     def generate_scan_pcd(self):
-        scan_options = self.specs["scan_options"]
         pcd1_partial_list = []
         pcd2_partial_list = []
         scan_view_list = []
-        for i in range(scan_options["view_num"]):
-            print("begin generate view {}, total {}".format(i, scan_options["view_num"]))
-            pcd1_scan, pcd2_scan = self.get_current_view_scan_pcd(i)
-            pcd1_partial_list.append(pcd1_scan)
-            pcd2_partial_list.append(pcd2_scan)
-            scan_view_list.append(i)
+        # 球坐标，theta为天顶角，phi为方位角
+        index = 0
+        for theta in [45, 90, 135]:
+            for phi in range(0, 360, 45):
+                logger.info("begin generate theta: {}, phi: {}".format(theta, phi))
+                pcd1_scan, pcd2_scan, success = self.get_current_view_scan_pcd(theta, phi)
+                if not success:
+                    continue
+                pcd1_partial_list.append(pcd1_scan)
+                pcd2_partial_list.append(pcd2_scan)
+                scan_view_list.append(index)
+                index += 1
 
         return pcd1_partial_list, pcd2_partial_list, scan_view_list
 
-    def get_cur_view_pcd(self, rays, cast_result):
+    def get_cur_view_pcd(self, cast_result):
         hit = cast_result['t_hit'].numpy()
         geometry_ids = cast_result["geometry_ids"].numpy()
         primitive_ids = cast_result["primitive_ids"].numpy()
@@ -444,7 +499,7 @@ class ScanPcdGenerator:
         points_pcd2 = []
 
         # 获取光线击中的点
-        for i in range(rays.shape[0]):
+        for i in range(hit.shape[0]):
             if not math.isinf(hit[i]):
                 if geometry_ids[i] == 0:
                     points_pcd1.append(
@@ -460,10 +515,6 @@ class ScanPcdGenerator:
         pcd2_scan = o3d.geometry.PointCloud()
         pcd1_scan.points = o3d.utility.Vector3dVector(points_pcd1)
         pcd2_scan.points = o3d.utility.Vector3dVector(points_pcd2)
-        pcd1_scan = pcd1_scan.farthest_point_down_sample(pcd_sample_options["points_num"])
-        pcd2_scan = pcd2_scan.farthest_point_down_sample(pcd_sample_options["points_num"])
-        pcd1_scan.paint_uniform_color((1, 0, 0))
-        pcd2_scan.paint_uniform_color((0, 1, 0))
 
         return pcd1_scan, pcd2_scan
 
@@ -541,8 +592,6 @@ class TrainDataGenerator:
         self.geometries_path = getGeometriesPath(self.specs, scene)
         self.get_init_geometries()
 
-        # generate single view scan point cloud
-        print("begin generate scan pointcloud")
         pcd1_partial_list, pcd2_partial_list, scan_view_list = self.get_scan_pcd()
 
         if self.specs["visualize"]:
@@ -554,20 +603,24 @@ class TrainDataGenerator:
 
 def my_process(scene, specs):
     process_name = multiprocessing.current_process().name
-    print(f"Running task in process: {process_name}, scene: {scene}")
+    logger.info(f"Running task in process: {process_name}, scene: {scene}")
     trainDataGenerator = TrainDataGenerator(specs)
 
     try:
         trainDataGenerator.handle_scene(scene)
-        print("scene: {} succeed".format(scene))
+        logger.info("scene: {} succeed".format(scene))
     except Exception as e:
-        print("scene: {} failed, exception message: {}".format(scene, e.message))
+        logger.error("scene: {} failed, exception message: {}".format(scene, e.message))
 
 
 if __name__ == '__main__':
     # 获取配置参数
-    config_filepath = 'configs/generateTrainData.json'
+    config_filepath = 'configs/get_scan_pcd.json'
     specs = parseConfig(config_filepath)
+
+    # 日志模块
+    logger = log_utils.get_logger(specs.get("log_options"))
+
     processNum = specs["process_num"]
     # 构建文件树
     filename_tree = path_utils.getFilenameTree(specs, specs["mesh_dir"])
@@ -584,9 +637,9 @@ if __name__ == '__main__':
     trainDataGenerator = TrainDataGenerator(specs)
     # 使用进程池执行任务，返回结果列表
     for scene in scene_list:
-        print("current scene: {}".format(scene))
-        pool.apply_async(my_process, (scene, specs,))
-        # trainDataGenerator.handle_scene(scene)
+        logger.info("current scene: {}".format(scene))
+        # pool.apply_async(my_process, (scene, specs,))
+        trainDataGenerator.handle_scene(scene)
 
     # 关闭进程池
     pool.close()

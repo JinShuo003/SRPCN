@@ -7,7 +7,7 @@ import open3d as o3d
 import re
 import json
 import numpy as np
-from utils.path_utils import getFilenameTree
+from utils.path_utils import get_filename_tree
 
 
 def parseConfig(config_filepath: str = './visualization.json'):
@@ -182,7 +182,7 @@ if __name__ == '__main__':
     config_filepath = 'visualization.json'
     specs = parseConfig(config_filepath)
 
-    filename_tree = getFilenameTree(specs, specs["ibs_pcd_pred_dir"])
+    filename_tree = get_filename_tree(specs, specs["ibs_pcd_pred_dir"])
 
     for category in filename_tree:
         for scene in filename_tree[category]:

@@ -2,34 +2,122 @@ import open3d as o3d
 import numpy as np
 
 
+def read_point_cloud(path):
+    """
+    读取点云
+    Args:
+        path: 点云文件的路径
+    Returns:
+        open3d.PointCloud
+    """
+    pcd = None
+    try:
+        pcd = o3d.io.read_point_cloud(path)
+    except Exception as e:
+        print(e.__str__())
+    return pcd
+
+
+def read_mesh(path):
+    """
+    读取Mesh
+    Args:
+        path: Mesh文件的路径
+    Returns:
+        open3d.TriangleMesh
+    """
+    mesh = None
+    try:
+        mesh = o3d.io.read_point_cloud(path)
+    except Exception as e:
+        print(e)
+    return mesh
+
+
+def get_pcd_from_np(array: np.ndarray):
+    """
+    将(n, 3)的np.ndarray转为open3d.PointCloud
+    Args:
+        array: np.ndarray, shape: (n, 3)
+    Returns:
+        open3d.PointCloud
+    """
+    if array.ndim != 2 or array.shape[1] != 3:
+        return None
+
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(array)
+
+    return pcd
+
+
 def get_pcd_normalize_para(pcd):
+    """
+    求点云的轴对齐包围盒中心点与归一化参数
+    Args:
+        pcd: 点云
+    Returns:
+        centroid: 轴对齐包围盒中心
+        scale: 点云到centroid的最远距离
+    """
     pcd_np = np.asarray(pcd.points)
-    # 求点云的中心
-    centroid = np.mean(pcd_np, axis=0)
-    # 求长轴长度
-    scale = np.max(np.sqrt(np.sum(pcd_np ** 2, axis=1)))
+
+    axis_aligned_bounding_box = pcd.get_axis_aligned_bounding_box()
+    centroid = np.asarray(axis_aligned_bounding_box.get_center())
+    scale = np.max(np.sqrt(np.sum((pcd_np-centroid) ** 2, axis=1)))
     return centroid, scale
 
 
 def geometry_transform(geometry, centroid, scale):
+    """
+    按照归一化参数将open3d.Geometry执行平移和缩放变换
+    Args:
+        geometry: open3d.Geometry
+        centroid: Geometry的轴对齐包围盒中心点
+        scale: Geometry的尺度
+    Returns:
+        归一化后的open3d.geometry，几何中心位于(0, 0, 0)，所有几何元素位于单位球内
+    """
     geometry.translate(-centroid)
     geometry.scale(1 / scale, np.array([0, 0, 0]))
     return geometry
 
 
 def get_sphere_mesh(radius=1.0):
+    """
+    获取半径为radius，格式为open3d.TriangleMesh的球
+    Args:
+        radius: 球半径
+    Returns:
+        r=radius，format=open3d.TriangleMesh的球
+    """
     sphere_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=radius)
     sphere_mesh.compute_vertex_normals()
     return sphere_mesh
 
 
 def get_sphere_pcd(radius=0.5, points_num=256):
+    """
+    获取r=radius，格式为open3d.PointCloud的球
+    Args:
+        radius: 球半径
+        points_num: 点云点数
+    Returns:
+        r=radius，点数=points_num，format=open3d.PointCloud的球
+    """
     sphere_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=radius)
     sphere_pcd = sphere_mesh.sample_points_uniformly(points_num)
     return sphere_pcd
 
 
 def get_unit_coordinate(size=0.5):
+    """
+    获取尺度为size的标准坐标轴
+    Args:
+        size: 坐标轴尺度
+    Returns:
+        尺度为size，format=open3d.TriangleMesh的标准坐标轴
+    """
     coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=size)
     coord_frame.compute_vertex_normals()
     return coord_frame

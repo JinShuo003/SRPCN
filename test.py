@@ -13,7 +13,7 @@ from networks.models import *
 
 import utils.data
 import utils.workspace as ws
-from utils.adapter import buildO3dPcdFromNp
+from utils.geometry_utils import get_pcd_from_np
 
 
 def visualize_data(pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2, specs):
@@ -24,10 +24,10 @@ def visualize_data(pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2, specs):
     pcd2_path2 = pcd2_path2.cpu().detach().numpy()
 
     for i in range(pcd1_path1.shape[0]):
-        pcd1_1 = buildO3dPcdFromNp(pcd1_path1[i])
-        pcd2_1 = buildO3dPcdFromNp(pcd2_path1[i])
-        pcd1_2 = buildO3dPcdFromNp(pcd1_path2[i])
-        pcd2_2 = buildO3dPcdFromNp(pcd2_path2[i])
+        pcd1_1 = get_pcd_from_np(pcd1_path1[i])
+        pcd2_1 = get_pcd_from_np(pcd2_path1[i])
+        pcd1_2 = get_pcd_from_np(pcd1_path2[i])
+        pcd2_2 = get_pcd_from_np(pcd2_path2[i])
 
         pcd1_1.paint_uniform_color([1, 0, 0])
         pcd2_1.paint_uniform_color([0, 1, 0])
@@ -48,7 +48,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = utils.data.InterceptDataset(data_source, test_split, dataloader_cache_capacity)
+    test_dataset = utils.data.IntersectDataset(data_source, test_split, dataloader_cache_capacity)
     
     # get dataloader
     test_dataloader = data_utils.DataLoader(
@@ -86,7 +86,7 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
         filename_final = "{}.ply".format(filename_relative)
         absolute_dir = os.path.join(save_path, filename_final)
 
-        o3d.io.write_point_cloud(absolute_dir, buildO3dPcdFromNp(pcd_np[index]))        
+        o3d.io.write_point_cloud(absolute_dir, get_pcd_from_np(pcd_np[index]))
 
 
 def get_spec_with_default(specs, key, default):

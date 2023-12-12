@@ -93,7 +93,7 @@ class DataCache:
             del self._cache[oldest_filename]
 
 
-class InterceptDataset(torch.utils.data.Dataset):
+class IntersectDataset(torch.utils.data.Dataset):
     def __init__(
             self,
             data_source,

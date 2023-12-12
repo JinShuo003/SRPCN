@@ -4,13 +4,20 @@ import re
 from ordered_set import OrderedSet
 
 
-def parseConfig(config_filepath: str):
+def read_config(config_filepath: str):
+    """
+    读取json格式的配置文件
+    Args:
+        config_filepath: 配置文件路径
+    Returns:
+        dict格式的配置文件
+    """
     with open(config_filepath, 'r') as configfile:
         config = json.load(configfile)
-        return config
+    return config
 
 
-def getFilenameTree(specs: dict, base_path: str):
+def get_filename_tree(specs: dict, base_path: str):
     """以base_path为基准构建文件树，文件树的格式为
     {
     'scene1': {
@@ -22,13 +29,13 @@ def getFilenameTree(specs: dict, base_path: str):
     }
     """
     # 构建文件树
-    category_re = specs["category_re"]
-    scene_re = specs["scene_re"]
-    filename_re = specs["filename_re"]
+    category_re = specs.get("path_options").get("format_info").get("category_re")
+    scene_re = specs.get("path_options").get("format_info").get("scene_re")
+    filename_re = specs.get("path_options").get("format_info").get("filename_re")
 
-    handle_category = specs["handle_category"]
-    handle_scene = specs["handle_scene"]
-    handle_filename = specs["handle_filename"]
+    handle_category = specs.get("path_options").get("format_info").get("handle_category")
+    handle_scene = specs.get("path_options").get("format_info").get("handle_scene")
+    handle_filename = specs.get("path_options").get("format_info").get("handle_filename")
 
     filename_tree = dict()
     folder_info = os.walk(base_path)
@@ -63,7 +70,7 @@ def getFilenameTree(specs: dict, base_path: str):
     return filename_tree_copy
 
 
-def generatePath(path: str):
+def generate_path(path: str):
     if not isinstance(path, str):
         print("The type of path should be str")
     if not os.path.exists(path):
@@ -72,3 +79,45 @@ def generatePath(path: str):
 
 def regular_match(regExp: str, target: str):
     return re.match(regExp, target)
+
+
+def get_geometries_path(specs: dict, scene):
+    path_options = specs.get("path_options")
+
+    category_re = path_options.get("format_info").get("category_re")
+    scene_re = path_options.get("format_info").get("scene_re")
+    category = re.match(category_re, scene).group()
+    scene = re.match(scene_re, scene).group()
+
+    is_mesh1_needed = False
+    is_mesh2_needed = False
+    is_pcd1_needed = False
+    is_pcd2_needed = False
+    if "mesh1" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("mesh1"):
+        is_mesh1_needed = True
+    if "mesh2" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("mesh2"):
+        is_mesh2_needed = True
+    if "pcd1" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("pcd1"):
+        is_pcd1_needed = True
+    if "pcd2" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("pcd2"):
+        is_pcd2_needed = True
+
+    geometries_path = dict()
+    if is_mesh1_needed:
+        mesh_dir = path_options.get("geometries_dir").get("mesh_dir")
+        mesh1_filename = '{}_{}.obj'.format(scene, 0)
+        geometries_path['mesh1'] = os.path.join(mesh_dir, category, mesh1_filename)
+    if is_mesh2_needed:
+        mesh_dir = path_options.get("geometries_dir").get("mesh_dir")
+        mesh2_filename = '{}_{}.obj'.format(scene, 1)
+        geometries_path['mesh2'] = os.path.join(mesh_dir, category, mesh2_filename)
+    if is_pcd1_needed:
+        pcd_dir = path_options.get("geometries_dir").get("pcd_dir")
+        pcd1_filename = '{}_{}.ply'.format(scene, 0)
+        geometries_path['pcd1'] = os.path.join(pcd_dir, category, pcd1_filename)
+    if is_pcd2_needed:
+        pcd_dir = path_options.get("geometries_dir").get("pcd_dir")
+        pcd2_filename = '{}_{}.ply'.format(scene, 1)
+        geometries_path['pcd2'] = os.path.join(pcd_dir, category, pcd2_filename)
+
+    return geometries_path

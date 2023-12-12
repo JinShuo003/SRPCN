@@ -60,8 +60,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = utils.data.InterceptDataset(data_source, train_split, dataloader_cache_capacity)
-    test_dataset = utils.data.InterceptDataset(data_source, test_split, dataloader_cache_capacity)
+    train_dataset = utils.data.IntersectDataset(data_source, train_split, dataloader_cache_capacity)
+    test_dataset = utils.data.IntersectDataset(data_source, test_split, dataloader_cache_capacity)
 
     logging.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
     logging.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
@@ -275,7 +275,7 @@ def main_function(experiment_config_file):
 
 if __name__ == '__main__':
     import argparse
-    from utils.cmd import add_common_args
+    from utils.cmd_utils import add_common_args
     from utils.logging import configure_logging
 
     arg_parser = argparse.ArgumentParser(description="Train a IBS Net")

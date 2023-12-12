@@ -48,7 +48,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = utils.data.InterceptDataset(data_source, test_split, dataloader_cache_capacity)
+    test_dataset = utils.data.IntersectDataset(data_source, test_split, dataloader_cache_capacity)
     
     # get dataloader
     test_dataloader = data_utils.DataLoader(

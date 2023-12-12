@@ -17,7 +17,7 @@ import numpy as np
 import multiprocessing
 import json
 
-from utils.path_utils import getFilenameTree
+from utils.path_utils import get_filename_tree
 from utils.geometry_reader import read_point_cloud, read_mesh
 
 
@@ -156,7 +156,7 @@ if __name__ == '__main__':
     config_filepath = 'configs/generateMedialAxis.json'
     specs = parseConfig(config_filepath)
     # 构建文件树
-    filename_tree = getFilenameTree(specs, specs["IBS_dir"])
+    filename_tree = get_filename_tree(specs, specs["IBS_dir"])
     # 处理文件夹，不存在则创建
     generatePath(specs, ["MedialAxis_save_dir"])
 

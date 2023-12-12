@@ -1,4 +1,5 @@
 import logging
+import os.path
 
 
 def get_logger(log_options: dict):
@@ -7,7 +8,7 @@ def get_logger(log_options: dict):
 
     if log_options.get("out_to_file"):
         file_log_options = log_options.get("file_log_options")
-        file_handler = logging.FileHandler(file_log_options.get("file_path"))
+        file_handler = logging.FileHandler(file_log_options.get("file_path"), mode="w")
         file_handler.setLevel(level=file_log_options.get("log_level"))
         if file_log_options.get("is_need_formatter"):
             formatter = logging.Formatter(file_log_options.get("formatter"))
@@ -25,3 +26,15 @@ def get_logger(log_options: dict):
 
     return logger
 
+
+def add_file_handler(logger, log_path, log_file_name):
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    file_handler = logging.FileHandler(os.path.join(log_path, log_file_name), mode="w")
+    file_handler.setLevel(level=logging.INFO)
+    logger.addHandler(file_handler)
+    return file_handler
+
+
+def remove_file_handler(logger, file_handler):
+    logger.removeHandler(file_handler)

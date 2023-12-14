@@ -89,9 +89,10 @@ def get_dataloader(specs):
 
 def get_network(specs):
     pcd_point_num = specs["PcdPointNum"]
+    IBS_point_num = specs["IBSPointNum"]
     device = specs["Device"]
 
-    net = PCDCompletionNet(pcd_point_num)
+    net = PCDCompletionNet(pcd_point_num, IBS_point_num)
 
     if torch.cuda.is_available():
         net = net.to(device)
@@ -115,16 +116,14 @@ def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
 
     tensorboard_writer = SummaryWriter(writer_path)
 
-    input_pcd1_shape = torch.randn(1, 512, 3)
-    input_pcd2_shape = torch.randn(1, 512, 3)
+    input_pcd_shape = torch.randn(1, 4096, 3)
     input_IBS_shape = torch.randn(1, 512, 3)
 
     if torch.cuda.is_available():
-        input_pcd1_shape = input_pcd1_shape.to(device)
-        input_pcd2_shape = input_pcd2_shape.to(device)
+        input_pcd_shape = input_pcd_shape.to(device)
         input_IBS_shape = input_IBS_shape.to(device)
 
-    tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape, input_IBS_shape))
+    tensorboard_writer.add_graph(network, (input_pcd_shape, input_IBS_shape))
 
     return tensorboard_writer
 
@@ -143,8 +142,8 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     para_save_dir = specs["ParaSaveDir"]
     train_split_file = specs["TrainSplit"]
     device = specs["Device"]
-    loss_weight_cd = specs["LossSpecs"]["WeightCD"]
-    loss_weight_emd = specs["LossSpecs"]["WeightEMD"]
+    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
+    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
 
     loss_cd = networks.loss.cdModule()
     loss_emd = networks.loss.emdModule()
@@ -157,6 +156,8 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in sdf_train_loader:
         pcd1 = pcd1.to(device)
         pcd2 = pcd2.to(device)
+        pcd1gt = pcd1gt.to(device)
+        pcd2gt = pcd2gt.to(device)
         IBS = IBS.to(device)
 
         # visualize_data1(pcd1, pcd2, IBS, pcd1gt, pcd2gt)
@@ -164,10 +165,10 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
         pcd2_out = network(pcd2, IBS)
 
         # loss between out and groundtruth
-        loss_cd_pcd1 = loss_cd(pcd1, pcd1_out)
-        loss_cd_pcd2 = loss_cd(pcd2, pcd2_out)
-        loss_emd_pcd1 = loss_emd(pcd1, pcd1_out)
-        loss_emd_pcd2 = loss_emd(pcd2, pcd2_out)
+        loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
+        loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
+        loss_emd_pcd1 = torch.mean(loss_emd(pcd1gt, pcd1_out)[0])
+        loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
 
         batch_loss = loss_weight_cd * (loss_cd_pcd1 + loss_cd_pcd2) + loss_weight_emd * (loss_emd_pcd1 + loss_emd_pcd2)
 
@@ -204,19 +205,20 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
         for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in test_dataloader:
             pcd1 = pcd1.to(device)
             pcd2 = pcd2.to(device)
+            pcd1gt = pcd1gt.to(device)
+            pcd2gt = pcd2gt.to(device)
             IBS = IBS.to(device)
 
             # visualize_data1(pcd1, pcd2, xyz, udf_gt1, udf_gt2)
             pcd1_out = network(pcd1, IBS)
             pcd2_out = network(pcd2, IBS)
 
-            loss_cd_pcd1 = loss_cd(pcd1, pcd1_out)
-            loss_cd_pcd2 = loss_cd(pcd2, pcd2_out)
-            loss_emd_pcd1 = loss_emd(pcd1, pcd1_out)
-            loss_emd_pcd2 = loss_emd(pcd2, pcd2_out)
+            loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
+            loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
+            loss_emd_pcd1 = torch.mean(loss_emd(pcd1gt, pcd1_out)[0])
+            loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
 
-            batch_loss = loss_weight_cd * (loss_cd_pcd1 + loss_cd_pcd2) + loss_weight_emd * (
-                        loss_emd_pcd1 + loss_emd_pcd2)
+            batch_loss = loss_weight_cd * (loss_cd_pcd1 + loss_cd_pcd2) + loss_weight_emd * (loss_emd_pcd1 + loss_emd_pcd2)
 
             test_total_loss += batch_loss.item()
 
@@ -256,7 +258,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train.json",
+        default="configs/specs/specs_train_single_object.json",
         required=False,
         help="The experiment config file."
     )

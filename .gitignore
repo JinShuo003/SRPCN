@@ -9,3 +9,4 @@
 *.ply
 generate_train_data/logs
 *.log
+/data

@@ -104,7 +104,7 @@ class final_mlp(nn.Module):
 
 
 class TopNet_decoder(nn.Module):
-    def __init__(self, arch=[4, 4, 8, 8]):
+    def __init__(self, arch=[4, 4, 4, 8, 8]):
         super(TopNet_decoder, self).__init__()
         self.arch = arch
         self.level_num = len(arch)
@@ -112,6 +112,8 @@ class TopNet_decoder(nn.Module):
         self.level_2 = nn.ModuleList()
         self.level_3 = nn.ModuleList()
         self.level_4 = nn.ModuleList()
+        self.level_5 = nn.ModuleList()
+
         # construct tree
         for _ in range(arch[0]):
             self.level_1.append(mlp(512, 8))
@@ -120,7 +122,9 @@ class TopNet_decoder(nn.Module):
         for _ in range(arch[2]):
             self.level_3.append(mlp(512 + 8, 8))
         for _ in range(arch[3]):
-            self.level_4.append(final_mlp(512 + 8, 3))
+            self.level_4.append(mlp(512 + 8, 8))
+        for _ in range(arch[4]):
+            self.level_5.append(final_mlp(512 + 8, 3))
 
     def forward(self, x):
         features_1 = []
@@ -137,8 +141,12 @@ class TopNet_decoder(nn.Module):
         features_4 = []
         for feat in features_3:
             for net in self.level_4:
-                features_4.append(net(feat))
-        pc = torch.cat(features_4, dim=2)
+                features_4.append(torch.cat([net(feat), x], dim=1))
+        features_5 = []
+        for feat in features_4:
+            for net in self.level_5:
+                features_5.append(net(feat))
+        pc = torch.cat(features_5, dim=2)
         return pc
 
 
@@ -184,11 +192,11 @@ class TopNet_decoder(nn.Module):
 
 
 class PCDCompletionNet(nn.Module):
-    def __init__(self, pcd_point_num):
+    def __init__(self, pcd_point_num, IBS_point_num):
         super().__init__()
         # encoder
         self.encoder_pcd = PCN_encoder(pcd_point_num)
-        self.encoder_IBS = PCN_encoder(pcd_point_num)
+        self.encoder_IBS = PCN_encoder(IBS_point_num)
         # feature transform
         self.feature_transform = Feature_transfrom()
         # decoder
@@ -210,6 +218,6 @@ class PCDCompletionNet(nn.Module):
         feature_global = self.feature_transform(feature_global)
 
         # decode
-        pcd_out = self.decoder_path1_pcd1(feature_global).permute(0, 2, 1)
+        pcd_out = self.decoder(feature_global).permute(0, 2, 1)
 
         return pcd_out

@@ -95,7 +95,7 @@ class emdModule(nn.Module):
     def __init__(self):
         super(emdModule, self).__init__()
 
-    def forward(self, input1, input2, eps, iters):
+    def forward(self, input1, input2, eps=0.005, iters=50):
         return emdFunction.apply(input1, input2, eps, iters)
 
 

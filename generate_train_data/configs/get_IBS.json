@@ -1,0 +1,14 @@
+{
+  "pcd_dir": "D:\\dataset\\IBSNet\\trainData\\pcdScan",
+  "ibs_mesh_save_dir": "D:\\dataset\\IBSNet\\evaluateData\\IBS_mesh_scan",
+
+  "category_re": "scene\\d",
+  "scene_re": "scene\\d.\\d{4}",
+  "filename_re": "scene\\d.\\d{4}_view\\d*",
+
+  "handle_category": "scene\\d",
+  "handle_scene": "scene\\d.\\d{4}",
+  "handle_filename": "scene\\d.\\d{4}_view\\d*",
+
+  "scale_IOU_ibs": 2
+}

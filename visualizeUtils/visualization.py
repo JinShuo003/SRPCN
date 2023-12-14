@@ -1,13 +1,13 @@
 """
 可视化工具，配置好./config/visualization.json后可以可视化mesh模型、点云、位于模型表面和IBS表面的sdf点、各自和总体的aabb框、交互区域gt
 """
+import json
 import os
+import re
 
 import open3d as o3d
-import re
-import json
-import numpy as np
-from utils.path_utils import get_filename_tree
+
+from utils import geometry_utils, path_utils
 
 
 def parseConfig(config_filepath: str = './visualization.json'):
@@ -18,22 +18,22 @@ def parseConfig(config_filepath: str = './visualization.json'):
 
 
 def getGeometryPath(specs, filename):
-    scene_re = specs["scene_re"]
-    category_re = specs["category_re"]
-    filename_re = specs["filename_re"]
+    scene_re = specs.get("path_options").get("format_info").get("scene_re")
+    category_re = specs.get("path_options").get("format_info").get("category_re")
+    filename_re = specs.get("path_options").get("format_info").get("filename_re")
     category = re.match(category_re, filename).group()
     scene = re.match(scene_re, filename).group()
     filename = re.match(filename_re, filename).group()
 
     geometry_path = dict()
 
-    mesh_dir = specs['mesh_dir']
-    ibs_mesh_gt_dir = specs['ibs_mesh_gt_dir']
-    ibs_pcd_gt_dir = specs['ibs_pcd_gt_dir']
-    ibs_pcd_pred_dir = specs['ibs_pcd_pred_dir']
-    pcd_gt_dir = specs['pcd_gt_dir']
-    pcd_scan_dir = specs['pcd_scan_dir']
-    pcd_pred_dir = specs['pcd_pred_dir']
+    mesh_dir = specs.get("path_options").get("geometries_dir").get("mesh_dir")
+    ibs_mesh_gt_dir = specs.get("path_options").get("geometries_dir").get("ibs_mesh_gt_dir")
+    ibs_pcd_gt_dir = specs.get("path_options").get("geometries_dir").get("ibs_pcd_gt_dir")
+    ibs_pcd_pred_dir = specs.get("path_options").get("geometries_dir").get("ibs_pcd_pred_dir")
+    pcd_gt_dir = specs.get("path_options").get("geometries_dir").get("pcd_gt_dir")
+    pcd_scan_dir = specs.get("path_options").get("geometries_dir").get("pcd_scan_dir")
+    pcd_pred_dir = specs.get("path_options").get("geometries_dir").get("pcd_pred_dir")
 
     mesh1_filename = '{}_{}.obj'.format(scene, 0)
     mesh2_filename = '{}_{}.obj'.format(scene, 1)
@@ -72,16 +72,6 @@ def getGeometryColor(specs):
 def getGeometryOption(specs):
     geometry_color_dict = specs["visualization_options"]["geometries"]
     return geometry_color_dict
-
-
-def get_unit_sphere_pcd():
-    mesh_sphere = o3d.geometry.TriangleMesh.create_sphere(radius=0.5)
-    pcd = mesh_sphere.sample_points_uniformly(256)
-    return pcd
-
-
-def get_coordinate():
-    return o3d.geometry.TriangleMesh.create_coordinate_frame(size=1.0)
 
 
 class GeometryHandler:
@@ -153,8 +143,8 @@ def visualize(specs, filename):
     pcd1_pred = pcdGetter().get(geometry_path['pcd1_pred'], geometry_color['pcd1_pred'], geometry_option["pcd1_pred"])
     pcd2_pred = pcdGetter().get(geometry_path['pcd2_pred'], geometry_color['pcd2_pred'], geometry_option["pcd2_pred"])
 
-    coord_frame = get_coordinate()
-    unit_sphere_pcd = get_unit_sphere_pcd()
+    coord_frame = geometry_utils.get_unit_coordinate(size=1)
+    unit_sphere_pcd = geometry_utils.get_sphere_pcd(radius=1)
 
     container['mesh1'] = mesh1
     container['mesh2'] = mesh2
@@ -182,7 +172,7 @@ if __name__ == '__main__':
     config_filepath = 'visualization.json'
     specs = parseConfig(config_filepath)
 
-    filename_tree = get_filename_tree(specs, specs["ibs_pcd_pred_dir"])
+    filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("mesh_dir"))
 
     for category in filename_tree:
         for scene in filename_tree[category]:

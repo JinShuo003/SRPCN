@@ -7,4 +7,5 @@
 /test_result
 *.pth
 *.ply
-*/logs
+generate_train_data/logs
+*.log

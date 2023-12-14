@@ -340,35 +340,38 @@ class ScanPcdGenerator:
         cast_result = self.get_ray_cast_result(self.scene, rays)  # 射线求交结果
         points_obj1, points_obj2 = self.get_points_intersect(projection_points, cast_result)  # 与obj1、obj2相交的射线投影点
         self.logger.info("init rays num: {}, intersect with obj1: {}, intersect with obj2: {}"
-                    .format(rays.shape[0], points_obj1.shape[0], points_obj2.shape[0]))
+                         .format(rays.shape[0], points_obj1.shape[0], points_obj2.shape[0]))
         # 判断初始结果是否满足采集条件
         if not self.is_view_legal(points_obj1, points_obj2):
             self.logger.warning("not enough init points, theta: {}, phi: {}".format(theta, phi))
             return None, None, False
         rays_obj1 = self.get_rays_from_projection_points(eye, points_obj1)
         rays_obj2 = self.get_rays_from_projection_points(eye, points_obj2)
+        self.visualize_rays(eye, rays_obj2)
 
         # 迭代地在相交的局部增大分辨率，直到足够的射线与两模型相交
         while points_obj1.shape[0] < pcd_sample_num or points_obj2.shape[0] < pcd_sample_num:
             # 与某个物体相交的光线数量不够，则将原有光线在投影平面上进行扩充
             if points_obj1.shape[0] < pcd_sample_num:
                 self.logger.info("intersect points with obj1 not enough, cur: {}, target: {}"
-                            .format(points_obj1.shape[0], pcd_sample_num))
+                                 .format(points_obj1.shape[0], pcd_sample_num))
                 points_obj1 = self.expand_points_in_rectangle(expand_points_num,
                                                               self.pixel_width,
                                                               self.pixel_height,
                                                               self.scan_plane,
                                                               points_obj1)
                 rays_obj1 = self.get_rays_from_projection_points(eye, points_obj1)
+                # self.visualize_rays(eye, rays_obj1)
             if points_obj2.shape[0] < pcd_sample_num:
                 self.logger.info("intersect points with obj2 not enough, cur: {}, target: {}"
-                            .format(points_obj2.shape[0], pcd_sample_num))
+                                 .format(points_obj2.shape[0], pcd_sample_num))
                 points_obj2 = self.expand_points_in_rectangle(expand_points_num,
                                                               self.pixel_width,
                                                               self.pixel_height,
                                                               self.scan_plane,
                                                               points_obj2)
                 rays_obj2 = self.get_rays_from_projection_points(eye, points_obj2)
+                self.visualize_rays(eye, rays_obj2)
             # 每轮都将来自obj1和来自obj2的射线拼接在一起，重新进行射线求交
             rays = np.concatenate((rays_obj1.numpy(), rays_obj2.numpy()), axis=0)
             rays = o3d.core.Tensor(np.array(rays), dtype=o3d.core.Dtype.Float32)
@@ -395,6 +398,7 @@ class ScanPcdGenerator:
         index = 0
         for theta in [45, 90, 135]:
             for phi in range(0, 360, 45):
+                self.logger.info("\n")
                 self.logger.info("begin generate theta: {}, phi: {}".format(theta, phi))
                 pcd1_scan, pcd2_scan, success = self.get_current_view_scan_pcd(theta, phi)
                 if not success:
@@ -521,7 +525,7 @@ class TrainDataGenerator:
 def my_process(scene, specs):
     _logger = logging.getLogger()
     _logger.setLevel("INFO")
-    file_handler = log_utils.add_file_handler(_logger, "logs", f"{scene}.log")
+    file_handler = log_utils.add_file_handler(_logger, "logs/get_scan_pcd_logs", f"{scene}.log")
 
     process_name = multiprocessing.current_process().name
     _logger.info(f"Running task in process: {process_name}, scene: {scene}")
@@ -537,7 +541,7 @@ def my_process(scene, specs):
 
 
 if __name__ == '__main__':
-    config_filepath = 'get_scan_pcd.json'
+    config_filepath = 'configs/get_scan_pcd.json'
     specs = path_utils.read_config(config_filepath)
 
     logger = log_utils.get_logger(specs.get("log_options"))
@@ -558,6 +562,11 @@ if __name__ == '__main__':
         logger.info("current scene: {}".format(scene))
         pool.apply_async(my_process, (scene, specs, ))
 
-    # 关闭进程池
     pool.close()
     pool.join()
+
+    # trainDataGenerator = TrainDataGenerator(specs, logger)
+    #
+    # for scene in scene_list:
+    #     logger.info("current scene: {}".format(scene))
+    #     trainDataGenerator.handle_scene(scene)

@@ -108,12 +108,13 @@ class Visualizer:
     def __init__(self):
         pass
 
-    def visualize_rays_from_projection_points(self, eye: np.ndarray, points: np.ndarray):
+    def visualize_rays_from_projection_points(self, eye: np.ndarray, points: np.ndarray, geometries):
         """
         可视化光线
         Args:
             eye: 视点
             points: 投影平面上的投影点
+            geometries: 其他几何体
         """
         _eye = eye.reshape(1, 3)
         required_data_type = np.ndarray
@@ -134,20 +135,22 @@ class Visualizer:
         lines_pcd.lines = o3d.utility.Vector2iVector(lines)
         lines_pcd.colors = o3d.utility.Vector3dVector(colors)  # 线条颜色
         lines_pcd.points = o3d.utility.Vector3dVector(points)
-        sphere = geometry_utils.get_sphere_pcd()
-        o3d.visualization.draw_geometries([lines_pcd, sphere, self.mesh1, self.mesh2], mesh_show_wireframe=True)
 
-    def visualize_rays(self, eye, rays):
+        geometries.append(lines_pcd)
+        o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True)
+
+    def visualize_rays(self, eye, rays, geometries):
         """
         可视化射线
         Args:
             eye: 视点
             rays: 射线
+            geometries: 其他需要显示的几何体
         """
         points = [eye]
         rays_np = rays.numpy()
         for i in range(rays_np.shape[0]):
-            points.append(eye + 2 * rays_np[i][3:6])
+            points.append(eye + 3 * rays_np[i][3:6])
         points = np.array(points).reshape(-1, 3)
         lines = [[0, i] for i in range(1, points.shape[0])]
         colors = [[1, 0, 0] for i in range(lines.__len__())]
@@ -155,29 +158,14 @@ class Visualizer:
         lines_pcd.lines = o3d.utility.Vector2iVector(lines)
         lines_pcd.colors = o3d.utility.Vector3dVector(colors)  # 线条颜色
         lines_pcd.points = o3d.utility.Vector3dVector(points)
-        sphere = geometry_utils.get_sphere_pcd()
-        o3d.visualization.draw_geometries([lines_pcd, sphere, self.mesh1, self.mesh2], mesh_show_wireframe=True)
 
-    def get_rays_visualization(self, rays):
-        """获取所有的光线"""
-        rays_ = rays.numpy()
-        eye = rays_[0][0:3]
-        rays_ = rays_[:, 3:6]
-        points = []
-        points.append(eye)
-        for i in range(rays_.shape[0]):
-            points.append(rays_[i] + eye)
-        points = np.array(points)
-        lines = [[0, i] for i in range(1, points.shape[0])]
-        colors = [[1, 0, 0] for i in range(lines.__len__())]
-        lines_pcd = o3d.geometry.LineSet()
-        lines_pcd.lines = o3d.utility.Vector2iVector(lines)
-        lines_pcd.colors = o3d.utility.Vector3dVector(colors)  # 线条颜色
-        lines_pcd.points = o3d.utility.Vector3dVector(points)
+        geometries.append(lines_pcd)
+        o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True)
 
-        return lines_pcd
+    def visualize_geometries(self, geometries):
+        o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True)
 
-    def get_rays_visualization_single_view(self, rays):
+    def get_view_direction(self, rays):
         """获取eye到坐标原点的连线，表示当前视角的方向向量"""
         eye = rays.numpy()[0][0:3].reshape(1, 3)
         lines_pcd = o3d.geometry.LineSet()
@@ -205,6 +193,7 @@ class ScanPcdGenerator:
         self.resolution_height = self.specs["scan_options"]["resolution_height"]
         self.pixel_width = 0
         self.pixel_height = 0
+        self.visualizer = Visualizer()
 
     def get_ray_casting_scene(self):
         """初始化光线追踪场景"""
@@ -242,10 +231,10 @@ class ScanPcdGenerator:
         """
         direction = rays.numpy()[:, :, 3:6]
         row, col, _ = direction.shape
-        left_up = eye + 2 * direction[row - 1][col - 1]
-        left_down = eye + 2 * direction[0][col - 1]
-        right_up = eye + 2 * direction[row - 1][0]
-        right_down = eye + 2 * direction[0][0]
+        left_up = eye + 3 * direction[row - 1][col - 1]
+        left_down = eye + 3 * direction[0][col - 1]
+        right_up = eye + 3 * direction[row - 1][0]
+        right_down = eye + 3 * direction[0][0]
         return left_up, left_down, right_up, right_down
 
     def build_plane(self, eye, rays):
@@ -459,6 +448,7 @@ class ScanPcdGenerator:
                                        self.resolution_width,
                                        self.resolution_height)  # 投影点
         rays = self.get_rays_from_projection_points(eye, projection_points)  # 射线
+        # self.visualizer.visualize_rays(eye, rays, self.mesh1, self.mesh2, geometry_utils.get_sphere_pcd(1))
         cast_result = self.get_ray_cast_result(self.scene, rays)  # 射线求交结果
         points_obj1, points_obj2 = self.get_points_intersect(projection_points, cast_result)  # 与obj1、obj2相交的射线投影点
         self.logger.info("init rays num: {}, intersect with obj1: {}, intersect with obj2: {}"
@@ -469,7 +459,6 @@ class ScanPcdGenerator:
             return None, None, False
         rays_obj1 = self.get_rays_from_projection_points(eye, points_obj1)
         rays_obj2 = self.get_rays_from_projection_points(eye, points_obj2)
-        # self.visualize_rays(eye, rays_obj2)
 
         # 迭代地在相交的局部增大分辨率，直到足够的射线与两模型相交
         while points_obj1.shape[0] < pcd_sample_num or points_obj2.shape[0] < pcd_sample_num:
@@ -567,7 +556,7 @@ class TrainDataGenerator:
                 [pcd1_partial_list[i], pcd2_partial_list[i], coor, sphere],
                 window_name="{}".format(scan_view_list[i]))
 
-    def save_pcd(specs, pcd1_list, pcd2_list, view_index_list, scene):
+    def save_pcd(self, specs, pcd1_list, pcd2_list, view_index_list, scene):
         """
         保存点云数据
         Args:
@@ -611,12 +600,13 @@ class TrainDataGenerator:
             self.visualize_result(pcd1_partial_list, pcd2_partial_list, scan_view_list)
 
         self.save_pcd(self.specs, pcd1_partial_list, pcd2_partial_list, scan_view_list, scene)
+        self.logger.info("current scene saved successfully")
 
 
 def my_process(scene, specs):
     _logger = logging.getLogger()
     _logger.setLevel("INFO")
-    file_handler = log_utils.add_file_handler(_logger, "logs/get_scan_pcd_logs", f"{scene}.log")
+    file_handler = log_utils.add_file_handler(_logger, "logs/get_scan_pcd", f"{scene}.log")
 
     process_name = multiprocessing.current_process().name
     _logger.info(f"Running task in process: {process_name}, scene: {scene}")

@@ -26,13 +26,13 @@
   "visualization_options": {
     "sdf_threshold": 0.003,
     "geometries": {
-      "mesh1": true,
-      "mesh2": true,
-      "ibs_mesh_gt": true,
+      "mesh1": false,
+      "mesh2": false,
+      "ibs_mesh_gt": false,
       "ibs_pcd_gt": false,
       "ibs_pcd_pred": false,
-      "pcd1_gt": false,
-      "pcd2_gt": false,
+      "pcd1_gt": true,
+      "pcd2_gt": true,
       "pcd1_scan": false,
       "pcd2_scan": false,
       "pcd1_pred": false,

@@ -25,8 +25,8 @@ def begin_analyze(log_dir, patten):
 
 
 if __name__ == '__main__':
-    log_dir = "logs/get_pcd_from_mesh"
-    patten = ".*fail.*"
+    log_dir = "logs/get_scan_pcd_logs"
+    patten = ".*not enough init points.*"
 
     arg_parser = argparse.ArgumentParser(description="Analyze log line by line")
     arg_parser.add_argument(

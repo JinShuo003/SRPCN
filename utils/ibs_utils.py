@@ -112,7 +112,7 @@ class IBSMesh(IBS):
         self.resamplings = resamplings
         self.improve_by_collision = improve_by_collision
 
-    def execute(self, tri_mesh_env, tri_mesh_obj ):
+    def execute(self, tri_mesh_env, tri_mesh_obj):
         np_cloud_env_poisson = sample_points_poisson_disk(tri_mesh_env, self.init_size_sampling)
         np_cloud_obj_poisson = sample_points_poisson_disk(tri_mesh_obj, self.init_size_sampling)
 

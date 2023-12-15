@@ -221,10 +221,14 @@ if __name__ == '__main__':
         for scene in filename_tree[category]:
             scene_list.append(scene)
 
-    # 使用进程池执行任务，返回结果列表
-    for scene in scene_list:
-        pool.apply_async(my_process, (scene, specs,))
+    # # 使用进程池执行任务，返回结果列表
+    # for scene in scene_list:
+    #     pool.apply_async(my_process, (scene, specs,))
+    #
+    # # 关闭进程池
+    # pool.close()
+    # pool.join()
 
-    # 关闭进程池
-    pool.close()
-    pool.join()
+    trainDataGenerator = TrainDataGenerator(specs)
+    for scene in scene_list:
+        trainDataGenerator.handle_scene(scene)

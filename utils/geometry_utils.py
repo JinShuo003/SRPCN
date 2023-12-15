@@ -1,5 +1,6 @@
 import open3d as o3d
 import numpy as np
+import trimesh
 
 
 def read_point_cloud(path):
@@ -28,7 +29,7 @@ def read_mesh(path):
     """
     mesh = None
     try:
-        mesh = o3d.io.read_point_cloud(path)
+        mesh = o3d.io.read_triangle_mesh(path)
     except Exception as e:
         print(e)
     return mesh
@@ -96,7 +97,7 @@ def get_sphere_mesh(radius=1.0):
     return sphere_mesh
 
 
-def get_sphere_pcd(radius=0.5, points_num=256):
+def get_sphere_pcd(radius=1, points_num=256):
     """
     获取r=radius，格式为open3d.PointCloud的球
     Args:
@@ -110,7 +111,7 @@ def get_sphere_pcd(radius=0.5, points_num=256):
     return sphere_pcd
 
 
-def get_unit_coordinate(size=0.5):
+def get_unit_coordinate(size=1):
     """
     获取尺度为size的标准坐标轴
     Args:
@@ -123,4 +124,18 @@ def get_unit_coordinate(size=0.5):
     return coord_frame
 
 
+def o3d2trimesh(o3d_mesh):
+    vertices = np.asarray(o3d_mesh.vertices)
+    triangles = np.asarray(o3d_mesh.triangles)
+    tri_mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
+    return tri_mesh
 
+
+def trimesh2o3d(tri_mesh):
+    vertices = tri_mesh.vertices
+    triangles = tri_mesh.faces
+
+    o3d_mesh = o3d.geometry.TriangleMesh()
+    o3d_mesh.vertices = o3d.utility.Vector3dVector(vertices)
+    o3d_mesh.triangles = o3d.utility.Vector3iVector(triangles)
+    return o3d_mesh

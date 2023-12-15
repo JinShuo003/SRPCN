@@ -1,6 +1,8 @@
 import logging
 import os.path
 
+from utils import path_utils
+
 
 def get_logger(log_options: dict):
     logger = logging.getLogger(log_options.get("logger_name"))
@@ -8,6 +10,7 @@ def get_logger(log_options: dict):
 
     if log_options.get("out_to_file"):
         file_log_options = log_options.get("file_log_options")
+        path_utils.generate_path(os.path.split(file_log_options.get("file_path"))[0])
         file_handler = logging.FileHandler(file_log_options.get("file_path"), mode="w")
         file_handler.setLevel(level=file_log_options.get("log_level"))
         if file_log_options.get("is_need_formatter"):

@@ -2,9 +2,7 @@
   "path_options": {
       "required_geometry": {
         "mesh1": true,
-        "mesh2": true,
-        "pcd1_origin": true,
-        "pcd2_origin": true
+        "mesh2": true
       },
       "geometries_dir": {
         "mesh_dir": "D:\\dataset\\IBPCDC\\mesh"
@@ -17,21 +15,21 @@
         "handle_scene": "scene\\d.\\d{4}",
         "handle_filename": "scene\\d.\\d{4}"
       },
-      "pcd_partial_save_dir": "D:\\dataset\\IBPCDC\\pcdScan\\partial_scan_pcd_4096"
+      "pcd_partial_save_dir": "D:\\dataset\\IBPCDC\\pcdScan\\pcd_partial_2048"
   },
 
   "save_data": true,
-  "visualize": true,
-  "process_num": 1,
+  "visualize": false,
+  "process_num": 3,
 
   "scan_options": {
-    "camera_ridius": 1,
+    "camera_ridius": 2,
     "fov_deg": 70,
-    "resolution_width": 16,
-    "resolution_height": 16,
+    "resolution_width": 256,
+    "resolution_height": 256,
     "min_init_point_num": 30,
     "min_init_radius": 0.01,
-    "points_num": 1024,
+    "points_num": 2048,
     "expand_points_num": 5
   },
 
@@ -41,8 +39,8 @@
     "out_to_file": true,
     "out_to_console": true,
     "file_log_options": {
-      "file_path": "get_scan_pcd.log",
-      "log_level": "DEBUG",
+      "file_path": "logs/get_scan_pcd/get_scan_pcd.log",
+      "log_level": "INFO",
       "is_need_formatter": false,
       "formatter": "%(asctime)s - %(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s"
     },

@@ -25,7 +25,7 @@ def begin_analyze(log_dir, patten):
 
 
 if __name__ == '__main__':
-    log_dir = "logs/get_scan_pcd_logs"
+    log_dir = "logs/get_scan_pcd"
     patten = ".*not enough init points.*"
 
     arg_parser = argparse.ArgumentParser(description="Analyze log line by line")

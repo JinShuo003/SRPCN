@@ -20,7 +20,7 @@
 
   "save_data": true,
   "visualize": false,
-  "process_num": 3,
+  "process_num": 5,
 
   "scan_options": {
     "camera_ridius": 2,

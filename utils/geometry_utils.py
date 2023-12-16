@@ -1,5 +1,6 @@
 import open3d as o3d
 import numpy as np
+import open3d.cpu.pybind.geometry
 import trimesh
 
 
@@ -61,9 +62,12 @@ def get_pcd_normalize_para(pcd):
         centroid: 轴对齐包围盒中心
         scale: 点云到centroid的最远距离
     """
-    pcd_np = np.asarray(pcd.points)
-
-    axis_aligned_bounding_box = pcd.get_axis_aligned_bounding_box()
+    pcd_o3d = pcd
+    if isinstance(pcd, np.ndarray):
+        pcd_o3d = open3d.geometry.PointCloud()
+        pcd_o3d.points = open3d.utility.Vector3dVector(pcd)
+    pcd_np = np.asarray(pcd_o3d.points)
+    axis_aligned_bounding_box = pcd_o3d.get_axis_aligned_bounding_box()
     centroid = np.asarray(axis_aligned_bounding_box.get_center())
     scale = np.max(np.sqrt(np.sum((pcd_np-centroid) ** 2, axis=1)))
     return centroid, scale

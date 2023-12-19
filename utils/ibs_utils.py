@@ -1,197 +1,261 @@
-import numpy as np
-from scipy.spatial import Voronoi
-import open3d as o3d
+import random
 
+import libibs
+import numpy as np
+import open3d as o3d
+import pyvista as pv
 import trimesh
 
-
-def sample_points_poisson_disk(tri_mesh, number_of_points, init_factor=5):
-    o3d_mesh = o3d.geometry.TriangleMesh()
-    o3d_mesh.vertices = o3d.utility.Vector3dVector(tri_mesh.vertices)
-    o3d_mesh.triangles = o3d.utility.Vector3iVector(tri_mesh.faces)
-
-    od3_cloud_poisson = o3d.geometry.TriangleMesh.sample_points_poisson_disk(o3d_mesh, number_of_points, init_factor)
-
-    return np.asarray(od3_cloud_poisson.points)
+from utils import geometry_utils
+from utils.geometry_utils import trimesh2o3d, get_pcd_from_np
 
 
 class IBS:
+    def __init__(self, trimesh_obj1, trimesh_obj2, logger=None):
+        self.logger = logger
 
-    def __init__(self, np_cloud_env, np_cloud_obj):
+        self.log_info("begin subdevide mesh1")
+        self.trimesh_obj1 = self._subdevide_mesh(trimesh_obj1, 0.05)
+        self.log_info("end subdevide mesh1")
 
-        self.size_cloud_env = np_cloud_env.shape[0]
-        size_cloud_obj = np_cloud_obj.shape[0]
+        self.log_info("begin subdevide mesh2")
+        self.trimesh_obj2 = self._subdevide_mesh(trimesh_obj2, 0.05)
+        self.log_info("end subdevide mesh2")
 
-        self.points = np.empty((self.size_cloud_env + size_cloud_obj, 3), np.float64)
-        self.points[:self.size_cloud_env] = np_cloud_env
-        self.points[self.size_cloud_env:] = np_cloud_obj
+        self.o3d_obj1 = trimesh2o3d(self.trimesh_obj1)
+        self.o3d_obj2 = trimesh2o3d(self.trimesh_obj2)
 
-        self.voro = Voronoi(self.points)
+        self.log_info("begin sample points")
+        self.points1 = self._sample_points_poisson_disk(self.trimesh_obj1, 2048)
+        self.points2 = self._sample_points_poisson_disk(self.trimesh_obj2, 2048)
+        self.log_info("end sample points")
 
-        self.generate_ibs_structure()
+        self.log_info("begin get clip border")
+        self.border_sphere_center, self.border_sphere_radius = self._get_clip_border()
+        self.border_sphere_radius *= 2
+        self.log_info("end get clip border")
 
-    def generate_ibs_structure(self):
-        env_idx_vertices = []
-        obj_idx_vertices = []
+        self.ibs = None
+        self.log_info("create_ibs_mesh begin")
+        self._create_ibs_mesh()
+        self.log_info("create_ibs_mesh end")
 
-        # check the region formed around point in the environment
-        # point_region : Index of the Voronoi region for each input point
-        for env_idx_region in self.voro.point_region[:self.size_cloud_env]:
-            # voronoi region of environment point
-            # regions: Indices of the Voronoi vertices forming each Voronoi region
-            env_idx_vertices.extend(self.voro.regions[env_idx_region])
+    def log_info(self, msg: str):
+        if self.logger is None:
+            return
+        self.logger.info(msg)
 
-        for obj_idx_region in self.voro.point_region[self.size_cloud_env:]:
-            # voronoi region of object point
-            obj_idx_vertices.extend(self.voro.regions[obj_idx_region])
-
-        env_idx_vertices = set(env_idx_vertices)
-        obj_idx_vertices = set(obj_idx_vertices)
-
-        idx_ibs_vertices = list(env_idx_vertices.intersection(obj_idx_vertices))
-        # idx_ibs_vertices.sort(reverse=True)
-
-        # avoid index "-1" for vertices extraction
-        # valid_index = list(filter(lambda idx: idx != -1, idx_ibs_vertices))
-        # valid_index = [idx for idx in idx_ibs_vertices if idx != -1]
-        try:
-            idx_ibs_vertices.pop(idx_ibs_vertices.index(-1))
-            self.vertices = self.voro.vertices[idx_ibs_vertices]
-        except ValueError as e:
-            self.vertices = self.voro.vertices[idx_ibs_vertices]
-
-        points_in_voronoi = np.full(len(self.voro.vertices)+1, False, dtype=bool)
-        points_in_voronoi[idx_ibs_vertices] = True
-        points_in_voronoi[-1]=True # this is for the -1 value (vertex on the infinite)
-        points_in_voronoi_mapping_to = np.empty(len(self.voro.vertices)+1, dtype=int)
-        for idx in range(len(idx_ibs_vertices)):
-            points_in_voronoi_mapping_to[ idx_ibs_vertices[idx] ] = idx
-        points_in_voronoi_mapping_to[-1] = -1
-
-        # generate ridge vertices lists
-        self.ridge_vertices = []  # Indices of the Voronoi vertices forming each Voronoi ridge
-        self.ridge_points = []  # Indices of the points between which each Voronoi ridge lie
-        for i in range(len(self.voro.ridge_vertices)):
-
-            ridge = self.voro.ridge_vertices[i]
-            #print("ridge "+len(self.voro.ridge_vertices[i])+", ridge_points" + len(self.voro.ridge_points) )
-            # only process ridges in which all vertices are defined in ridges defined by Voronoi
-            if all(points_in_voronoi[ridge]):
-                mapped_idx_ridge = points_in_voronoi_mapping_to[ridge]
-                self.ridge_vertices.append(tuple(mapped_idx_ridge))
-
-                ridge_points = self.voro.ridge_points[i]
-                self.ridge_points.append(ridge_points)
-
-    def get_trimesh(self):
-        tri_faces = []
-        for ridge in self.ridge_vertices:
-            if -1 in ridge:
-                continue
-            l_ridge = len(ridge)
-            if l_ridge ==3:
-                tri_faces.append(ridge)
-            else:
-                for pos in range(l_ridge - 2):
-                    tri_faces.append((ridge[-1], ridge[pos], ridge[pos + 1]))
-
-        mesh = trimesh.Trimesh(vertices=self.vertices, faces=tri_faces)
-        mesh.fix_normals()
-
-        return mesh
-
-
-class IBSMesh(IBS):
-
-    init_size_sampling = -1
-    resamplings = -1
-    improve_by_collision = -1
-
-    def __init__(self, init_size_sampling=400, resamplings=4, improve_by_collision=True):
-        self.init_size_sampling = init_size_sampling
-        self.resamplings = resamplings
-        self.improve_by_collision = improve_by_collision
-
-    def execute(self, tri_mesh_env, tri_mesh_obj):
-        np_cloud_env_poisson = sample_points_poisson_disk(tri_mesh_env, self.init_size_sampling)
-        np_cloud_obj_poisson = sample_points_poisson_disk(tri_mesh_obj, self.init_size_sampling)
-
-        np_cloud_obj = self.__project_points_in_sampled_mesh(tri_mesh_obj, np_cloud_obj_poisson, np_cloud_env_poisson)
-        np_cloud_env = self.__project_points_in_sampled_mesh(tri_mesh_env, np_cloud_env_poisson, np_cloud_obj)
-
-        for i in range(1, self.resamplings):
-            np_cloud_obj = self.__project_points_in_sampled_mesh(tri_mesh_obj, np_cloud_obj, np_cloud_env)
-            np_cloud_env = self.__project_points_in_sampled_mesh(tri_mesh_env, np_cloud_env, np_cloud_obj)
-
-        if self.improve_by_collision:
-
-            self.__improve_sampling_by_collision_test(tri_mesh_env, tri_mesh_obj, np_cloud_env, np_cloud_obj)
-
+    def _get_clip_border(self):
+        pcd1 = get_pcd_from_np(self.points1)
+        pcd2 = get_pcd_from_np(self.points2)
+        center1, radius1 = geometry_utils.get_pcd_normalize_para(pcd1)
+        center2, radius2 = geometry_utils.get_pcd_normalize_para(pcd2)
+        if radius1 < radius2:
+            return center1, radius1
         else:
+            return center2, radius2
 
-            super(IBSMesh, self).__init__(np_cloud_env, np_cloud_obj)
+    def _subdevide_mesh(self, trimesh_obj, max_edge):
+        """
+        将mesh进行细分，直到所有edge都小于max_edge
+        """
+        vertices, faces = trimesh.remesh.subdivide_to_size(trimesh_obj.vertices, trimesh_obj.faces, max_edge)
+        return trimesh.Trimesh(vertices, faces, process=True)
 
-    def __improve_sampling_by_collision_test(self, tri_mesh_env, tri_mesh_obj, np_cloud_env, np_cloud_obj):
+    def _get_current_ibs(self):
+        """
+        计算ibs，求出两物体外接球中较小的那个，作为截断边界
+        """
+        n0 = len(self.points1)
+        n1 = len(self.points2)
 
+        n2 = (n0 + n1) // 10
+        shell = fibonacci_sphere(n2)
+        shell = shell * self.border_sphere_radius + self.border_sphere_center
+
+        points = np.concatenate([
+            self.points1,
+            self.points2]).astype('float32')
+
+        points = np.concatenate([points, shell])
+        ids = np.zeros(n0 + n1 + n2).astype('int32')
+        ids[n0:] = 1
+        ids[n0 + n1:] = 2
+
+        v, f, p = libibs.create_ibs(np.concatenate([points]), ids)
+        f = f[~(p >= n0 + n1).any(axis=-1)]
+
+        ibs = pv.make_tri_mesh(v, f)
+
+        self.ibs = trimesh.Trimesh(ibs.points, ibs.faces.reshape(-1, 4)[:, 1:], process=False)
+        self.ibs.remove_unreferenced_vertices()
+
+    def _create_ibs_mesh(self):
         collision_tester = trimesh.collision.CollisionManager()
-        collision_tester.add_object('env', tri_mesh_env)
-        collision_tester.add_object('obj', tri_mesh_obj)
+        collision_tester.add_object('obj1', self.trimesh_obj1)
+        collision_tester.add_object('obj2', self.trimesh_obj2)
         in_collision = True
 
-        while in_collision:
+        max_iterate_time = 10
+        iterate_time = 0
 
-            super(IBSMesh, self).__init__(np_cloud_env, np_cloud_obj)
+        contact_points_obj1 = []
+        contact_points_obj2 = []
+        while in_collision and iterate_time < max_iterate_time:
+            contact_points_obj1 = []
+            contact_points_obj2 = []
 
-            tri_mesh_ibs = self.get_trimesh()
-
-            in_collision, data = collision_tester.in_collision_single(tri_mesh_ibs, return_data=True)
-
+            self._get_current_ibs()
+            in_collision, data = collision_tester.in_collision_single(self.ibs, return_data=True)
             if not in_collision:
                 break
 
-            print("------------------ ")
-            print("contact points: ", len(data))
-
-            contact_points_obj = []
-            contact_points_env = []
+            self.log_info("iterate {}".format(iterate_time))
 
             for i in range(len(data)):
-                if "env" in data[i].names:
-                    contact_points_env.append(data[i].point)
-                if "obj" in data[i].names:
-                    contact_points_obj.append(data[i].point)
+                if "obj1" in data[i].names:
+                    contact_points_obj1.append(data[i].point)
+                if "obj2" in data[i].names:
+                    contact_points_obj2.append(data[i].point)
 
-            if len(contact_points_env) > 0:
-                np_contact_points_env = np.unique(np.asarray(contact_points_env), axis=0)
-                np_cloud_env = np.concatenate((np_cloud_env, np_contact_points_env))
+            if len(contact_points_obj1) > 0 or len(contact_points_obj2) > 0:
+                iterate_time += 1
 
-            if len(contact_points_obj) > 0:
-                np_contact_points_obj = np.unique(np.asarray(contact_points_obj), axis=0)
-                np_cloud_obj = np.concatenate((np_cloud_obj, np_contact_points_obj))
+            np_contact_points_obj1 = np.array(contact_points_obj1)
+            np_contact_points_obj2 = np.array(contact_points_obj2)
 
-            if len(contact_points_env) > 0:
-                np_cloud_obj = self.__project_points_in_sampled_mesh(tri_mesh_obj, np_cloud_obj, np_contact_points_env)
+            if len(contact_points_obj1) > 0:
+                self.log_info("collision occured in obj1, size: {}".format(len(contact_points_obj1)))
+                points = self._resample_points(self.trimesh_obj1, np_contact_points_obj1, np_contact_points_obj2)
+                if points.shape[0] != 0:
+                    self.points1 = np.concatenate((self.points1, points), axis=0)
 
-            if len(contact_points_obj) > 0:
-                np_cloud_env = self.__project_points_in_sampled_mesh(tri_mesh_env, np_cloud_env, np_contact_points_obj)
+            if len(contact_points_obj2) > 0:
+                self.log_info("collision occured in obj2, size: {}".format(len(contact_points_obj2)))
+                points = self._resample_points(self.trimesh_obj2, np_contact_points_obj2, np_contact_points_obj1)
+                self.points2 = np.concatenate((self.points2, points), axis=0)
 
-    def __project_points_in_sampled_mesh(self, tri_mesh_sampled, np_sample, np_to_project):
-        if np_to_project.shape[0] == 0:
-            return np_sample
+        if iterate_time == max_iterate_time:
+            self.log_info("create ibs failed after {} iterates, concat with obj1: {}, obj2: {}".
+                          format(max_iterate_time, len(contact_points_obj1), len(contact_points_obj2)))
 
-        (nearest_points, __, __) = tri_mesh_sampled.nearest.on_surface(np_to_project)
+    def _resample_points(self, trimesh_obj1, contact_points_obj1, contact_points_obj2):
+        """
+        在obj1上进行再次散点
+        """
+        # 在截断mesh上散点
+        resample_points_clip_mesh = self._resample_points_on_clip_mesh(trimesh_obj1, contact_points_obj1)
+        # 将obj2的碰撞点投影到obj1的mesh上
+        resample_points_projection = self._resample_with_projection(trimesh_obj1, contact_points_obj2)
+        return np.concatenate((resample_points_clip_mesh, resample_points_projection), axis=0)
 
-        np_new_sample = np.empty((len(np_sample) + len(nearest_points), 3))
+    def _resample_points_on_clip_mesh(self, trimesh_obj, contact_points_obj):
+        """
+        根据碰撞情况截取mesh，并在截取后的模型上散点
+        """
+        pcd_contact_obj = get_pcd_from_np(np.array(contact_points_obj))
+        centroid, radius = geometry_utils.get_pcd_normalize_para(pcd_contact_obj)
+        sphere = pv.Sphere(radius, centroid)
+        pv_obj = geometry_utils.trimesh2pyvista(trimesh_obj)
+        mesh_clip = geometry_utils.pyvista2o3d(pv_obj.clip_surface(sphere, invert=True))
+        if np.asarray(mesh_clip.triangles).shape[0] == 0:
+            return np.array([]).reshape(-1, 3)
+        points = np.asarray(mesh_clip.sample_points_poisson_disk(128).points)
+        return np.unique(points, axis=0)
 
-        np_new_sample[:len(np_sample)] = np_sample
-        np_new_sample[len(np_sample):] = nearest_points
-        np_new_sample = np.unique(np_new_sample, axis=0)
+    def _resample_with_projection(self, trimesh_obj1, contact_points_obj2):
+        """
+        将obj2的碰撞点投影到obj1
+        """
+        if contact_points_obj2.shape[0] == 0:
+            return np.array([]).reshape(-1, 3)
+        (nearest_points, __, __) = trimesh_obj1.nearest.on_surface(contact_points_obj2)
+        return np.unique(nearest_points, axis=0)
 
-        return np_new_sample
+    def _sample_points_in_sphere(self, o3d_mesh, centroid, radius, points_num):
+        points = []
+        sphere = geometry_utils.get_sphere_pcd(centroid, radius)
+        sphere.paint_uniform_color((1, 0, 0))
+        while len(points) < points_num:
+            random_points = np.asarray(o3d_mesh.sample_points_uniformly(5*points_num).points)
+            pcd = get_pcd_from_np(random_points)
+            pcd.paint_uniform_color((0, 1, 0))
+            self._visualize([pcd, sphere])
+            distances = np.linalg.norm(random_points - centroid, axis=1)
+            indices_inside = np.where(distances <= radius)[0]
+            points_inside = random_points[indices_inside]
+            pcd_inside = get_pcd_from_np(points_inside)
+            pcd_inside.paint_uniform_color((0, 1, 0))
+            self._visualize([pcd_inside, sphere])
+            points += points_inside.tolist()
 
-    def get_info(self):
-        info = {}
-        info['init_size_sampling'] = self.init_size_sampling
-        info['resamplings'] = self.resamplings
-        info['improve_by_collision'] = self.improve_by_collision
-        return info
+        points = np.array(random.sample(points, points_num))
+        return points
+
+    def _sample_points_with_dist_weight(self, trimesh_obj1: trimesh.Trimesh, trimesh_obj2: trimesh.Trimesh,
+                                        points_num: int):
+        """
+        从Mesh中进行带权的点云采样，距离另一个物体越近权重越大
+        """
+        init_points_num = 2*points_num
+        o3d_obj1 = trimesh2o3d(trimesh_obj1)
+        o3d_obj2 = trimesh2o3d(trimesh_obj2)
+        sample_points1 = np.asarray(o3d_obj1.sample_points_poisson_disk(init_points_num).points)
+        sample_points2 = np.asarray(o3d_obj2.sample_points_poisson_disk(init_points_num).points)
+
+        weights1 = 1 / abs(trimesh.proximity.signed_distance(trimesh_obj2, sample_points1))
+        weights2 = 1 / abs(trimesh.proximity.signed_distance(trimesh_obj1, sample_points2))
+        weights1 /= sum(weights1)
+        weights2 /= sum(weights2)
+
+        sample_points1_idx = np.random.choice(range(init_points_num), points_num, False, weights1)
+        sample_points2_idx = np.random.choice(range(init_points_num), points_num, False, weights2)
+        sample_points1 = sample_points1[sample_points1_idx]
+        sample_points2 = sample_points2[sample_points2_idx]
+
+        return sample_points1, sample_points2
+
+    def _sample_points_poisson_disk(self, trimesh_obj, points_num):
+        o3d_mesh = trimesh2o3d(trimesh_obj)
+        pcd = o3d_mesh.sample_points_poisson_disk(points_num)
+        return np.asarray(pcd.points)
+
+    def _visualize(self, geometries: list):
+        o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True, mesh_show_back_face=True)
+
+
+def fibonacci_sphere(n=48, offset=False):
+    """Sample points on sphere using fibonacci spiral.
+
+    # http://extremelearning.com.au/how-to-evenly-distribute-points-on-a-sphere-more-effectively-than-the-canonical-fibonacci-lattice/
+
+    :param int n: number of sample points, defaults to 48
+    :param bool offset: set True to get more uniform samplings when n is large , defaults to False
+    :return array: points samples
+    """
+
+    golden_ratio = (1 + 5 ** 0.5) / 2
+    i = np.arange(0, n)
+    theta = 2 * np.pi * i / golden_ratio
+
+    if offset:
+        if n >= 600000:
+            epsilon = 214
+        elif n >= 400000:
+            epsilon = 75
+        elif n >= 11000:
+            epsilon = 27
+        elif n >= 890:
+            epsilon = 10
+        elif n >= 177:
+            epsilon = 3.33
+        elif n >= 24:
+            epsilon = 1.33
+        else:
+            epsilon = 0.33
+        phi = np.arccos(1 - 2 * (i + epsilon) / (n - 1 + 2 * epsilon))
+    else:
+        phi = np.arccos(1 - 2 * (i + 0.5) / n)
+
+    x = np.stack([np.cos(theta) * np.sin(phi), np.sin(theta) * np.sin(phi), np.cos(phi)], axis=-1)
+    return x

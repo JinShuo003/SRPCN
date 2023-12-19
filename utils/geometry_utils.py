@@ -2,6 +2,7 @@ import open3d as o3d
 import numpy as np
 import open3d.cpu.pybind.geometry
 import trimesh
+import pyvista as pv
 
 
 def read_point_cloud(path):
@@ -101,16 +102,17 @@ def get_sphere_mesh(radius=1.0):
     return sphere_mesh
 
 
-def get_sphere_pcd(radius=1, points_num=256):
+def get_sphere_pcd(center=(0, 0, 0), radius=1, points_num=256):
     """
     获取r=radius，格式为open3d.PointCloud的球
     Args:
+        center: 球心
         radius: 球半径
         points_num: 点云点数
     Returns:
         r=radius，点数=points_num，format=open3d.PointCloud的球
     """
-    sphere_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=radius)
+    sphere_mesh = pyvista2o3d(pv.Sphere(radius, center))
     sphere_pcd = sphere_mesh.sample_points_uniformly(points_num)
     return sphere_pcd
 
@@ -131,15 +133,32 @@ def get_unit_coordinate(size=1):
 def o3d2trimesh(o3d_mesh):
     vertices = np.asarray(o3d_mesh.vertices)
     triangles = np.asarray(o3d_mesh.triangles)
-    tri_mesh = trimesh.Trimesh(vertices=vertices, faces=triangles)
-    return tri_mesh
+    trimesh_obj = trimesh.Trimesh(vertices=vertices, faces=triangles)
+    return trimesh_obj
 
 
-def trimesh2o3d(tri_mesh):
-    vertices = tri_mesh.vertices
-    triangles = tri_mesh.faces
+def trimesh2o3d(trimesh_obj):
+    vertices = trimesh_obj.vertices
+    triangles = trimesh_obj.faces
 
     o3d_mesh = o3d.geometry.TriangleMesh()
     o3d_mesh.vertices = o3d.utility.Vector3dVector(vertices)
     o3d_mesh.triangles = o3d.utility.Vector3iVector(triangles)
     return o3d_mesh
+
+
+def pyvista2trimesh(pyvista_polydata):
+    pyvista_polydata = pyvista_polydata.triangulate()
+    return trimesh.Trimesh(pyvista_polydata.points, pyvista_polydata.faces.reshape(-1, 4)[:, 1:], process=False)
+
+
+def trimesh2pyvista(trimesh_obj):
+    return pv.make_tri_mesh(trimesh_obj.vertices, trimesh_obj.faces)
+
+
+def pyvista2o3d(pyvista_polydata):
+    return trimesh2o3d(pyvista2trimesh(pyvista_polydata))
+
+
+def o3d2pyvista(o3d_mesh):
+    return trimesh2pyvista(o3d2trimesh(o3d_mesh))

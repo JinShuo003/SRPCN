@@ -1,5 +1,5 @@
 """
-从mesh上随机散点，采用possion disk算法
+从Mesh上采集点云
 """
 import logging
 import multiprocessing
@@ -8,17 +8,6 @@ import re
 
 import open3d as o3d
 from utils import path_utils, log_utils
-
-
-def generatePath(specs: dict, path_list: list):
-    """检查specs中的path是否存在，不存在则创建"""
-    for path in path_list:
-        if not os.path.isdir(specs[path]):
-            os.makedirs(specs[path])
-
-
-def regular_match(regExp: str, target: str):
-    return re.match(regExp, target)
 
 
 def save_pcd(specs, scene, pcd:tuple):

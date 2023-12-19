@@ -1,5 +1,5 @@
 """
-根据./config/generateDataset.json中的设置，划分测试集、训练集，并保存划分好的结果
+划分测试集、训练集，输出划分结果
 """
 import json
 import os

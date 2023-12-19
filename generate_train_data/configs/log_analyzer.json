@@ -1,0 +1,4 @@
+{
+  "log_dir": "logs/get_IBS",
+  "patten": ".*create ibs failed.*"
+}

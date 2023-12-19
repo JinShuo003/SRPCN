@@ -3,6 +3,7 @@ import os
 import logging
 import re
 
+import utils.path_utils
 
 logger = None
 
@@ -25,8 +26,9 @@ def begin_analyze(log_dir, patten):
 
 
 if __name__ == '__main__':
-    log_dir = "logs/get_scan_pcd"
-    patten = ".*not enough init points.*"
+    specs = utils.path_utils.read_config("configs/log_analyzer.json")
+    log_dir = specs.get("log_dir")
+    patten = specs.get("patten")
 
     arg_parser = argparse.ArgumentParser(description="Analyze log line by line")
     arg_parser.add_argument(

@@ -8,12 +8,12 @@ import re
 
 import open3d as o3d
 
-from utils import geometry_utils, path_utils, ibs_utils, log_utils
+from utils import geometry_utils, path_utils, ibs_utils
 
 
 def save_ibs_mesh(specs, scene, ibs_mesh_o3d):
-    mesh_dir = specs['ibs_mesh_save_dir']
-    category = re.match(specs['category_re'], scene).group()
+    mesh_dir = specs.get("path_options").get("ibs_mesh_save_dir")
+    category = re.match(specs.get("path_options").get("format_info").get("category_re"), scene).group()
     # mesh_dir+category不存在则创建目录
     if not os.path.isdir(os.path.join(mesh_dir, category)):
         os.makedirs(os.path.join(mesh_dir, category))
@@ -31,38 +31,40 @@ class TrainDataGenerator:
     def get_ibs_mesh_o3d(self, geometries_path: dict):
         mesh1 = geometry_utils.read_mesh(geometries_path["mesh1"])
         mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
+        pcd1 = geometry_utils.read_point_cloud(geometries_path["pcd1"])
+        pcd2 = geometry_utils.read_point_cloud(geometries_path["pcd2"])
 
-        mesh1_trimesh = geometry_utils.o3d2trimesh(mesh1)
-        mesh2_trimesh = geometry_utils.o3d2trimesh(mesh2)
+        ibs = ibs_utils.IBS(geometry_utils.o3d2trimesh(mesh1), geometry_utils.o3d2trimesh(mesh2), self.logger)
+        ibs_o3d = geometry_utils.trimesh2o3d(ibs.ibs)
 
-        ibs = ibs_utils.IBSMesh(init_size_sampling=256,
-                                resamplings=5,
-                                improve_by_collision=True)
-        ibs.execute(mesh1_trimesh, mesh2_trimesh)
-        ibs_mesh_o3d = geometry_utils.trimesh2o3d(ibs.get_trimesh())
-
-        mesh1.paint_uniform_color((1, 0, 0))
-        mesh2.paint_uniform_color((0, 1, 0))
-        ibs_mesh_o3d.paint_uniform_color((0, 0, 1))
-
-        o3d.visualization.draw_geometries([mesh1, mesh2, ibs_mesh_o3d], mesh_show_wireframe=True)
-
-        return ibs_mesh_o3d
+        return ibs_o3d
 
     def handle_scene(self, scene):
-        """处理当前场景，包括采集多角度的残缺点云、计算直接法和间接法网络的sdf gt、计算残缺点云下的ibs"""
-        # ------------------------------获取点云数据，包括完整点云和各个视角的残缺点云--------------------------
         geometries_path = path_utils.get_geometries_path(self.specs, scene)
         ibs_mesh_o3d = self.get_ibs_mesh_o3d(geometries_path)
 
         save_ibs_mesh(self.specs, scene, ibs_mesh_o3d)
 
 
-def my_process(scene, specs):
+def get_logger(scene: str):
     _logger = logging.getLogger()
     _logger.setLevel("INFO")
-    file_handler = log_utils.add_file_handler(_logger, "logs/get_IBS", f"{scene}.log")
+    log_path = "logs/get_IBS/{}.log"
+    path_utils.generate_path(os.path.split(log_path)[0])
 
+    file_handler = logging.FileHandler(log_path.format(scene), mode="w")
+    file_handler.setLevel(level=logging.INFO)
+    _logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(level=logging.INFO)
+    _logger.addHandler(stream_handler)
+
+    return _logger, file_handler, stream_handler
+
+
+def my_process(scene, specs):
+    _logger, file_handler, stream_handler = get_logger(scene)
     process_name = multiprocessing.current_process().name
     _logger.info(f"Running task in process: {process_name}, scene: {scene}")
     trainDataGenerator = TrainDataGenerator(specs, _logger)
@@ -73,7 +75,8 @@ def my_process(scene, specs):
     except Exception as e:
         _logger.error("scene: {} failed, exception message: {}".format(scene, e.message))
     finally:
-        log_utils.remove_file_handler(_logger, file_handler)
+        _logger.removeHandler(file_handler)
+        _logger.removeHandler(stream_handler)
 
 
 if __name__ == '__main__':
@@ -82,7 +85,13 @@ if __name__ == '__main__':
     filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("mesh_dir"))
     path_utils.generate_path(specs.get("path_options").get("ibs_mesh_save_dir"))
 
-    pool = multiprocessing.Pool(processes=8)
+    logger = logging.getLogger("get_IBS")
+    logger.setLevel("INFO")
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(level=logging.INFO)
+    logger.addHandler(stream_handler)
+
+    pool = multiprocessing.Pool(processes=specs.get("processNum"))
 
     # 参数
     view_list = []
@@ -91,16 +100,21 @@ if __name__ == '__main__':
             for filename in filename_tree[category][scene]:
                 view_list.append(filename)
 
-    # for filename in view_list:
-    #     category_num = int(filename[5])-1
-    #     pool.apply_async(my_process, (filename, specs))
-    #
-    # # 关闭进程池
-    # pool.close()
-    # pool.join()
-
-    trainDataGenerator = TrainDataGenerator(specs, None)
     for filename in view_list:
-        category_num = int(filename[5])-1
-        trainDataGenerator.handle_scene(filename)
+        logger.info("current scene: {}".format(filename))
+        pool.apply_async(my_process, (filename, specs))
+
+    # 关闭进程池
+    pool.close()
+    pool.join()
+
+    # for filename in view_list:
+    #     logger.info("current scene: {}".format(filename))
+    #     _logger, file_handler, stream_handler = get_logger(filename)
+    #
+    #     trainDataGenerator = TrainDataGenerator(specs, _logger)
+    #     trainDataGenerator.handle_scene(filename)
+    #
+    #     _logger.removeHandler(file_handler)
+    #     _logger.removeHandler(stream_handler)
 

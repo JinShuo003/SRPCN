@@ -1,4 +1,6 @@
+import functools
 import random
+import time
 
 import libibs
 import numpy as np
@@ -10,35 +12,50 @@ from utils import geometry_utils
 from utils.geometry_utils import trimesh2o3d, get_pcd_from_np
 
 
+class Log:
+    def __init__(self, logger, text=""):
+        self.logger = logger
+        self.text = text
+
+    def __enter__(self):
+        self.begin_time = time.time()
+        if self.logger is not None:
+            self.logger.info("begin {}".format(self.text))
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.end_time = time.time()
+        if self.logger is not None:
+            self.logger.info("end {}, coast time: {}".format(self.text, self.end_time - self.begin_time))
+            self.logger.info("")
+
+
 class IBS:
-    def __init__(self, trimesh_obj1, trimesh_obj2, logger=None):
+    def __init__(self, trimesh_obj1, trimesh_obj2, subdevide_max_edge=0.05, sample_num=2048,
+                 sample_method="poisson_disk", clip_border_ratio=2, logger=None):
+
+        self.sample_num = sample_num
+        self.sample_method = sample_method
         self.logger = logger
 
-        self.log_info("begin subdevide mesh1")
-        self.trimesh_obj1 = self._subdevide_mesh(trimesh_obj1, 0.05)
-        self.log_info("end subdevide mesh1")
+        with Log(self.logger, "subdivide mesh1"):
+            self.trimesh_obj1 = self._subdevide_mesh(trimesh_obj1, subdevide_max_edge)
 
-        self.log_info("begin subdevide mesh2")
-        self.trimesh_obj2 = self._subdevide_mesh(trimesh_obj2, 0.05)
-        self.log_info("end subdevide mesh2")
+        with Log(self.logger, "subdivide mesh2"):
+            self.trimesh_obj2 = self._subdevide_mesh(trimesh_obj2, subdevide_max_edge)
 
         self.o3d_obj1 = trimesh2o3d(self.trimesh_obj1)
         self.o3d_obj2 = trimesh2o3d(self.trimesh_obj2)
 
-        self.log_info("begin sample points")
-        self.points1 = self._sample_points_poisson_disk(self.trimesh_obj1, 2048)
-        self.points2 = self._sample_points_poisson_disk(self.trimesh_obj2, 2048)
-        self.log_info("end sample points")
+        with Log(self.logger, "get init sample points"):
+            self.points1, self.points2 = self._sample_points(self.trimesh_obj1, self.trimesh_obj2, self.sample_num)
 
-        self.log_info("begin get clip border")
-        self.border_sphere_center, self.border_sphere_radius = self._get_clip_border()
-        self.border_sphere_radius *= 2
-        self.log_info("end get clip border")
+        with Log(self.logger, "get clip border"):
+            self.border_sphere_center, self.border_sphere_radius = self._get_clip_border()
+            self.border_sphere_radius *= clip_border_ratio
 
         self.ibs = None
-        self.log_info("create_ibs_mesh begin")
-        self._create_ibs_mesh()
-        self.log_info("create_ibs_mesh end")
+        with Log(self.logger, "create ibs"):
+            self._create_ibs_mesh()
 
     def log_info(self, msg: str):
         if self.logger is None:
@@ -106,6 +123,12 @@ class IBS:
             contact_points_obj2 = []
 
             self._get_current_ibs()
+            # ibs_o3d = trimesh2o3d(self.ibs)
+            # ibs_o3d.paint_uniform_color((1, 0, 0))
+            # self.o3d_obj1.paint_uniform_color((0, 1, 0))
+            # self.o3d_obj2.paint_uniform_color((0, 0, 1))
+            # self._visualize([ibs_o3d, self.o3d_obj1])
+
             in_collision, data = collision_tester.in_collision_single(self.ibs, return_data=True)
             if not in_collision:
                 break
@@ -177,7 +200,7 @@ class IBS:
         sphere = geometry_utils.get_sphere_pcd(centroid, radius)
         sphere.paint_uniform_color((1, 0, 0))
         while len(points) < points_num:
-            random_points = np.asarray(o3d_mesh.sample_points_uniformly(5*points_num).points)
+            random_points = np.asarray(o3d_mesh.sample_points_uniformly(5 * points_num).points)
             pcd = get_pcd_from_np(random_points)
             pcd.paint_uniform_color((0, 1, 0))
             self._visualize([pcd, sphere])
@@ -192,12 +215,24 @@ class IBS:
         points = np.array(random.sample(points, points_num))
         return points
 
+    def _sample_points(self, trimesh_obj1: trimesh.Trimesh, trimesh_obj2: trimesh.Trimesh, points_num: int):
+        if self.sample_method == "poisson_disk":
+            return (self._sample_points_poisson_disk(trimesh_obj1, points_num),
+                    self._sample_points_poisson_disk(trimesh_obj2, points_num))
+        elif self.sample_method == "dist_weight":
+            return self._sample_points_with_dist_weight(trimesh_obj1, trimesh_obj2, points_num)
+
+    def _sample_points_poisson_disk(self, trimesh_obj, points_num):
+        o3d_mesh = trimesh2o3d(trimesh_obj)
+        pcd = o3d_mesh.sample_points_poisson_disk(points_num)
+        return np.asarray(pcd.points)
+
     def _sample_points_with_dist_weight(self, trimesh_obj1: trimesh.Trimesh, trimesh_obj2: trimesh.Trimesh,
                                         points_num: int):
         """
         从Mesh中进行带权的点云采样，距离另一个物体越近权重越大
         """
-        init_points_num = 2*points_num
+        init_points_num = 2 * points_num
         o3d_obj1 = trimesh2o3d(trimesh_obj1)
         o3d_obj2 = trimesh2o3d(trimesh_obj2)
         sample_points1 = np.asarray(o3d_obj1.sample_points_poisson_disk(init_points_num).points)
@@ -214,11 +249,6 @@ class IBS:
         sample_points2 = sample_points2[sample_points2_idx]
 
         return sample_points1, sample_points2
-
-    def _sample_points_poisson_disk(self, trimesh_obj, points_num):
-        o3d_mesh = trimesh2o3d(trimesh_obj)
-        pcd = o3d_mesh.sample_points_poisson_disk(points_num)
-        return np.asarray(pcd.points)
 
     def _visualize(self, geometries: list):
         o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True, mesh_show_back_face=True)

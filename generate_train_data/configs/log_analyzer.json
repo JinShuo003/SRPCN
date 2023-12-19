@@ -1,4 +1,4 @@
 {
-  "log_dir": "logs/get_IBS",
-  "patten": ".*create ibs failed.*"
+  "log_dir": "logs/collision_test",
+  "patten": ".*collision occured.*"
 }

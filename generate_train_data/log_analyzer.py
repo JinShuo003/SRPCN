@@ -1,3 +1,6 @@
+"""
+批量log分析工具
+"""
 import argparse
 import os
 import logging

@@ -17,6 +17,6 @@
       },
       "pcd_save_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\pcd_partial_2048"
   },
-
+  "process_num": 10,
   "sample_num": 2048
 }

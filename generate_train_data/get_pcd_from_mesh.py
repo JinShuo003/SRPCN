@@ -74,7 +74,7 @@ if __name__ == '__main__':
     filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("mesh_dir"))
     path_utils.generate_path(specs.get("path_options").get("pcd_save_dir"))
 
-    pool = multiprocessing.Pool(processes=10)
+    pool = multiprocessing.Pool(processes=specs.get("process_num"))
     file_list = []
     for category in filename_tree:
         for scene in filename_tree[category]:

@@ -162,27 +162,22 @@ class TrainDataGenerator:
 
     def handle_scene(self, scene):
         """读取mesh，组合后求取归一化参数，然后分别归一化到单位球内，保存结果"""
-        self.geometries_path = getGeometriesPath(self.specs, scene)
+        self.geometries_path = path_utils.get_geometries_path(self.specs, scene)
 
         mesh1 = o3d.io.read_triangle_mesh(self.geometries_path["mesh1"])
         mesh2 = o3d.io.read_triangle_mesh(self.geometries_path["mesh2"])
         combined_mesh = self.combine_meshes(copy.deepcopy(mesh1), copy.deepcopy(mesh2))
         centroid, scale = self.get_normalize_para(combined_mesh)
+        print(centroid)
+        print(scale)
 
-        aabb_IOU = self.get_IOU()
+        # aabb_IOU = self.get_IOU()
         geometry_utils.geometry_transform(mesh1, centroid, scale)
         geometry_utils.geometry_transform(mesh2, centroid, scale)
-        geometry_utils.geometry_transform(aabb_IOU, centroid, scale)
-
-        # combined_mesh = self.combine_meshes(copy.deepcopy(mesh1), copy.deepcopy(mesh2))
-        # sphere = geometry_utils.get_sphere_pcd(radius=1)
-        # aabb = combined_mesh.get_axis_aligned_bounding_box()
-        # aabb.color = (1, 0, 0)
-        # coor = geometry_utils.get_unit_coordinate(size=1)
-        # o3d.visualization.draw_geometries([sphere, mesh1, mesh2, coor, aabb_IOU, aabb])
+        # geometry_utils.geometry_transform(aabb_IOU, centroid, scale)
 
         save_mesh(self.specs, scene, mesh1, mesh2)
-        save_IOU(self.specs, scene, aabb_IOU)
+        # save_IOU(self.specs, scene, aabb_IOU)
 
 
 def my_process(scene, specs):
@@ -195,35 +190,31 @@ def my_process(scene, specs):
     try:
         trainDataGenerator.handle_scene(scene)
         print(f"scene: {scene} succeed")
-    except:
-        print(f"scene: {scene} failed")
+    except Exception as e:
+        print(f"scene: {scene} failed, info: {e}")
 
 
 if __name__ == '__main__':
-    # 获取配置参数
     config_filepath = 'configs/normalize_mesh.json'
     specs = path_utils.read_config(config_filepath)
-    # 构建文件树
     filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("mesh_dir"))
-    # 处理文件夹，不存在则创建
     path_utils.generate_path(specs.get("path_options").get("mesh_normalize_save_dir"))
 
-    # 创建进程池，指定进程数量
-    pool = multiprocessing.Pool(processes=10)
-    # 参数
+    pool = multiprocessing.Pool(processes=3)
+
     scene_list = []
     for category in filename_tree:
         for scene in filename_tree[category]:
             scene_list.append(scene)
 
-    # # 使用进程池执行任务，返回结果列表
-    # for scene in scene_list:
-    #     pool.apply_async(my_process, (scene, specs,))
-    #
-    # # 关闭进程池
-    # pool.close()
-    # pool.join()
-
-    trainDataGenerator = TrainDataGenerator(specs)
+    # 使用进程池执行任务，返回结果列表
     for scene in scene_list:
-        trainDataGenerator.handle_scene(scene)
+        pool.apply_async(my_process, (scene, specs,))
+
+    # 关闭进程池
+    pool.close()
+    pool.join()
+
+    # trainDataGenerator = TrainDataGenerator(specs)
+    # for scene in scene_list:
+    #     trainDataGenerator.handle_scene(scene)

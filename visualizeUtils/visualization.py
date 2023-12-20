@@ -172,7 +172,7 @@ if __name__ == '__main__':
     config_filepath = 'visualization.json'
     specs = parseConfig(config_filepath)
 
-    filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("pcd_gt_dir"))
+    filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("pcd_scan_dir"))
 
     for category in filename_tree:
         for scene in filename_tree[category]:

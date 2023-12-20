@@ -12,7 +12,6 @@ import open3d as o3d
 
 from utils import path_utils, geometry_utils, random_utils, log_utils, exception_utils
 
-
 logger = None
 
 
@@ -22,6 +21,7 @@ class Plane:
     该平面只有两个旋转自由度，永远不会有滚转角，即矩形的上下边永远平行于x-y平面
     关键参数：矩形的四个边界点、四个方向向量
     """
+
     def __init__(self):
         # 平面的四个角点，左上、左下、右上、右下
         self.border: tuple = None
@@ -447,6 +447,13 @@ class ScanPcdGenerator:
             self.get_projection_points(self.scan_plane,
                                        self.resolution_width,
                                        self.resolution_height)  # 投影点
+        self.visualizer.visualize_rays_from_projection_points(eye, projection_points, [self.mesh1, self.mesh2])
+        projection_points = self.expand_points_in_rectangle(expand_points_num,
+                                                            self.pixel_width,
+                                                            self.pixel_height,
+                                                            self.scan_plane,
+                                                            projection_points)  # 扩充投影点，保证随机性
+        self.visualizer.visualize_rays_from_projection_points(eye, projection_points, [self.mesh1, self.mesh2])
         rays = self.get_rays_from_projection_points(eye, projection_points)  # 射线
         # self.visualizer.visualize_rays(eye, rays, self.mesh1, self.mesh2, geometry_utils.get_sphere_pcd(1))
         cast_result = self.get_ray_cast_result(self.scene, rays)  # 射线求交结果
@@ -639,15 +646,15 @@ if __name__ == '__main__':
         for scene in filename_tree[category]:
             scene_list.append(scene)
 
-    for scene in scene_list:
-        logger.info("current scene: {}".format(scene))
-        pool.apply_async(my_process, (scene, specs, ))
-
-    pool.close()
-    pool.join()
-
-    # trainDataGenerator = TrainDataGenerator(specs, logger)
-    #
     # for scene in scene_list:
     #     logger.info("current scene: {}".format(scene))
-    #     trainDataGenerator.handle_scene(scene)
+    #     pool.apply_async(my_process, (scene, specs,))
+    #
+    # pool.close()
+    # pool.join()
+
+    trainDataGenerator = TrainDataGenerator(specs, logger)
+
+    for scene in scene_list:
+        logger.info("current scene: {}".format(scene))
+        trainDataGenerator.handle_scene(scene)

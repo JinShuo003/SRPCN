@@ -1,4 +1,5 @@
 {
-  "log_dir": "logs/collision_test",
-  "patten": ".*collision occured.*"
+  "log_dir": "logs/collision_test_ibs",
+  "patten": ".*collision occured.*",
+  "analyze_result_filename": "log_analyzer_collision_test_ibs.txt"
 }

@@ -54,7 +54,7 @@ if __name__ == '__main__':
 
     logger = logging.getLogger("log_analyzer")
     logger.setLevel("INFO")
-    file_handler = logging.FileHandler("log_analyzer_result.txt", mode="w")
+    file_handler = logging.FileHandler(specs.get("analyze_result_filename"), mode="w")
     file_handler.setLevel(level=logging.INFO)
     logger.addHandler(file_handler)
     stream_handler = logging.StreamHandler()

@@ -122,7 +122,8 @@ class App:
             self.show_message_dialog("warning", "Please select a scene first")
             return
 
-        self.obj1_path, self.obj2_path = self.get_geometry_path()
+        geometry_path_dict = self.get_geometry_path()
+        self.obj1_path, self.obj2_path = geometry_path_dict.get("mesh1"), geometry_path_dict.get("mesh2"),
 
         if not os.path.isfile(self.obj1_path):
             self.show_message_dialog("warning", "{} is not a file")
@@ -398,7 +399,12 @@ class App:
         filename2 = "{}_1.{}".format(self.scene_selector.get_item(self.selected_scene), format)
         file1_path = os.path.join(data_dir, category, filename1)
         file2_path = os.path.join(data_dir, category, filename2)
-        return file1_path, file2_path
+
+        geometry_path_dict = {
+            "mesh1": file1_path,
+            "mesh2": file2_path
+        }
+        return geometry_path_dict
 
     def show_message_dialog(self, title, message):
         dlg = gui.Dialog(title)

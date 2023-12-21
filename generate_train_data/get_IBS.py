@@ -36,6 +36,7 @@ class TrainDataGenerator:
         sample_method = self.specs.get("caculate_options").get("sample_method")
         clip_border_ratio = self.specs.get("caculate_options").get("clip_border_ratio")
         max_iterate_time = self.specs.get("caculate_options").get("max_iterate_time")
+        show_iterate_result = self.specs.get("caculate_options").get("show_iterate_result")
 
         mesh1 = geometry_utils.read_mesh(geometries_path["mesh1"])
         mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
@@ -47,6 +48,7 @@ class TrainDataGenerator:
                             sample_method=sample_method,
                             clip_border_ratio=clip_border_ratio,
                             max_iterate_time=max_iterate_time,
+                            show_iterate_result=show_iterate_result,
                             logger=self.logger)
         ibs_o3d = geometry_utils.trimesh2o3d(ibs.ibs)
 

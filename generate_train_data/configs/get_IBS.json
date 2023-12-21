@@ -26,7 +26,8 @@
     "sample_num": 2048,
     "sample_method": "poisson_disk",
     "clip_border_ratio": 2,
-    "max_iterate_time": 20
+    "max_iterate_time": 20,
+    "show_iterate_result": false
   },
   "use_process_poll": false,
   "process_num": 10

@@ -28,6 +28,10 @@ def get_filename_tree(specs: dict, base_path: str):
               }
     }
     """
+    def sort_key(scene_name):
+        numbers = re.findall(r'\d+', scene_name)
+        return int(numbers[-1])
+
     # 构建文件树
     category_re = specs.get("path_options").get("format_info").get("category_re")
     scene_re = specs.get("path_options").get("format_info").get("scene_re")
@@ -67,6 +71,7 @@ def get_filename_tree(specs: dict, base_path: str):
                 if category not in filename_tree_copy.keys():
                     filename_tree_copy[category] = dict()
                 filename_tree_copy[category][scene] = filename_tree[category][scene]
+                filename_tree_copy[category][scene].sort(key=sort_key)
     return filename_tree_copy
 
 

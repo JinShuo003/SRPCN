@@ -5,12 +5,12 @@ import logging
 import multiprocessing
 import os
 import re
+import pyibs
 import numpy as np
 
 import open3d as o3d
-import pyibs
 
-from utils import geometry_utils, path_utils, ibs_utils
+from utils import geometry_utils, path_utils, ibs_utils, log_utils
 
 
 def save_ibs_mesh(specs, scene, ibs_mesh_o3d):
@@ -31,23 +31,14 @@ class TrainDataGenerator:
         self.logger = logger
 
     def get_ibs_mesh_o3d(self, geometries_path: dict):
-        subdevide_max_edge = specs.get("caculate_options").get("subdevide_max_edge")
-        sample_num = specs.get("caculate_options").get("sample_num")
-        sample_method = specs.get("caculate_options").get("sample_method")
-        clip_border_ratio = specs.get("caculate_options").get("clip_border_ratio")
+        subdevide_max_edge = self.specs.get("caculate_options").get("subdevide_max_edge")
+        sample_num = self.specs.get("caculate_options").get("sample_num")
+        sample_method = self.specs.get("caculate_options").get("sample_method")
+        clip_border_ratio = self.specs.get("caculate_options").get("clip_border_ratio")
+        max_iterate_time = self.specs.get("caculate_options").get("max_iterate_time")
 
         mesh1 = geometry_utils.read_mesh(geometries_path["mesh1"])
         mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
-        mesh1.paint_uniform_color((1, 0, 0))
-        mesh2.paint_uniform_color((0, 1, 0))
-
-        pcd1 = geometry_utils.read_point_cloud(geometries_path["pcd1"])
-        pcd2 = geometry_utils.read_point_cloud(geometries_path["pcd2"])
-
-        ibs = pyibs.IBS(np.asarray(pcd1.points), np.asarray(pcd2.points))
-        ibs_o3d = geometry_utils.trimesh2o3d(ibs.mesh)
-        ibs_o3d.paint_uniform_color((0, 0, 1))
-        o3d.visualization.draw_geometries([ibs_o3d, mesh1, mesh2], mesh_show_wireframe=True, mesh_show_back_face=True)
 
         ibs = ibs_utils.IBS(geometry_utils.o3d2trimesh(mesh1),
                             geometry_utils.o3d2trimesh(mesh2),
@@ -55,10 +46,9 @@ class TrainDataGenerator:
                             sample_num=sample_num,
                             sample_method=sample_method,
                             clip_border_ratio=clip_border_ratio,
+                            max_iterate_time=max_iterate_time,
                             logger=self.logger)
         ibs_o3d = geometry_utils.trimesh2o3d(ibs.ibs)
-        ibs_o3d.paint_uniform_color((0, 0, 1))
-        o3d.visualization.draw_geometries([ibs_o3d, mesh1, mesh2], mesh_show_wireframe=True, mesh_show_back_face=True)
 
         return ibs_o3d
 
@@ -69,25 +59,8 @@ class TrainDataGenerator:
         save_ibs_mesh(self.specs, scene, ibs_mesh_o3d)
 
 
-def get_logger(scene: str):
-    _logger = logging.getLogger()
-    _logger.setLevel("INFO")
-    log_path = "logs/get_IBS/{}.log"
-    path_utils.generate_path(os.path.split(log_path)[0])
-
-    file_handler = logging.FileHandler(log_path.format(scene), mode="w")
-    file_handler.setLevel(level=logging.INFO)
-    _logger.addHandler(file_handler)
-
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(level=logging.INFO)
-    _logger.addHandler(stream_handler)
-
-    return _logger, file_handler, stream_handler
-
-
 def my_process(scene, specs):
-    _logger, file_handler, stream_handler = get_logger(scene)
+    _logger, file_handler, stream_handler = log_utils.get_logger(specs.get("path_options").get("log_dir"), scene)
     process_name = multiprocessing.current_process().name
     _logger.info(f"Running task in process: {process_name}, scene: {scene}")
     trainDataGenerator = TrainDataGenerator(specs, _logger)
@@ -114,8 +87,6 @@ if __name__ == '__main__':
     stream_handler.setLevel(level=logging.INFO)
     logger.addHandler(stream_handler)
 
-    pool = multiprocessing.Pool(processes=specs.get("processNum"))
-
     # 参数
     view_list = []
     for category in filename_tree:
@@ -123,21 +94,22 @@ if __name__ == '__main__':
             for filename in filename_tree[category][scene]:
                 view_list.append(filename)
 
-    # for filename in view_list:
-    #     logger.info("current scene: {}".format(filename))
-    #     pool.apply_async(my_process, (filename, specs))
-    #
-    # # 关闭进程池
-    # pool.close()
-    # pool.join()
+    if specs.get("use_process_pool"):
+        pool = multiprocessing.Pool(processes=specs.get("process_num"))
 
-    for filename in view_list:
-        logger.info("current scene: {}".format(filename))
-        _logger, file_handler, stream_handler = get_logger(filename)
+        for filename in view_list:
+            logger.info("current scene: {}".format(filename))
+            pool.apply_async(my_process, (filename, specs))
 
-        trainDataGenerator = TrainDataGenerator(specs, _logger)
-        trainDataGenerator.handle_scene(filename)
+        pool.close()
+        pool.join()
+    else:
+        for filename in view_list:
+            logger.info("current scene: {}".format(filename))
+            _logger, file_handler, stream_handler = log_utils.get_logger(specs.get("path_options").get("log_dir"), filename)
 
-        _logger.removeHandler(file_handler)
-        _logger.removeHandler(stream_handler)
+            trainDataGenerator = TrainDataGenerator(specs, _logger)
+            trainDataGenerator.handle_scene(filename)
 
+            _logger.removeHandler(file_handler)
+            _logger.removeHandler(stream_handler)

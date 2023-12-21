@@ -159,13 +159,21 @@ class IBS:
             if len(contact_points_obj1) > 0:
                 self.log_info("collision occured in obj1, size: {}".format(len(contact_points_obj1)))
                 points = self._resample_points(self.trimesh_obj1, np_contact_points_obj1, np_contact_points_obj2)
-                self.points1 = np.concatenate((self.init_points1, self.points1, points), axis=0)
+                self.points1 = np.concatenate((self.points1, points), axis=0)
+                if self.points1.shape[0] > 50000:
+                    self.points1 = np.asarray(
+                        geometry_utils.get_pcd_from_np(self.points1).farthest_point_down_sample(50000).points)
+                self.points1 = np.concatenate((self.init_points1, self.points1), axis=0)
                 self.points1 = np.unique(self.points1, axis=0)
 
             if len(contact_points_obj2) > 0:
                 self.log_info("collision occured in obj2, size: {}".format(len(contact_points_obj2)))
                 points = self._resample_points(self.trimesh_obj2, np_contact_points_obj2, np_contact_points_obj1)
-                self.points2 = np.concatenate((self.init_points2, self.points2, points), axis=0)
+                self.points2 = np.concatenate((self.points2, points), axis=0)
+                if self.points2.shape[0] > 50000:
+                    self.points2 = np.asarray(
+                        geometry_utils.get_pcd_from_np(self.points2).farthest_point_down_sample(50000).points)
+                self.points2 = np.concatenate((self.init_points2, self.points2), axis=0)
                 self.points2 = np.unique(self.points2, axis=0)
 
         if iterate_time == self.max_iterate_time:

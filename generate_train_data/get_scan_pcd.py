@@ -447,15 +447,12 @@ class ScanPcdGenerator:
             self.get_projection_points(self.scan_plane,
                                        self.resolution_width,
                                        self.resolution_height)  # 投影点
-        self.visualizer.visualize_rays_from_projection_points(eye, projection_points, [self.mesh1, self.mesh2])
         projection_points = self.expand_points_in_rectangle(expand_points_num,
                                                             self.pixel_width,
                                                             self.pixel_height,
                                                             self.scan_plane,
                                                             projection_points)  # 扩充投影点，保证随机性
-        self.visualizer.visualize_rays_from_projection_points(eye, projection_points, [self.mesh1, self.mesh2])
         rays = self.get_rays_from_projection_points(eye, projection_points)  # 射线
-        # self.visualizer.visualize_rays(eye, rays, self.mesh1, self.mesh2, geometry_utils.get_sphere_pcd(1))
         cast_result = self.get_ray_cast_result(self.scene, rays)  # 射线求交结果
         points_obj1, points_obj2 = self.get_points_intersect(projection_points, cast_result)  # 与obj1、obj2相交的射线投影点
         self.logger.info("init rays num: {}, intersect with obj1: {}, intersect with obj2: {}"
@@ -479,7 +476,6 @@ class ScanPcdGenerator:
                                                               self.scan_plane,
                                                               points_obj1)
                 rays_obj1 = self.get_rays_from_projection_points(eye, points_obj1)
-                # self.visualize_rays(eye, rays_obj1)
             if points_obj2.shape[0] < pcd_sample_num:
                 self.logger.info("intersect points with obj2 not enough, cur: {}, target: {}"
                                  .format(points_obj2.shape[0], pcd_sample_num))
@@ -611,10 +607,7 @@ class TrainDataGenerator:
 
 
 def my_process(scene, specs):
-    _logger = logging.getLogger()
-    _logger.setLevel("INFO")
-    file_handler = log_utils.add_file_handler(_logger, "logs/get_scan_pcd", f"{scene}.log")
-
+    _logger, file_handler, stream_handler = log_utils.get_logger(specs.get("path_options").get("log_dir"), scene)
     process_name = multiprocessing.current_process().name
     _logger.info(f"Running task in process: {process_name}, scene: {scene}")
     trainDataGenerator = TrainDataGenerator(specs, _logger)
@@ -625,36 +618,43 @@ def my_process(scene, specs):
     except Exception as e:
         _logger.error("scene: {} failed, exception message: {}".format(scene, e.message))
     finally:
-        log_utils.remove_file_handler(_logger, file_handler)
+        _logger.removeHandler(file_handler)
+        _logger.removeHandler(stream_handler)
 
 
 if __name__ == '__main__':
     config_filepath = 'configs/get_scan_pcd.json'
     specs = path_utils.read_config(config_filepath)
-
-    logger = log_utils.get_logger(specs.get("log_options"))
-
-    processNum = specs["process_num"]
     filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("mesh_dir"))
-
     path_utils.generate_path(specs.get("path_options").get("pcd_partial_save_dir"))
 
-    pool = multiprocessing.Pool(processes=processNum)
+    logger = logging.getLogger("get_IBS")
+    logger.setLevel("INFO")
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(level=logging.INFO)
+    logger.addHandler(stream_handler)
 
     scene_list = []
     for category in filename_tree:
         for scene in filename_tree[category]:
             scene_list.append(scene)
 
-    # for scene in scene_list:
-    #     logger.info("current scene: {}".format(scene))
-    #     pool.apply_async(my_process, (scene, specs,))
-    #
-    # pool.close()
-    # pool.join()
+    if specs.get("use_process_poll"):
+        pool = multiprocessing.Pool(processes=specs.get("process_num"))
 
-    trainDataGenerator = TrainDataGenerator(specs, logger)
+        for scene in scene_list:
+            logger.info("current scene: {}".format(scene))
+            pool.apply_async(my_process, (scene, specs,))
 
-    for scene in scene_list:
-        logger.info("current scene: {}".format(scene))
-        trainDataGenerator.handle_scene(scene)
+        pool.close()
+        pool.join()
+    else:
+        for scene in scene_list:
+            logger.info("current scene: {}".format(scene))
+            _logger, file_handler, stream_handler = log_utils.get_logger(specs.get("path_options").get("log_dir"), scene)
+
+            trainDataGenerator = TrainDataGenerator(specs, _logger)
+            trainDataGenerator.handle_scene(scene)
+
+            _logger.removeHandler(file_handler)
+            _logger.removeHandler(stream_handler)

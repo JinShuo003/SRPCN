@@ -98,6 +98,7 @@ def get_geometries_path(specs: dict, scene):
     is_mesh2_needed = False
     is_pcd1_needed = False
     is_pcd2_needed = False
+    is_ibs_needed = False
     if "mesh1" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("mesh1"):
         is_mesh1_needed = True
     if "mesh2" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("mesh2"):
@@ -106,6 +107,8 @@ def get_geometries_path(specs: dict, scene):
         is_pcd1_needed = True
     if "pcd2" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("pcd2"):
         is_pcd2_needed = True
+    if "ibs" in path_options.get("required_geometry").keys() and path_options.get("required_geometry").get("ibs"):
+        is_ibs_needed = True
 
     geometries_path = dict()
     if is_mesh1_needed:
@@ -124,5 +127,9 @@ def get_geometries_path(specs: dict, scene):
         pcd_dir = path_options.get("geometries_dir").get("pcd_dir")
         pcd2_filename = '{}_{}.ply'.format(scene, 1)
         geometries_path['pcd2'] = os.path.join(pcd_dir, category, pcd2_filename)
+    if is_ibs_needed:
+        ibs_dir = path_options.get("geometries_dir").get("ibs_dir")
+        ibs_filename = '{}.obj'.format(scene)
+        geometries_path['ibs'] = os.path.join(ibs_dir, category, ibs_filename)
 
     return geometries_path

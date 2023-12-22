@@ -21,15 +21,15 @@
   "scan_options": {
     "camera_ridius": 2,
     "fov_deg": 70,
-    "resolution_width": 16,
-    "resolution_height": 16,
+    "resolution_width": 256,
+    "resolution_height": 256,
     "min_init_point_num": 30,
     "min_init_radius": 0.01,
-    "points_num": 8192,
+    "points_num": 2048,
     "expand_points_num": 5
   },
   "save_data": true,
   "visualize": false,
-  "use_process_poll": false,
-  "process_num": 10
+  "use_process_poll": true,
+  "process_num": 5
 }

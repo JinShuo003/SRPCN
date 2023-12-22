@@ -162,6 +162,7 @@ class TrainDataGenerator:
 
     def handle_scene(self, scene):
         """读取mesh，组合后求取归一化参数，然后分别归一化到单位球内，保存结果"""
+        # self.geometries_path = getGeometriesPath(self.specs, scene)
         self.geometries_path = path_utils.get_geometries_path(self.specs, scene)
 
         mesh1 = o3d.io.read_triangle_mesh(self.geometries_path["mesh1"])
@@ -171,13 +172,10 @@ class TrainDataGenerator:
         print(centroid)
         print(scale)
 
-        # aabb_IOU = self.get_IOU()
         geometry_utils.geometry_transform(mesh1, centroid, scale)
         geometry_utils.geometry_transform(mesh2, centroid, scale)
-        # geometry_utils.geometry_transform(aabb_IOU, centroid, scale)
 
         save_mesh(self.specs, scene, mesh1, mesh2)
-        # save_IOU(self.specs, scene, aabb_IOU)
 
 
 def my_process(scene, specs):

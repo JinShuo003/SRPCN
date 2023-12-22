@@ -153,16 +153,16 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     logging.info('epoch: {}, learning rate: {}'.format(epoch, lr_schedules.get_learning_rate(epoch)))
 
     train_total_loss = 0
-    for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in sdf_train_loader:
-        pcd1 = pcd1.to(device)
-        pcd2 = pcd2.to(device)
+    for IBS, pcd1_partial, pcd2_partial, pcd1gt, pcd2gt, idx in sdf_train_loader:
+        pcd1_partial = pcd1_partial.to(device)
+        pcd2_partial = pcd2_partial.to(device)
         pcd1gt = pcd1gt.to(device)
         pcd2gt = pcd2gt.to(device)
         IBS = IBS.to(device)
 
         # visualize_data1(pcd1, pcd2, IBS, pcd1gt, pcd2gt)
-        pcd1_out = network(pcd1, IBS)
-        pcd2_out = network(pcd2, IBS)
+        pcd1_out = network(pcd1_partial, IBS)
+        pcd2_out = network(pcd2_partial, IBS)
 
         # loss between out and groundtruth
         loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
@@ -202,16 +202,17 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
     with torch.no_grad():
         test_total_loss = 0
-        for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in test_dataloader:
-            pcd1 = pcd1.to(device)
-            pcd2 = pcd2.to(device)
-            pcd1gt = pcd1gt.to(device)
-            pcd2gt = pcd2gt.to(device)
+        for IBS, pcd1_partial, pcd2_partial, pcd1gt, pcd2gt, idx in test_dataloader:
+            pcd1_partial = pcd1_partial.to(device)
+            pcd2_partial = pcd2_partial.to(device)
             IBS = IBS.to(device)
 
             # visualize_data1(pcd1, pcd2, xyz, udf_gt1, udf_gt2)
-            pcd1_out = network(pcd1, IBS)
-            pcd2_out = network(pcd2, IBS)
+            pcd1_out = network(pcd1_partial, IBS)
+            pcd2_out = network(pcd2_partial, IBS)
+
+            pcd1gt = pcd1gt.to(device)
+            pcd2gt = pcd2gt.to(device)
 
             loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
             loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)

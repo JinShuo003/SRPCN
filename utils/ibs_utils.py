@@ -74,10 +74,11 @@ class IBS:
         pcd2 = get_pcd_from_np(self.points2)
         center1, radius1 = geometry_utils.get_pcd_normalize_para(pcd1)
         center2, radius2 = geometry_utils.get_pcd_normalize_para(pcd2)
-        if radius1 < radius2:
-            return center1, radius1
-        else:
-            return center2, radius2
+
+        center = center1 if radius1 < radius2 else center2
+        radius = radius1 if radius1 < radius2 else radius2
+
+        return center, radius
 
     def _subdevide_mesh(self, trimesh_obj, max_edge):
         """

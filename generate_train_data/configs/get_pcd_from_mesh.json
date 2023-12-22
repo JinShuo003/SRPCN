@@ -17,7 +17,7 @@
         "handle_scene": "scene6.1031",
         "handle_filename": "scene\\d.\\d{4}"
       },
-      "pcd_save_dir": "D:\\dataset\\IBPCDC\\IBS_pcd_complete",
+      "pcd_save_dir": "D:\\dataset\\IBPCDC\\IBS_pcd_complete\\pcd_partial_2048",
       "log_dir": "logs/get_pcd_from_mesh"
   },
   "type_options": ["object", "ibs"],

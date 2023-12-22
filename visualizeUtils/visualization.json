@@ -16,10 +16,10 @@
     "format_info": {
       "category_re": "scene\\d",
       "scene_re": "scene\\d.\\d{4}",
-      "filename_re": "scene\\d.\\d{4}_view\\d+",
+      "filename_re": "scene\\d.\\d{4}",
       "handle_category": "scene\\d",
-      "handle_scene": "scene6.1031",
-      "handle_filename": "scene\\d.\\d{4}_view\\d+"
+      "handle_scene": "scene8.1034",
+      "handle_filename": "scene\\d.\\d{4}"
     }
   },
 

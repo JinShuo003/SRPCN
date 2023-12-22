@@ -1,5 +1,5 @@
 {
-  "log_dir": "logs/collision_test_ibs",
-  "patten": ".*collision occured.*",
-  "analyze_result_filename": "log_analyzer_collision_test_ibs.txt"
+  "log_dir": "logs/get_scan_pcd",
+  "patten": ".*not enough init points.*",
+  "analyze_result_filename": "log_analyzer_pcd_scan.txt"
 }

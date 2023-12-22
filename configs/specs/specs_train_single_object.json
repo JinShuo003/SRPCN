@@ -1,8 +1,8 @@
 {
     "Description" : "Compute two SDF fields",
     "DataSource" : "data",
-    "TrainSplit" : "configs/train_scan_4096/train.json",
-    "TestSplit" : "configs/test_scan_4096/test.json",
+    "TrainSplit" : "configs/train_scan_2048/train.json",
+    "TestSplit" : "configs/test_scan_2048/test.json",
     "ParaSaveDir" : "trained_models",
     "Device" : 0,
     "DataLoaderSpecs": {
@@ -20,9 +20,9 @@
     },
     "NumEpochs" : 200,
     "CodeLength": 512,
-    "PcdPointNum": 4096,
-    "IBSPointNum": 512,
+    "PcdPointNum": 2048,
+    "IBSPointNum": 2048,
 
     "ScenesPerBatch" : 8,
-    "DataLoaderThreads" : 4
+    "DataLoaderThreads" : 12
 }

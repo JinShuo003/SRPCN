@@ -23,6 +23,6 @@
     "PcdPointNum": 2048,
     "IBSPointNum": 2048,
 
-    "ScenesPerBatch" : 8,
+    "ScenesPerBatch" : 48,
     "DataLoaderThreads" : 12
 }

@@ -104,7 +104,7 @@ class final_mlp(nn.Module):
 
 
 class TopNet_decoder(nn.Module):
-    def __init__(self, arch=[4, 4, 4, 8, 8]):
+    def __init__(self, arch=[4, 4, 4, 4, 8]):
         super(TopNet_decoder, self).__init__()
         self.arch = arch
         self.level_num = len(arch)

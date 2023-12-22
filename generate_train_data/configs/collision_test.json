@@ -19,7 +19,8 @@
     },
     "log_dir": "logs/collision_test_ibs"
   },
+  "collision_test_type": ["origin_mesh", "ibs"],
   "type": "ibs",
   "use_process_pool": true,
-  "process_num": 10
+  "process_num": 5
 }

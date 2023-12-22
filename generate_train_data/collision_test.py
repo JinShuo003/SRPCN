@@ -1,12 +1,11 @@
 """
-对原始Mesh进行碰撞检测
+碰撞检测
 """
 import logging
 import multiprocessing
 import os
 import re
 
-import numpy as np
 import open3d as o3d
 import trimesh.collision
 

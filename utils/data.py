@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
 # Copyright 2004-present Facebook. All Rights Reserved.
 
-import glob
 import logging
 import numpy as np
 import os
-import random
 import torch
 import torch.utils.data
 import open3d as o3d
@@ -62,52 +60,15 @@ def get_pcd_data(pcd_filename):
     return xyz_load
 
 
-class DataCache:
-    def __init__(self, capacity):
-        # the max size of the cache
-        self._capacity = capacity
-        # record the insert order
-        self._order = list()
-        # cache the file using the format {filename: file}
-        self._cache = dict()
-
-    def get(self, filename):
-        # 1. get from cache
-        file = self._cache.get(filename)
-
-        # 2. not in cache, get from disk, ensure exist, update cache
-        if file is None:
-            file = get_pcd_data(filename)
-            assert file is not None
-            self._update_cache(filename, file)
-
-        return file
-
-    def _update_cache(self, filename, file):
-        # add the {filename: file} entry to cache, record the insert order
-        self._cache.update({filename: file})
-        self._order.append(filename)
-        # eliminate the cache if dict.size reached capacity
-        if self._cache.__len__() > self._capacity:
-            oldest_filename = self._order.pop(0)
-            del self._cache[oldest_filename]
-
-
 class IntersectDataset(torch.utils.data.Dataset):
     def __init__(
             self,
             data_source,
-            split,
-            cache_capacity,
+            split
     ):
         self.data_source = data_source
         self.IBSfiles, self.pcd1files, self.pcd2files, self.pcd1gtfiles, self.pcd2gtfiles = \
             get_instance_filenames(data_source, split)
-
-        self.cache_capacity = cache_capacity
-        self.IBS_cache = DataCache(cache_capacity)
-        self.pcd1gt_cache = DataCache(cache_capacity)
-        self.pcd2gt_cache = DataCache(cache_capacity)
 
         logging.debug(
             "using "

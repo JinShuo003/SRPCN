@@ -48,7 +48,6 @@ def get_dataloader(specs):
     train_split_file = specs["TrainSplit"]
     test_split_file = specs["TestSplit"]
     scene_per_batch = specs["ScenesPerBatch"]
-    dataloader_cache_capacity = specs["DataLoaderSpecs"]["CacheCapacity"]
     num_data_loader_threads = get_spec_with_default(specs, "DataLoaderThreads", 1)
 
     logging.info("batch_size: {}".format(scene_per_batch))
@@ -60,8 +59,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = utils.data.IntersectDataset(data_source, train_split, dataloader_cache_capacity)
-    test_dataset = utils.data.IntersectDataset(data_source, test_split, dataloader_cache_capacity)
+    train_dataset = utils.data.IntersectDataset(data_source, train_split)
+    test_dataset = utils.data.IntersectDataset(data_source, test_split)
 
     logging.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
     logging.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
@@ -88,11 +87,9 @@ def get_dataloader(specs):
 
 
 def get_network(specs):
-    pcd_point_num = specs["PcdPointNum"]
-    IBSPointNum = specs["PcdPointNum"]
     device = specs["Device"]
 
-    net = IBPCDCNet(pcd_point_num, IBSPointNum)
+    net = IBPCDCNet()
 
     if torch.cuda.is_available():
         net = net.to(device)
@@ -144,19 +141,15 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     para_save_dir = specs["ParaSaveDir"]
     train_split_file = specs["TrainSplit"]
     device = specs["Device"]
-    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
-    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
 
-    loss_cd = networks.loss.cdModule()
     loss_emd = networks.loss.emdModule()
 
     network.train()
     adjust_learning_rate(lr_schedules, optimizer, epoch)
+    logging.info("")
     logging.info('epoch: {}, learning rate: {}'.format(epoch, lr_schedules.get_learning_rate(epoch)))
 
-    train_total_loss_cd = 0
     train_total_loss_emd = 0
-    train_total_loss = 0
     for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in sdf_train_loader:
         IBS.requires_grad = False
         pcd1_partial.requires_grad = False
@@ -171,33 +164,20 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
         pcd1_gt = pcd1_gt.to(device)
         pcd2_gt = pcd2_gt.to(device)
-        loss_cd_pcd1 = loss_cd(pcd1_gt, pcd1_out)
-        loss_cd_pcd2 = loss_cd(pcd2_gt, pcd1_out)
         loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
         loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
 
-        batch_loss_cd = (loss_cd_pcd1 + loss_cd_pcd2)
-        batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
-        batch_loss = loss_weight_cd * batch_loss_cd + loss_weight_emd * batch_loss_emd
+        batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
 
-        train_total_loss_cd += batch_loss_cd.item()
         train_total_loss_emd += batch_loss_emd.item()
-        train_total_loss += train_total_loss_cd
-        train_total_loss += train_total_loss_emd
 
         optimizer.zero_grad()
-        batch_loss.backward()
+        batch_loss_emd.backward()
         optimizer.step()
 
-    train_avrg_loss_cd = train_total_loss_cd / sdf_train_loader.__len__()
     train_avrg_loss_emd = train_total_loss_emd / sdf_train_loader.__len__()
-    train_avrg_loss = train_total_loss / sdf_train_loader.__len__()
-    tensorboard_writer.add_scalar("train_loss_cd", train_avrg_loss_cd, epoch)
     tensorboard_writer.add_scalar("train_loss_emd", train_avrg_loss_emd, epoch)
-    tensorboard_writer.add_scalar("train_loss", train_avrg_loss, epoch)
-    logging.info('train_avrg_loss_cd: {}'.format(train_avrg_loss_cd))
     logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_emd))
-    logging.info('train_avrg_loss: {}'.format(train_avrg_loss))
 
     # 保存模型
     if epoch % 5 == 0:
@@ -211,16 +191,11 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
 def test(network, test_dataloader, epoch, specs, tensorboard_writer):
     device = specs["Device"]
-    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
-    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
 
-    loss_cd = networks.loss.cdModule()
     loss_emd = networks.loss.emdModule()
 
     with torch.no_grad():
-        test_total_loss_cd = 0
         test_total_loss_emd = 0
-        test_total_loss = 0
         for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
             IBS.requires_grad = False
             pcd1_partial.requires_grad = False
@@ -235,28 +210,16 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)
-            loss_cd_pcd1 = loss_cd(pcd1_gt, pcd1_out)
-            loss_cd_pcd2 = loss_cd(pcd2_gt, pcd1_out)
             loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
             loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
 
-            batch_loss_cd = (loss_cd_pcd1 + loss_cd_pcd2)
             batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
-            batch_loss = loss_weight_cd * batch_loss_cd + loss_weight_emd * batch_loss_emd
 
-            test_total_loss_cd += batch_loss_cd.item()
             test_total_loss_emd += batch_loss_emd.item()
-            test_total_loss += batch_loss.item()
 
-        test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
         test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
-        test_avrg_loss = test_total_loss / test_dataloader.__len__()
-        tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
         tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_emd, epoch)
-        tensorboard_writer.add_scalar("test_loss", test_avrg_loss, epoch)
-        logging.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
         logging.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
-        logging.info('test_avrg_loss: {}'.format(test_avrg_loss))
 
 
 def main_function(experiment_config_file):

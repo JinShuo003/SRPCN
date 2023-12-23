@@ -1,28 +1,20 @@
 {
     "Description" : "Compute two SDF fields",
-    "DataSource" : "D:\\dataset\\IBPCDC",
-    "TrainSplit" : "configs/train_scan_2048/train.json",
-    "TestSplit" : "configs/test_scan_2048/test.json",
+    "DataSource" : "data",
+    "TrainSplit" : "configs/train_scan_1024/train.json",
+    "TestSplit" : "configs/test_scan_1024/test.json",
     "ParaSaveDir" : "trained_models",
     "Device" : 0,
-    "DataLoaderSpecs": {
-        "CacheCapacity": 3
-    },
     "LearningRateSchedule" : {
 	    "Type" : "Step",
 	    "Initial" : 0.0001,
 	    "Interval" : 5,
 	    "Factor" : 0.5
     },
-    "LossSpecs": {
-        "WeightCD": 0.5,
-        "WeightEMD": 0.5
-    },
     "NumEpochs" : 200,
-    "CodeLength": 512,
-    "PcdPointNum": 2048,
-    "IBSPointNum": 2048,
+    "PcdPointNum": 1024,
+    "IBSPointNum": 1024,
 
-    "ScenesPerBatch" : 4,
+    "ScenesPerBatch" : 40,
     "DataLoaderThreads" : 8
 }

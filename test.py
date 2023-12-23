@@ -16,25 +16,19 @@ import utils.workspace as ws
 from utils.geometry_utils import get_pcd_from_np
 
 
-def visualize_data(pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2, specs):
+def visualize_data(pcd1, pcd2, specs):
     # 将udf数据拆分开，并且转移到cpu
-    pcd1_path1 = pcd1_path1.cpu().detach().numpy()
-    pcd2_path1 = pcd2_path1.cpu().detach().numpy()
-    pcd1_path2 = pcd1_path2.cpu().detach().numpy()
-    pcd2_path2 = pcd2_path2.cpu().detach().numpy()
+    pcd1 = pcd1.cpu().detach().numpy()
+    pcd2 = pcd2.pcd2().detach().numpy()
 
-    for i in range(pcd1_path1.shape[0]):
-        pcd1_1 = get_pcd_from_np(pcd1_path1[i])
-        pcd2_1 = get_pcd_from_np(pcd2_path1[i])
-        pcd1_2 = get_pcd_from_np(pcd1_path2[i])
-        pcd2_2 = get_pcd_from_np(pcd2_path2[i])
+    for i in range(pcd1.shape[0]):
+        pcd1_ = get_pcd_from_np(pcd1[i])
+        pcd2_ = get_pcd_from_np(pcd2[i])
 
-        pcd1_1.paint_uniform_color([1, 0, 0])
-        pcd2_1.paint_uniform_color([0, 1, 0])
-        pcd1_2.paint_uniform_color([0, 0, 1])
-        pcd2_2.paint_uniform_color([1, 0, 1])
+        pcd1_.paint_uniform_color([1, 0, 0])
+        pcd2_.paint_uniform_color([0, 1, 0])
 
-        o3d.visualization.draw_geometries([pcd1_2, pcd2_2])
+        o3d.visualization.draw_geometries([pcd1_, pcd2_])
 
 
 def get_dataloader(specs):
@@ -98,58 +92,41 @@ def get_spec_with_default(specs, key, default):
 
 def test(IBPCDCNet, test_dataloader, specs, model):
     device = specs["Device"]
-    loss_weight_out_gt = specs["LossSpecs"]["WeightOutGt"]
-    loss_weight_out_out = specs["LossSpecs"]["WeightOutOut"]
     test_result_dir = specs["TestResult"]
     test_split = specs["TestSplit"]
     visualize = specs["Visualize"]
     save = specs["Save"]
 
-    loss_cd_pcd1_path1 = networks.loss.cdModule()
-    loss_cd_pcd2_path1 = networks.loss.cdModule()
-    loss_cd_pcd1_path2 = networks.loss.cdModule()
-    loss_cd_pcd2_path2 = networks.loss.cdModule()
-    loss_cd_pcd1 = networks.loss.cdModule()
-    loss_cd_pcd2 = networks.loss.cdModule()
+    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
+    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
+
+    loss_cd = networks.loss.cdModule()
+    loss_emd = networks.loss.emdModule()
 
     with torch.no_grad():
         test_total_loss = 0
         for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in test_dataloader:
-            IBS.requires_grad = False
-            pcd1.requires_grad = False
-            pcd2.requires_grad = False
-            pcd1gt.requires_grad = False
-            pcd2gt.requires_grad = False
+            pcd1_partial = pcd1_partial.to(device)
+            pcd1gt = pcd1gt.to(device)
+            pcd1_out = IBPCDCNet(pcd1_partial)
+            loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
+            loss_emd_pcd1 = torch.mean(loss_emd(pcd1gt, pcd1_out)[0])
+            batch_loss = loss_weight_cd * loss_cd_pcd1 + loss_weight_emd * loss_emd_pcd1
+            test_total_loss += batch_loss.item()
 
-            pcd1 = pcd1.to(device)
-            pcd2 = pcd2.to(device)
-            IBS = IBS.to(device)
-
-            # visualize_data1(pcd1, pcd2, xyz, udf_gt1, udf_gt2)
-            pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2 = IBPCDCNet(pcd1, pcd2, IBS)
-
-            # loss between out and groundtruth
-            loss_pcd1_path1_gt = loss_cd_pcd1_path1(pcd1_path1, pcd1gt.to(device))
-            loss_pcd2_path1_gt = loss_cd_pcd2_path1(pcd2_path1, pcd2gt.to(device))
-            loss_pcd1_path2_gt = loss_cd_pcd1_path2(pcd1_path2, pcd1gt.to(device))
-            loss_pcd2_path2_gt = loss_cd_pcd2_path2(pcd2_path2, pcd2gt.to(device))
-            # loss between two path
-            loss_pcd1_path1_path2 = loss_cd_pcd1(pcd1_path1, pcd1_path2)
-            loss_pcd2_path1_path2 = loss_cd_pcd2(pcd2_path1, pcd2_path2)
-
-            batch_loss = loss_weight_out_gt * (
-                        loss_pcd1_path1_gt + loss_pcd2_path1_gt + loss_pcd1_path2_gt + loss_pcd2_path2_gt) + \
-                         loss_weight_out_out * (loss_pcd1_path1_path2 + loss_pcd2_path1_path2)
-
+            pcd2_partial = pcd2_partial.to(device)
+            pcd2gt = pcd2gt.to(device)
+            pcd2_out = IBPCDCNet(pcd2_partial)
+            loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
+            loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
+            batch_loss = loss_weight_cd * loss_cd_pcd2 + loss_weight_emd * loss_emd_pcd2
             test_total_loss += batch_loss.item()
 
             if save:
-                save_result(test_dataloader, pcd1_path1, idx, specs, "{}_{}".format("pcd1", "path1"))
-                save_result(test_dataloader, pcd2_path1, idx, specs, "{}_{}".format("pcd2", "path1"))
-                save_result(test_dataloader, pcd1_path2, idx, specs, "{}_{}".format("pcd1", "path2"))
-                save_result(test_dataloader, pcd2_path2, idx, specs, "{}_{}".format("pcd2", "path2"))
+                save_result(test_dataloader, pcd1_out, idx, specs, "{}".format("0"))
+                save_result(test_dataloader, pcd2_out, idx, specs, "{}".format("1"))
             if visualize:
-                visualize_data(pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2, specs)
+                visualize_data(pcd1_out, pcd2_out, specs)
 
             print("handled a batch, idx: {}", idx)
         test_avrg_loss = test_total_loss / test_dataloader.__len__()

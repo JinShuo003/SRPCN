@@ -1,15 +1,15 @@
 {
     "Description" : "Compute two SDF fields",
     "DataSource" : "D:\\dataset\\IBPCDC",
-    "TestSplit" : "configs/test_scan_512/test.json",
+    "TestSplit" : "configs/test_scan_2048/test.json",
     "TestResult" : "test_result",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
     "DataLoaderSpecs": {
         "CacheCapacity": 3
     },
     "LossSpecs": {
-        "WeightOutGt": 1,
-        "WeightOutOut": 0
+        "WeightCD": 0.5,
+        "WeightEMD": 0.5
     },
     "Device" : 0,
     "ScenesPerBatch" : 4,

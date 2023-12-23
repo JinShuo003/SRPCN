@@ -15,7 +15,7 @@ import utils.workspace as ws
 from utils.learning_rate import get_learning_rate_schedules
 
 
-def visualize_data1(pcd1, pcd2, IBS, pcd1_gt, pcd2_gt):
+def visualize(pcd1, pcd2, IBS, pcd1_gt, pcd2_gt):
     # 将udf数据拆分开，并且转移到cpu
     IBS = IBS.cpu().detach().numpy()
     pcd1_np = pcd1.cpu().detach().numpy()
@@ -89,9 +89,10 @@ def get_dataloader(specs):
 
 def get_network(specs):
     pcd_point_num = specs["PcdPointNum"]
+    IBSPointNum = specs["PcdPointNum"]
     device = specs["Device"]
 
-    net = IBPCDCNet(pcd_point_num)
+    net = IBPCDCNet(pcd_point_num, IBSPointNum)
 
     if torch.cuda.is_available():
         net = net.to(device)
@@ -115,9 +116,9 @@ def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
 
     tensorboard_writer = SummaryWriter(writer_path)
 
-    input_pcd1_shape = torch.randn(1, 512, 3)
-    input_pcd2_shape = torch.randn(1, 512, 3)
-    input_IBS_shape = torch.randn(1, 512, 3)
+    input_pcd1_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
+    input_pcd2_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
+    input_IBS_shape = torch.randn(1, specs.get("IBSPointNum"), 3)
 
     if torch.cuda.is_available():
         input_pcd1_shape = input_pcd1_shape.to(device)
@@ -143,61 +144,65 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     para_save_dir = specs["ParaSaveDir"]
     train_split_file = specs["TrainSplit"]
     device = specs["Device"]
-    loss_weight_out_gt = specs["LossSpecs"]["WeightOutGt"]
-    loss_weight_out_out = specs["LossSpecs"]["WeightOutOut"]
+    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
+    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
 
-    loss_cd_pcd1_path1 = networks.loss.cdModule()
-    loss_cd_pcd2_path1 = networks.loss.cdModule()
-    loss_cd_pcd1_path2 = networks.loss.cdModule()
-    loss_cd_pcd2_path2 = networks.loss.cdModule()
-    loss_cd_pcd1 = networks.loss.cdModule()
-    loss_cd_pcd2 = networks.loss.cdModule()
+    loss_cd = networks.loss.cdModule()
+    loss_emd = networks.loss.emdModule()
 
     network.train()
     adjust_learning_rate(lr_schedules, optimizer, epoch)
     logging.info('epoch: {}, learning rate: {}'.format(epoch, lr_schedules.get_learning_rate(epoch)))
 
+    train_total_loss_cd = 0
+    train_total_loss_emd = 0
     train_total_loss = 0
-    for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in sdf_train_loader:
+    for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in sdf_train_loader:
         IBS.requires_grad = False
-        pcd1.requires_grad = False
-        pcd2.requires_grad = False
-        pcd1gt.requires_grad = False
-        pcd2gt.requires_grad = False
+        pcd1_partial.requires_grad = False
+        pcd2_partial.requires_grad = False
+        pcd1_gt.requires_grad = False
+        pcd2_gt.requires_grad = False
 
-        pcd1 = pcd1.to(device)
-        pcd2 = pcd2.to(device)
         IBS = IBS.to(device)
+        pcd1_partial = pcd1_partial.to(device)
+        pcd2_partial = pcd2_partial.to(device)
+        pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
 
-        # visualize_data1(pcd1, pcd2, IBS, pcd1gt, pcd2gt)
-        pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2 = network(pcd1, pcd2, IBS)
+        pcd1_gt = pcd1_gt.to(device)
+        pcd2_gt = pcd2_gt.to(device)
+        loss_cd_pcd1 = loss_cd(pcd1_gt, pcd1_out)
+        loss_cd_pcd2 = loss_cd(pcd2_gt, pcd1_out)
+        loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
+        loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
 
-        # loss between out and groundtruth
-        loss_pcd1_path1_gt = loss_cd_pcd1_path1(pcd1_path1, pcd1gt.to(device))
-        loss_pcd2_path1_gt = loss_cd_pcd2_path1(pcd2_path1, pcd2gt.to(device))
-        loss_pcd1_path2_gt = loss_cd_pcd1_path2(pcd1_path2, pcd1gt.to(device))
-        loss_pcd2_path2_gt = loss_cd_pcd2_path2(pcd2_path2, pcd2gt.to(device))
-        # loss between two path
-        loss_pcd1_path1_path2 = loss_cd_pcd1(pcd1_path1, pcd1_path2)
-        loss_pcd2_path1_path2 = loss_cd_pcd2(pcd2_path1, pcd2_path2)
+        batch_loss_cd = (loss_cd_pcd1 + loss_cd_pcd2)
+        batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
+        batch_loss = loss_weight_cd * batch_loss_cd + loss_weight_emd * batch_loss_emd
 
-        batch_loss = loss_weight_out_gt * (loss_pcd1_path1_gt + loss_pcd2_path1_gt + loss_pcd1_path2_gt + loss_pcd2_path2_gt) + \
-                     loss_weight_out_out * (loss_pcd1_path1_path2 + loss_pcd2_path1_path2)
-
-        # 统计一个epoch的平均loss
-        train_total_loss += batch_loss.item()
+        train_total_loss_cd += batch_loss_cd.item()
+        train_total_loss_emd += batch_loss_emd.item()
+        train_total_loss += train_total_loss_cd
+        train_total_loss += train_total_loss_emd
 
         optimizer.zero_grad()
         batch_loss.backward()
         optimizer.step()
 
+    train_avrg_loss_cd = train_total_loss_cd / sdf_train_loader.__len__()
+    train_avrg_loss_emd = train_total_loss_emd / sdf_train_loader.__len__()
     train_avrg_loss = train_total_loss / sdf_train_loader.__len__()
+    tensorboard_writer.add_scalar("train_loss_cd", train_avrg_loss_cd, epoch)
+    tensorboard_writer.add_scalar("train_loss_emd", train_avrg_loss_emd, epoch)
     tensorboard_writer.add_scalar("train_loss", train_avrg_loss, epoch)
+    logging.info('train_avrg_loss_cd: {}'.format(train_avrg_loss_cd))
+    logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_emd))
     logging.info('train_avrg_loss: {}'.format(train_avrg_loss))
 
     # 保存模型
     if epoch % 5 == 0:
-        para_save_path = os.path.join(para_save_dir, "{}_{}".format(os.path.basename(train_split_file).split('.')[-2], TIMESTAMP))
+        para_save_path = os.path.join(para_save_dir,
+                                      "{}_{}".format(os.path.basename(train_split_file).split('.')[-2], TIMESTAMP))
         if not os.path.isdir(para_save_path):
             os.mkdir(para_save_path)
         model_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
@@ -206,50 +211,52 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
 def test(network, test_dataloader, epoch, specs, tensorboard_writer):
     device = specs["Device"]
-    loss_weight_out_gt = specs["LossSpecs"]["WeightOutGt"]
-    loss_weight_out_out = specs["LossSpecs"]["WeightOutOut"]
+    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
+    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
 
-    loss_cd_pcd1_path1 = networks.loss.cdModule()
-    loss_cd_pcd2_path1 = networks.loss.cdModule()
-    loss_cd_pcd1_path2 = networks.loss.cdModule()
-    loss_cd_pcd2_path2 = networks.loss.cdModule()
-    loss_cd_pcd1 = networks.loss.cdModule()
-    loss_cd_pcd2 = networks.loss.cdModule()
+    loss_cd = networks.loss.cdModule()
+    loss_emd = networks.loss.emdModule()
 
     with torch.no_grad():
+        test_total_loss_cd = 0
+        test_total_loss_emd = 0
         test_total_loss = 0
-        for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in test_dataloader:
+        for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
             IBS.requires_grad = False
-            pcd1.requires_grad = False
-            pcd2.requires_grad = False
-            pcd1gt.requires_grad = False
-            pcd2gt.requires_grad = False
+            pcd1_partial.requires_grad = False
+            pcd2_partial.requires_grad = False
+            pcd1_gt.requires_grad = False
+            pcd2_gt.requires_grad = False
 
-            pcd1 = pcd1.to(device)
-            pcd2 = pcd2.to(device)
             IBS = IBS.to(device)
+            pcd1_partial = pcd1_partial.to(device)
+            pcd2_partial = pcd2_partial.to(device)
+            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
 
-            # visualize_data1(pcd1, pcd2, xyz, udf_gt1, udf_gt2)
-            pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2 = network(pcd1, pcd2, IBS)
+            pcd1_gt = pcd1_gt.to(device)
+            pcd2_gt = pcd2_gt.to(device)
+            loss_cd_pcd1 = loss_cd(pcd1_gt, pcd1_out)
+            loss_cd_pcd2 = loss_cd(pcd2_gt, pcd1_out)
+            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
+            loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
 
-            # loss between out and groundtruth
-            loss_pcd1_path1_gt = loss_cd_pcd1_path1(pcd1_path1, pcd1gt.to(device))
-            loss_pcd2_path1_gt = loss_cd_pcd2_path1(pcd2_path1, pcd2gt.to(device))
-            loss_pcd1_path2_gt = loss_cd_pcd1_path2(pcd1_path2, pcd1gt.to(device))
-            loss_pcd2_path2_gt = loss_cd_pcd2_path2(pcd2_path2, pcd2gt.to(device))
-            # loss between two path
-            loss_pcd1_path1_path2 = loss_cd_pcd1(pcd1_path1, pcd1_path2)
-            loss_pcd2_path1_path2 = loss_cd_pcd2(pcd2_path1, pcd2_path2)
+            batch_loss_cd = (loss_cd_pcd1 + loss_cd_pcd2)
+            batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
+            batch_loss = loss_weight_cd * batch_loss_cd + loss_weight_emd * batch_loss_emd
 
-            batch_loss = loss_weight_out_gt * (
-                        loss_pcd1_path1_gt + loss_pcd2_path1_gt + loss_pcd1_path2_gt + loss_pcd2_path2_gt) + \
-                         loss_weight_out_out * (loss_pcd1_path1_path2 + loss_pcd2_path1_path2)
-
+            test_total_loss_cd += batch_loss_cd.item()
+            test_total_loss_emd += batch_loss_emd.item()
             test_total_loss += batch_loss.item()
 
+        test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
+        test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
         test_avrg_loss = test_total_loss / test_dataloader.__len__()
+        tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
+        tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_emd, epoch)
         tensorboard_writer.add_scalar("test_loss", test_avrg_loss, epoch)
-        logging.info(' test_avrg_loss: {}\n'.format(test_avrg_loss))
+        logging.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
+        logging.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
+        logging.info('test_avrg_loss: {}'.format(test_avrg_loss))
 
 
 def main_function(experiment_config_file):

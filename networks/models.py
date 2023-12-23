@@ -1,6 +1,7 @@
 from torch import nn
 import torch
 import torch.nn.functional as F
+from networks.pn2_utils import *
 
 
 # -------------------------------------Encoder-----------------------------------
@@ -28,27 +29,63 @@ class PCN_encoder(nn.Module):
         return global_feature_2
 
 
-# class Feature_transfrom(nn.Module):
-#     def __init__(self):
-#         super(Feature_transfrom, self).__init__()
-#         self.conv1 = torch.nn.Conv1d(1536, 1024, 1)  # [in_channels, out_channels, kernel_size]
-#         self.conv2 = torch.nn.Conv1d(1024, 512, 1)
-#         self.conv3 = torch.nn.Conv1d(2048, 1024, 1)
-#         self.conv4 = torch.nn.Conv1d(1024, 512, 1)
-#
-#     def forward(self, feature):
-#         """
-#          input feature is a batch of feature whose shapes are
-#           [batch_size, dim_input, 1]
-#          after the network, the shapes are
-#           [batch, dim_output, 1]
-#         """
-#         x = F.relu(self.conv1(feature))
-#         x = F.relu(self.conv2(x))
-#         x = torch.cat([x, feature], dim=1)
-#         x = F.relu(self.conv3(x))
-#         global_feature = self.conv4(x)
-#         return global_feature
+class PN2_Transformer_Encoder(nn.Module):
+    def __init__(self, out_dim=512):
+        """Encoder that encodes information of partial point cloud"""
+        super().__init__()
+        # self.sa_module_1 = PointNet_SA_Module_KNN(512, 16, 3, [64, 128], group_all=False, if_bn=False, if_idx=True)
+        # self.transformer_1 = Transformer(128, dim=64)
+        # self.sa_module_2 = PointNet_SA_Module_KNN(128, 16, 64, [128, 256], group_all=False, if_bn=False, if_idx=True)
+        # self.transformer_2 = Transformer(256, dim=64)
+        # self.sa_module_3 = PointNet_SA_Module_KNN(None, None, 256, [512, out_dim], group_all=True, if_bn=False)
+
+        self.sa_module_1 = PointNet_SA_Module_KNN(256, 16, 3, [32, 64], group_all=False, if_bn=False, if_idx=True)
+        self.transformer_1 = Transformer(64, dim=32)
+        self.sa_module_2 = PointNet_SA_Module_KNN(64, 16, 64, [64, 128], group_all=False, if_bn=False, if_idx=True)
+        self.transformer_2 = Transformer(128, dim=32)
+        self.sa_module_3 = PointNet_SA_Module_KNN(None, None, 128, [256, out_dim], group_all=True, if_bn=False)
+
+    def forward(self, point_cloud):
+        """
+        Args:
+        point_cloud: b, 3, n
+
+        Returns:
+        l3_points: (B, out_dim, 1)
+        """
+        l0_xyz = point_cloud
+        l0_points = point_cloud
+
+        l1_xyz, l1_points, idx1 = self.sa_module_1(l0_xyz, l0_points)  # (B, 3, 256), (B, 64, 256)
+        l1_points = self.transformer_1(l1_points, l1_xyz)  # (B, 64, 256)
+        l2_xyz, l2_points, idx2 = self.sa_module_2(l1_xyz, l1_points)  # (B, 3, 128), (B, 128, 128)
+        l2_points = self.transformer_2(l2_points, l2_xyz)
+        l3_xyz, l3_points = self.sa_module_3(l2_xyz, l2_points)  # (B, 3, 1), (B, out_dim, 1)
+
+        return l3_points.squeeze(dim=2)
+
+
+class Feature_transfrom(nn.Module):
+    def __init__(self):
+        super(Feature_transfrom, self).__init__()
+        self.conv1 = torch.nn.Conv1d(1536, 1024, 1)  # [in_channels, out_channels, kernel_size]
+        self.conv2 = torch.nn.Conv1d(1024, 512, 1)
+        self.conv3 = torch.nn.Conv1d(2048, 1024, 1)
+        self.conv4 = torch.nn.Conv1d(1024, 512, 1)
+
+    def forward(self, feature):
+        """
+         input feature is a batch of feature whose shapes are
+          [batch_size, dim_input, 1]
+         after the network, the shapes are
+          [batch, dim_output, 1]
+        """
+        x = F.relu(self.conv1(feature))
+        x = F.relu(self.conv2(x))
+        x = torch.cat([x, feature], dim=1)
+        x = F.relu(self.conv3(x))
+        global_feature = self.conv4(x)
+        return global_feature
 
 
 class Feature_transfrom(nn.Module):
@@ -185,16 +222,36 @@ class IBPCDCNet_ibs(nn.Module):
 
 
 class IBPCDCNet(nn.Module):
-    def __init__(self, pcd_point_num):
+    def __init__(self, pcd_point_num, IBS_point_num):
         super().__init__()
-        self.encoder = PCN_encoder(pcd_point_num)
-        self.decoder = TopNet_decoder()
+        self.encoder_pcd1 = PCN_encoder(pcd_point_num)
+        self.encoder_pcd2 = PCN_encoder(pcd_point_num)
+        self.encoder_IBS = PCN_encoder(IBS_point_num)
+        self.feature_transform = Feature_transfrom()
+        self.decoder_pcd1 = TopNet_decoder()
+        self.decoder_pcd2 = TopNet_decoder()
 
-    def forward(self, pcd_partial):
-        pcd_partial = pcd_partial.permute(0, 2, 1)
+    def forward(self, pcd1_partial, pcd2_partial, IBS):
+        # (B, n, 3) -> (B, 3, n)
+        pcd1_partial = pcd1_partial.permute(0, 2, 1)
+        pcd2_partial = pcd2_partial.permute(0, 2, 1)
+        IBS = IBS.permute(0, 2, 1)
 
-        feature_pcd = self.encoder(pcd_partial)
+        # 先各自进行特征提取，(B, 3, n) -> (B, feature_dim, 1)
+        feature_pcd1 = self.encoder_pcd1(pcd1_partial)
+        feature_pcd2 = self.encoder_pcd1(pcd2_partial)
+        feature_IBS = self.encoder_pcd1(IBS)
 
-        pcd_out = self.decoder(feature_pcd).permute(0, 2, 1)
+        # 获取总体特征，(B, 3*feature_dim, 1) -> (B, feature_dim, 1)
+        feature = torch.cat([feature_pcd1, feature_pcd2, feature_IBS], 1)
+        feature = self.feature_transform(feature)
 
-        return pcd_out
+        # 与各自特征进行拼接，(B, 2*feature_dim, 1)
+        feature_pcd1 = torch.cat([feature_pcd1, feature], 1)
+        feature_pcd2 = torch.cat([feature_pcd2, feature], 1)
+
+        # (B, 2*feature_dim, 1) -> (B, points_num, 3)
+        pcd1_out = self.decoder_pcd1(feature_pcd1).permute(0, 2, 1)
+        pcd2_out = self.decoder_pcd2(feature_pcd2).permute(0, 2, 1)
+
+        return pcd1_out, pcd2_out

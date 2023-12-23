@@ -13,34 +13,22 @@ from networks.models import *
 import utils.data
 import utils.workspace as ws
 from utils.learning_rate import get_learning_rate_schedules
+from utils.geometry_utils import get_pcd_from_np
 
 
-def visualize_data1(pcd1, pcd2, IBS, pcd1_gt, pcd2_gt):
-    # 将udf数据拆分开，并且转移到cpu
-    IBS = IBS.cpu().detach().numpy()
-    pcd1_np = pcd1.cpu().detach().numpy()
-    pcd2_np = pcd2.cpu().detach().numpy()
-    pcd1gt_np = pcd1_gt.cpu().detach().numpy()
-    pcd2gt_np = pcd2_gt.cpu().detach().numpy()
-
-    for i in range(pcd1_np.shape[0]):
-        pcd1_o3d = o3d.geometry.PointCloud()
-        pcd2_o3d = o3d.geometry.PointCloud()
-        ibs_o3d = o3d.geometry.PointCloud()
-        pcd1gt_o3d = o3d.geometry.PointCloud()
-        pcd2gt_o3d = o3d.geometry.PointCloud()
-
-        pcd1_o3d.points = o3d.utility.Vector3dVector(pcd1_np[i])
-        pcd2_o3d.points = o3d.utility.Vector3dVector(pcd2_np[i])
-        ibs_o3d.points = o3d.utility.Vector3dVector(IBS[i])
-        pcd1gt_o3d.points = o3d.utility.Vector3dVector(pcd1gt_np[i])
-        pcd2gt_o3d.points = o3d.utility.Vector3dVector(pcd2gt_np[i])
-
-        pcd1_o3d.paint_uniform_color([1, 0, 0])
-        pcd2_o3d.paint_uniform_color([0, 1, 0])
-        ibs_o3d.paint_uniform_color([0, 0, 1])
-
-        o3d.visualization.draw_geometries([ibs_o3d, pcd1_o3d, pcd2_o3d])
+def visualize(IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt):
+    _IBS = get_pcd_from_np(IBS.numpy())
+    _pcd1_partial = get_pcd_from_np(pcd1_partial.numpy())
+    _pcd2_partial = get_pcd_from_np(pcd2_partial.numpy())
+    _pcd1gt = get_pcd_from_np(pcd1_gt.numpy())
+    _pcd2gt = get_pcd_from_np(pcd2_gt.numpy())
+    _IBS.paint_uniform_color((1, 0, 0))
+    _pcd1_partial.paint_uniform_color((0, 1, 0))
+    _pcd2_partial.paint_uniform_color((0, 0, 1))
+    _pcd1gt.paint_uniform_color((0, 1, 0))
+    _pcd2gt.paint_uniform_color((0, 0, 1))
+    o3d.visualization.draw_geometries([_IBS, _pcd1_partial, _pcd2_partial])
+    o3d.visualization.draw_geometries([_IBS, _pcd1gt, _pcd2gt])
 
 
 def get_dataloader(specs):
@@ -89,10 +77,9 @@ def get_dataloader(specs):
 
 def get_network(specs):
     pcd_point_num = specs["PcdPointNum"]
-    IBS_point_num = specs["IBSPointNum"]
     device = specs["Device"]
 
-    net = PCDCompletionNet(pcd_point_num, IBS_point_num)
+    net = IBPCDCNet(pcd_point_num)
 
     if torch.cuda.is_available():
         net = net.to(device)
@@ -123,7 +110,7 @@ def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
         input_pcd_shape = input_pcd_shape.to(device)
         input_IBS_shape = input_IBS_shape.to(device)
 
-    tensorboard_writer.add_graph(network, (input_pcd_shape, input_IBS_shape))
+    tensorboard_writer.add_graph(network, (input_pcd_shape))
 
     return tensorboard_writer
 
@@ -155,29 +142,28 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     train_total_loss = 0
     for IBS, pcd1_partial, pcd2_partial, pcd1gt, pcd2gt, idx in sdf_train_loader:
         pcd1_partial = pcd1_partial.to(device)
-        pcd2_partial = pcd2_partial.to(device)
         pcd1gt = pcd1gt.to(device)
-        pcd2gt = pcd2gt.to(device)
-        IBS = IBS.to(device)
-
-        # visualize_data1(pcd1, pcd2, IBS, pcd1gt, pcd2gt)
-        pcd1_out = network(pcd1_partial, IBS)
-        pcd2_out = network(pcd2_partial, IBS)
-
-        # loss between out and groundtruth
+        pcd1_out = network(pcd1_partial)
         loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
-        loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
         loss_emd_pcd1 = torch.mean(loss_emd(pcd1gt, pcd1_out)[0])
-        loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
-
-        batch_loss = loss_weight_cd * (loss_cd_pcd1 + loss_cd_pcd2) + loss_weight_emd * (loss_emd_pcd1 + loss_emd_pcd2)
-
-        # 统计一个epoch的平均loss
+        batch_loss = loss_weight_cd * loss_cd_pcd1 + loss_weight_emd * loss_emd_pcd1
         train_total_loss += batch_loss.item()
-
         optimizer.zero_grad()
         batch_loss.backward()
         optimizer.step()
+
+        pcd2_partial = pcd2_partial.to(device)
+        pcd2gt = pcd2gt.to(device)
+        pcd2_out = network(pcd2_partial)
+        loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
+        loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
+        batch_loss = loss_weight_cd * loss_cd_pcd2 + loss_weight_emd * loss_emd_pcd2
+        train_total_loss += batch_loss.item()
+        optimizer.zero_grad()
+        batch_loss.backward()
+        optimizer.step()
+
+        # 统计一个epoch的平均loss
 
     train_avrg_loss = train_total_loss / sdf_train_loader.__len__()
     tensorboard_writer.add_scalar("train_loss", train_avrg_loss, epoch)

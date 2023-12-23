@@ -151,47 +151,8 @@ class TopNet_decoder(nn.Module):
 
 
 # -------------------------------------Completion Net-----------------------------------
-# class PCDCompletionNet(nn.Module):
-#     def __init__(self, pcd_point_num):
-#         super().__init__()
-#         # encoder
-#         self.encoder_pcd1 = PCN_encoder(pcd_point_num)
-#         self.encoder_pcd2 = PCN_encoder(pcd_point_num)
-#         self.encoder_IBS = PCN_encoder(pcd_point_num)
-#         # feature transform
-#         self.feature_transform = Feature_transfrom()
-#         # decoder
-#         self.decoder_path1_pcd1 = TopNet_decoder()
-#         self.decoder_path1_pcd2 = TopNet_decoder()
-#         self.decoder_path2_pcd1 = TopNet_decoder()
-#         self.decoder_path2_pcd2 = TopNet_decoder()
-#
-#     def forward(self, pcd1_partial, pcd2_partial, IBS):
-#         # exchange dim1 and dim2
-#         pcd1_partial = pcd1_partial.permute(0, 2, 1)
-#         pcd2_partial = pcd2_partial.permute(0, 2, 1)
-#         IBS = IBS.permute(0, 2, 1)
-#
-#         # get the feature of pcd1, pcd2, IBS
-#         feature_pcd1 = self.encoder_pcd1(pcd1_partial)
-#         feature_pcd2 = self.encoder_pcd2(pcd2_partial)
-#         feature_IBS = self.encoder_IBS(IBS)
-#
-#         # concat the global feature
-#         feature_global = torch.cat((feature_pcd1, feature_pcd2, feature_IBS), dim=1)
-#
-#         # transform feature
-#         feature_global = self.feature_transform(feature_global)
-#
-#         # decode
-#         pcd1_path1 = self.decoder_path1_pcd1(feature_global).permute(0, 2, 1)
-#         pcd2_path1 = self.decoder_path1_pcd2(feature_global).permute(0, 2, 1)
-#         pcd1_path2 = self.decoder_path2_pcd1(feature_global).permute(0, 2, 1)
-#         pcd2_path2 = self.decoder_path2_pcd2(feature_global).permute(0, 2, 1)
-#         return pcd1_path1, pcd2_path1, pcd1_path2, pcd2_path2
 
-
-class PCDCompletionNet(nn.Module):
+class IBPCDCNet_ibs(nn.Module):
     def __init__(self, pcd_point_num, IBS_point_num):
         super().__init__()
         # encoder
@@ -209,15 +170,31 @@ class PCDCompletionNet(nn.Module):
 
         # get the feature of pcd1, pcd2, IBS
         feature_pcd = self.encoder_pcd(pcd_partial)
-        # feature_IBS = self.encoder_IBS(IBS)
+        feature_IBS = self.encoder_IBS(IBS)
 
         # concat the global feature
-        # feature_global = torch.cat((feature_pcd, feature_IBS), dim=1)
+        feature_global = torch.cat((feature_pcd, feature_IBS), dim=1)
 
         # transform feature
-        # feature_global = self.feature_transform(feature_global)
+        feature_global = self.feature_transform(feature_global)
 
         # decode
+        pcd_out = self.decoder(feature_global).permute(0, 2, 1)
+
+        return pcd_out
+
+
+class IBPCDCNet(nn.Module):
+    def __init__(self, pcd_point_num):
+        super().__init__()
+        self.encoder = PCN_encoder(pcd_point_num)
+        self.decoder = TopNet_decoder()
+
+    def forward(self, pcd_partial):
+        pcd_partial = pcd_partial.permute(0, 2, 1)
+
+        feature_pcd = self.encoder(pcd_partial)
+
         pcd_out = self.decoder(feature_pcd).permute(0, 2, 1)
 
         return pcd_out

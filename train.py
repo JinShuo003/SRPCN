@@ -91,7 +91,7 @@ def get_network(specs):
     pcd_point_num = specs["PcdPointNum"]
     device = specs["Device"]
 
-    net = PCDCompletionNet(pcd_point_num)
+    net = IBPCDCNet(pcd_point_num)
 
     if torch.cuda.is_available():
         net = net.to(device)

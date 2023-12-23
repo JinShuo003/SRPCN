@@ -135,10 +135,11 @@ class IntersectDataset(torch.utils.data.Dataset):
         pcd2gt_filename = os.path.join(
             self.data_source, ws.pcd_complete_subdir, self.pcd2gtfiles[idx]
         )
-        IBS = self.IBS_cache.get(IBS_filename)
+
+        IBS = get_pcd_data(IBS_filename)
         pcd1 = get_pcd_data(pcd1_filename)
         pcd2 = get_pcd_data(pcd2_filename)
-        pcd1gt = self.pcd1gt_cache.get(pcd1gt_filename)
-        pcd2gt = self.pcd1gt_cache.get(pcd2gt_filename)
+        pcd1gt = get_pcd_data(pcd1gt_filename)
+        pcd2gt = get_pcd_data(pcd2gt_filename)
 
         return IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx

@@ -209,15 +209,15 @@ class PCDCompletionNet(nn.Module):
 
         # get the feature of pcd1, pcd2, IBS
         feature_pcd = self.encoder_pcd(pcd_partial)
-        feature_IBS = self.encoder_IBS(IBS)
+        # feature_IBS = self.encoder_IBS(IBS)
 
         # concat the global feature
-        feature_global = torch.cat((feature_pcd, feature_IBS), dim=1)
+        # feature_global = torch.cat((feature_pcd, feature_IBS), dim=1)
 
         # transform feature
-        feature_global = self.feature_transform(feature_global)
+        # feature_global = self.feature_transform(feature_global)
 
         # decode
-        pcd_out = self.decoder(feature_global).permute(0, 2, 1)
+        pcd_out = self.decoder(feature_pcd).permute(0, 2, 1)
 
         return pcd_out

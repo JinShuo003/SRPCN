@@ -9,7 +9,7 @@ import numpy as np
 import re
 
 import networks.loss
-from networks.models import *
+from networks.model_transformer_TopNet_2obj_no_ibs import *
 
 import utils.data
 import utils.workspace as ws
@@ -145,8 +145,8 @@ def test(IBPCDCNet, test_dataloader, specs, model):
         with open(test_result_filename, 'w') as f:
             f.write("test_split: {}\n".format(test_split))
             f.write("model: {}\n".format(model))
-            # f.write("avrg_loss_emd: {}\n".format(test_avrg_loss_emd))
-            f.write("avrg_loss_cd: {}\n".format(test_avrg_loss_cd))
+            f.write("avrg_loss_emd: {}\n".format(test_avrg_loss_emd))
+            # f.write("avrg_loss_cd: {}\n".format(test_avrg_loss_cd))
 
 
 def main_function(experiment_config_file, model_path):

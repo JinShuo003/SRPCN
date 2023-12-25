@@ -8,7 +8,7 @@ import open3d as o3d
 from datetime import datetime, timedelta
 
 import networks.loss
-from networks.models import *
+from networks.model_transformer_TopNet_2obj_no_ibs import *
 
 import utils.data
 import utils.workspace as ws
@@ -115,14 +115,12 @@ def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
 
     input_pcd1_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
     input_pcd2_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
-    input_IBS_shape = torch.randn(1, specs.get("IBSPointNum"), 3)
 
     if torch.cuda.is_available():
         input_pcd1_shape = input_pcd1_shape.to(device)
         input_pcd2_shape = input_pcd2_shape.to(device)
-        input_IBS_shape = input_IBS_shape.to(device)
 
-    tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape, input_IBS_shape))
+    tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape))
 
     return tensorboard_writer
 
@@ -153,21 +151,19 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     train_total_loss_emd = 0
     train_total_loss_cd = 0
     for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in sdf_train_loader:
-        IBS.requires_grad = False
         pcd1_partial.requires_grad = False
         pcd2_partial.requires_grad = False
         pcd1_gt.requires_grad = False
         pcd2_gt.requires_grad = False
 
-        IBS = IBS.to(device)
         pcd1_partial = pcd1_partial.to(device)
         pcd2_partial = pcd2_partial.to(device)
-        pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
+        pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
 
         pcd1_gt = pcd1_gt.to(device)
         pcd2_gt = pcd2_gt.to(device)
-        loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
-        loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
+        loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
+        loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
         # loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
         # loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
 
@@ -209,7 +205,6 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
         test_total_loss_emd = 0
         test_total_loss_cd = 0
         for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
-            IBS.requires_grad = False
             pcd1_partial.requires_grad = False
             pcd2_partial.requires_grad = False
             pcd1_gt.requires_grad = False
@@ -218,12 +213,12 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
             IBS = IBS.to(device)
             pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
-            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
+            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)
-            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
-            loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
+            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
+            loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
             # loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
             # loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
 

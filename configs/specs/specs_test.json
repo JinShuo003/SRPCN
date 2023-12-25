@@ -9,5 +9,5 @@
     "DataLoaderThreads" : 4,
     "Visualize": false,
     "Save": true,
-    "SaveDir": "test_result/pcd"
+    "SaveDir": "test_result/pcd_partial_1024_test"
 }

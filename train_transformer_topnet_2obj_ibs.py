@@ -8,27 +8,39 @@ import open3d as o3d
 from datetime import datetime, timedelta
 
 import networks.loss
-from networks.models import *
+from networks.model_transformer_TopNet_2obj_ibs import *
 
 import utils.data
 import utils.workspace as ws
 from utils.learning_rate import get_learning_rate_schedules
-from utils.geometry_utils import get_pcd_from_np
 
 
-def visualize(IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt):
-    _IBS = get_pcd_from_np(IBS.numpy())
-    _pcd1_partial = get_pcd_from_np(pcd1_partial.numpy())
-    _pcd2_partial = get_pcd_from_np(pcd2_partial.numpy())
-    _pcd1gt = get_pcd_from_np(pcd1_gt.numpy())
-    _pcd2gt = get_pcd_from_np(pcd2_gt.numpy())
-    _IBS.paint_uniform_color((1, 0, 0))
-    _pcd1_partial.paint_uniform_color((0, 1, 0))
-    _pcd2_partial.paint_uniform_color((0, 0, 1))
-    _pcd1gt.paint_uniform_color((0, 1, 0))
-    _pcd2gt.paint_uniform_color((0, 0, 1))
-    o3d.visualization.draw_geometries([_IBS, _pcd1_partial, _pcd2_partial])
-    o3d.visualization.draw_geometries([_IBS, _pcd1gt, _pcd2gt])
+def visualize(pcd1, pcd2, IBS, pcd1_gt, pcd2_gt):
+    # 将udf数据拆分开，并且转移到cpu
+    IBS = IBS.cpu().detach().numpy()
+    pcd1_np = pcd1.cpu().detach().numpy()
+    pcd2_np = pcd2.cpu().detach().numpy()
+    pcd1gt_np = pcd1_gt.cpu().detach().numpy()
+    pcd2gt_np = pcd2_gt.cpu().detach().numpy()
+
+    for i in range(pcd1_np.shape[0]):
+        pcd1_o3d = o3d.geometry.PointCloud()
+        pcd2_o3d = o3d.geometry.PointCloud()
+        ibs_o3d = o3d.geometry.PointCloud()
+        pcd1gt_o3d = o3d.geometry.PointCloud()
+        pcd2gt_o3d = o3d.geometry.PointCloud()
+
+        pcd1_o3d.points = o3d.utility.Vector3dVector(pcd1_np[i])
+        pcd2_o3d.points = o3d.utility.Vector3dVector(pcd2_np[i])
+        ibs_o3d.points = o3d.utility.Vector3dVector(IBS[i])
+        pcd1gt_o3d.points = o3d.utility.Vector3dVector(pcd1gt_np[i])
+        pcd2gt_o3d.points = o3d.utility.Vector3dVector(pcd2gt_np[i])
+
+        pcd1_o3d.paint_uniform_color([1, 0, 0])
+        pcd2_o3d.paint_uniform_color([0, 1, 0])
+        ibs_o3d.paint_uniform_color([0, 0, 1])
+
+        o3d.visualization.draw_geometries([ibs_o3d, pcd1_o3d, pcd2_o3d])
 
 
 def get_dataloader(specs):
@@ -36,7 +48,6 @@ def get_dataloader(specs):
     train_split_file = specs["TrainSplit"]
     test_split_file = specs["TestSplit"]
     scene_per_batch = specs["ScenesPerBatch"]
-    dataloader_cache_capacity = specs["DataLoaderSpecs"]["CacheCapacity"]
     num_data_loader_threads = get_spec_with_default(specs, "DataLoaderThreads", 1)
 
     logging.info("batch_size: {}".format(scene_per_batch))
@@ -48,8 +59,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = utils.data.IntersectDataset(data_source, train_split, dataloader_cache_capacity)
-    test_dataset = utils.data.IntersectDataset(data_source, test_split, dataloader_cache_capacity)
+    train_dataset = utils.data.IntersectDataset(data_source, train_split)
+    test_dataset = utils.data.IntersectDataset(data_source, test_split)
 
     logging.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
     logging.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
@@ -76,10 +87,9 @@ def get_dataloader(specs):
 
 
 def get_network(specs):
-    pcd_point_num = specs["PcdPointNum"]
     device = specs["Device"]
 
-    net = IBPCDCNet(pcd_point_num)
+    net = IBPCDCNet()
 
     if torch.cuda.is_available():
         net = net.to(device)
@@ -103,14 +113,14 @@ def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
 
     tensorboard_writer = SummaryWriter(writer_path)
 
-    input_pcd_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
-    input_IBS_shape = torch.randn(1, specs.get("IBSPointNum"), 3)
+    input_pcd1_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
+    input_pcd2_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
 
     if torch.cuda.is_available():
-        input_pcd_shape = input_pcd_shape.to(device)
-        input_IBS_shape = input_IBS_shape.to(device)
+        input_pcd1_shape = input_pcd1_shape.to(device)
+        input_pcd2_shape = input_pcd2_shape.to(device)
 
-    tensorboard_writer.add_graph(network, (input_pcd_shape))
+    tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape))
 
     return tensorboard_writer
 
@@ -129,49 +139,58 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     para_save_dir = specs["ParaSaveDir"]
     train_split_file = specs["TrainSplit"]
     device = specs["Device"]
-    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
-    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
 
-    loss_cd = networks.loss.cdModule()
     loss_emd = networks.loss.emdModule()
+    loss_cd = networks.loss.cdModule()
 
     network.train()
     adjust_learning_rate(lr_schedules, optimizer, epoch)
+    logging.info("")
     logging.info('epoch: {}, learning rate: {}'.format(epoch, lr_schedules.get_learning_rate(epoch)))
 
-    train_total_loss = 0
-    for IBS, pcd1_partial, pcd2_partial, pcd1gt, pcd2gt, idx in sdf_train_loader:
+    train_total_loss_emd = 0
+    train_total_loss_cd = 0
+    for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in sdf_train_loader:
+        IBS.requires_grad = False
+        pcd1_partial.requires_grad = False
+        pcd2_partial.requires_grad = False
+        pcd1_gt.requires_grad = False
+        pcd2_gt.requires_grad = False
+
+        IBS = IBS.to(device)
         pcd1_partial = pcd1_partial.to(device)
-        pcd1gt = pcd1gt.to(device)
-        pcd1_out = network(pcd1_partial)
-        loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
-        loss_emd_pcd1 = torch.mean(loss_emd(pcd1gt, pcd1_out)[0])
-        batch_loss = loss_weight_cd * loss_cd_pcd1 + loss_weight_emd * loss_emd_pcd1
-        train_total_loss += batch_loss.item()
-        optimizer.zero_grad()
-        batch_loss.backward()
-        optimizer.step()
-
         pcd2_partial = pcd2_partial.to(device)
-        pcd2gt = pcd2gt.to(device)
-        pcd2_out = network(pcd2_partial)
-        loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
-        loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
-        batch_loss = loss_weight_cd * loss_cd_pcd2 + loss_weight_emd * loss_emd_pcd2
-        train_total_loss += batch_loss.item()
+        pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
+
+        pcd1_gt = pcd1_gt.to(device)
+        pcd2_gt = pcd2_gt.to(device)
+        loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
+        loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
+        # loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
+        # loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
+
+        batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
+        # batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
+
+        train_total_loss_emd += batch_loss_emd.item()
+        # train_total_loss_cd += batch_loss_cd.item()
+
         optimizer.zero_grad()
-        batch_loss.backward()
+        # batch_loss_cd.backward()
+        batch_loss_emd.backward()
         optimizer.step()
 
-        # 统计一个epoch的平均loss
-
-    train_avrg_loss = train_total_loss / sdf_train_loader.__len__()
-    tensorboard_writer.add_scalar("train_loss", train_avrg_loss, epoch)
-    logging.info('train_avrg_loss: {}'.format(train_avrg_loss))
+    train_avrg_loss_emd = train_total_loss_emd / sdf_train_loader.__len__()
+    tensorboard_writer.add_scalar("train_loss_emd", train_avrg_loss_emd, epoch)
+    logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_emd))
+    # train_avrg_loss_cd = train_total_loss_cd / sdf_train_loader.__len__()
+    # tensorboard_writer.add_scalar("train_loss_cd", train_avrg_loss_cd, epoch)
+    # logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_cd))
 
     # 保存模型
     if epoch % 5 == 0:
-        para_save_path = os.path.join(para_save_dir, "{}_{}".format(os.path.basename(train_split_file).split('.')[-2], TIMESTAMP))
+        para_save_path = os.path.join(para_save_dir,
+                                      "{}_{}".format(os.path.basename(train_split_file).split('.')[-2], TIMESTAMP))
         if not os.path.isdir(para_save_path):
             os.mkdir(para_save_path)
         model_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
@@ -180,38 +199,43 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
 def test(network, test_dataloader, epoch, specs, tensorboard_writer):
     device = specs["Device"]
-    loss_weight_cd = specs["LossSpecs"]["WeightCD"]
-    loss_weight_emd = specs["LossSpecs"]["WeightEMD"]
 
-    loss_cd = networks.loss.cdModule()
     loss_emd = networks.loss.emdModule()
+    loss_cd = networks.loss.cdModule()
 
     with torch.no_grad():
-        test_total_loss = 0
-        for IBS, pcd1_partial, pcd2_partial, pcd1gt, pcd2gt, idx in test_dataloader:
+        test_total_loss_emd = 0
+        test_total_loss_cd = 0
+        for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
+            pcd1_partial.requires_grad = False
+            pcd2_partial.requires_grad = False
+            pcd1_gt.requires_grad = False
+            pcd2_gt.requires_grad = False
+
+            IBS = IBS.to(device)
             pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
-            IBS = IBS.to(device)
+            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
 
-            # visualize_data1(pcd1, pcd2, xyz, udf_gt1, udf_gt2)
-            pcd1_out = network(pcd1_partial, IBS)
-            pcd2_out = network(pcd2_partial, IBS)
+            pcd1_gt = pcd1_gt.to(device)
+            pcd2_gt = pcd2_gt.to(device)
+            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
+            loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
+            # loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
+            # loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
 
-            pcd1gt = pcd1gt.to(device)
-            pcd2gt = pcd2gt.to(device)
+            batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
+            # batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
 
-            loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
-            loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
-            loss_emd_pcd1 = torch.mean(loss_emd(pcd1gt, pcd1_out)[0])
-            loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
+            test_total_loss_emd += batch_loss_emd.item()
+            # test_total_loss_cd += batch_loss_cd.item()
 
-            batch_loss = loss_weight_cd * (loss_cd_pcd1 + loss_cd_pcd2) + loss_weight_emd * (loss_emd_pcd1 + loss_emd_pcd2)
-
-            test_total_loss += batch_loss.item()
-
-        test_avrg_loss = test_total_loss / test_dataloader.__len__()
-        tensorboard_writer.add_scalar("test_loss", test_avrg_loss, epoch)
-        logging.info(' test_avrg_loss: {}\n'.format(test_avrg_loss))
+        test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
+        tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_emd, epoch)
+        logging.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
+        # test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
+        # tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
+        # logging.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
 
 
 def main_function(experiment_config_file):
@@ -245,7 +269,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_single_object.json",
+        default="configs/specs/specs_train.json",
         required=False,
         help="The experiment config file."
     )

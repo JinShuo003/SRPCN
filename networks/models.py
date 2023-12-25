@@ -126,16 +126,15 @@ class TopNet_decoder(nn.Module):
         self.level_2 = nn.ModuleList()
         self.level_3 = nn.ModuleList()
         self.level_4 = nn.ModuleList()
-
         # construct tree
         for _ in range(arch[0]):
-            self.level_1.append(mlp(1024, 8))
+            self.level_1.append(mlp(512, 8))
         for _ in range(arch[1]):
-            self.level_2.append(mlp(1024 + 8, 8))
+            self.level_2.append(mlp(512 + 8, 8))
         for _ in range(arch[2]):
-            self.level_3.append(mlp(1024 + 8, 8))
+            self.level_3.append(mlp(512 + 8, 8))
         for _ in range(arch[3]):
-            self.level_4.append(final_mlp(1024 + 8, 3))
+            self.level_4.append(final_mlp(512 + 8, 3))
 
     def forward(self, x):
         features_1 = []
@@ -196,8 +195,6 @@ class IBPCDCNet(nn.Module):
         super().__init__()
         self.encoder_pcd1 = PN2_Transformer_Encoder()
         self.encoder_pcd2 = PN2_Transformer_Encoder()
-        self.encoder_IBS = PN2_Transformer_Encoder()
-        self.feature_transform = Feature_transfrom()
         self.decoder_pcd1 = TopNet_decoder()
         self.decoder_pcd2 = TopNet_decoder()
 
@@ -205,23 +202,23 @@ class IBPCDCNet(nn.Module):
         # (B, n, 3) -> (B, 3, n)
         pcd1_partial = pcd1_partial.permute(0, 2, 1)
         pcd2_partial = pcd2_partial.permute(0, 2, 1)
-        IBS = IBS.permute(0, 2, 1)
+        # IBS = IBS.permute(0, 2, 1)
 
         # 先各自进行特征提取，(B, 3, n) -> (B, feature_dim, 1)
         feature_pcd1 = self.encoder_pcd1(pcd1_partial)
         feature_pcd2 = self.encoder_pcd2(pcd2_partial)
-        feature_IBS = self.encoder_IBS(IBS)
+        # feature_IBS = self.encoder_IBS(IBS)
 
         # 获取总体特征，(B, 3*feature_dim, 1) -> (B, feature_dim, 1)
-        feature = torch.cat([feature_pcd1, feature_pcd2, feature_IBS], 1)
-        feature = self.feature_transform(feature)
+        feature = torch.cat([feature_pcd1, feature_pcd2], 1)
+        # feature = self.feature_transform(feature)
 
         # 与各自特征进行拼接，(B, 2*feature_dim, 1)
-        feature_pcd1 = torch.cat([feature_pcd1, feature], 1)
-        feature_pcd2 = torch.cat([feature_pcd2, feature], 1)
+        # feature_pcd1 = torch.cat([feature_pcd1, feature], 1)
+        # feature_pcd2 = torch.cat([feature_pcd2, feature], 1)
 
         # (B, 2*feature_dim, 1) -> (B, points_num, 3)
-        pcd1_out = self.decoder_pcd1(feature_pcd1).permute(0, 2, 1)
-        pcd2_out = self.decoder_pcd2(feature_pcd2).permute(0, 2, 1)
+        pcd1_out = self.decoder_pcd1(feature).permute(0, 2, 1)
+        pcd2_out = self.decoder_pcd2(feature).permute(0, 2, 1)
 
         return pcd1_out, pcd2_out

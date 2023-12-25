@@ -169,14 +169,14 @@ def visualize(specs, filename):
 
 if __name__ == '__main__':
     # 获取配置参数
-    config_filepath = 'visualization.json'
+    config_filepath = 'configs/geometry_visualizer.json'
     specs = parseConfig(config_filepath)
-
-    filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("pcd_scan_dir"))
+    filename_tree_dir = specs.get("path_options").get("filename_tree_dir")
+    filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get(filename_tree_dir))
 
     for category in filename_tree:
         for scene in filename_tree[category]:
-            print('current scene: ', scene)
+            print('current scene1: ', scene)
             for filename in filename_tree[category][scene]:
                 print('current file: ', filename)
                 try:

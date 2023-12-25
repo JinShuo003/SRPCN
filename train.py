@@ -236,8 +236,8 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
         # tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_emd, epoch)
         # logging.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
         test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
-        tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_cd, epoch)
-        logging.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_cd))
+        tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
+        logging.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
 
 
 def main_function(experiment_config_file):

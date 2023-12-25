@@ -128,13 +128,13 @@ class TopNet_decoder(nn.Module):
         self.level_4 = nn.ModuleList()
         # construct tree
         for _ in range(arch[0]):
-            self.level_1.append(mlp(512, 8))
+            self.level_1.append(mlp(1024, 8))
         for _ in range(arch[1]):
-            self.level_2.append(mlp(512 + 8, 8))
+            self.level_2.append(mlp(1024 + 8, 8))
         for _ in range(arch[2]):
-            self.level_3.append(mlp(512 + 8, 8))
+            self.level_3.append(mlp(1024 + 8, 8))
         for _ in range(arch[3]):
-            self.level_4.append(final_mlp(512 + 8, 3))
+            self.level_4.append(final_mlp(1024 + 8, 3))
 
     def forward(self, x):
         features_1 = []

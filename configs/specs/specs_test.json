@@ -4,14 +4,10 @@
     "TestSplit" : "configs/test_scan_1024/test.json",
     "TestResult" : "test_result",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
-    "DataLoaderSpecs": {
-        "CacheCapacity": 3
-    },
     "Device" : 0,
     "ScenesPerBatch" : 512,
     "DataLoaderThreads" : 4,
     "Visualize": false,
     "Save": true,
     "SaveDir": "test_result/pcd"
-
 }

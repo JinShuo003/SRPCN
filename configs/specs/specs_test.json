@@ -1,20 +1,16 @@
 {
-    "Description" : "Compute two SDF fields",
+    "Description" : "Get prediction point cloud",
     "DataSource" : "D:\\dataset\\IBPCDC",
-    "TestSplit" : "configs/test_scan_2048/test.json",
+    "TestSplit" : "configs/test_scan_1024/test.json",
     "TestResult" : "test_result",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
     "DataLoaderSpecs": {
         "CacheCapacity": 3
     },
-    "LossSpecs": {
-        "WeightCD": 0.5,
-        "WeightEMD": 0.5
-    },
     "Device" : 0,
-    "ScenesPerBatch" : 4,
+    "ScenesPerBatch" : 512,
     "DataLoaderThreads" : 4,
-    "Visualize": true,
+    "Visualize": false,
     "Save": true,
     "SaveDir": "test_result\\pcd"
 

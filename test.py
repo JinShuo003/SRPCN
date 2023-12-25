@@ -97,30 +97,30 @@ def test(IBPCDCNet, test_dataloader, specs, model):
     visualize = specs["Visualize"]
     save = specs["Save"]
 
-    loss_weight_cd = float(specs["LossSpecs"]["WeightCD"])
-    loss_weight_emd = float(specs["LossSpecs"]["WeightEMD"])
-
-    loss_cd = networks.loss.cdModule()
     loss_emd = networks.loss.emdModule()
 
     with torch.no_grad():
         test_total_loss = 0
-        for IBS, pcd1, pcd2, pcd1gt, pcd2gt, idx in test_dataloader:
-            pcd1_partial = pcd1_partial.to(device)
-            pcd1gt = pcd1gt.to(device)
-            pcd1_out = IBPCDCNet(pcd1_partial)
-            loss_cd_pcd1 = loss_cd(pcd1gt, pcd1_out)
-            loss_emd_pcd1 = torch.mean(loss_emd(pcd1gt, pcd1_out)[0])
-            batch_loss = loss_weight_cd * loss_cd_pcd1 + loss_weight_emd * loss_emd_pcd1
-            test_total_loss += batch_loss.item()
+        for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
+            IBS.requires_grad = False
+            pcd1_partial.requires_grad = False
+            pcd2_partial.requires_grad = False
+            pcd1_gt.requires_grad = False
+            pcd2_gt.requires_grad = False
 
+            IBS = IBS.to(device)
+            pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
-            pcd2gt = pcd2gt.to(device)
-            pcd2_out = IBPCDCNet(pcd2_partial)
-            loss_cd_pcd2 = loss_cd(pcd2gt, pcd2_out)
-            loss_emd_pcd2 = torch.mean(loss_emd(pcd2gt, pcd2_out)[0])
-            batch_loss = loss_weight_cd * loss_cd_pcd2 + loss_weight_emd * loss_emd_pcd2
-            test_total_loss += batch_loss.item()
+            pcd1_out, pcd2_out = IBPCDCNet(pcd1_partial, pcd2_partial, IBS)
+
+            pcd1_gt = pcd1_gt.to(device)
+            pcd2_gt = pcd2_gt.to(device)
+            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
+            loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
+
+            batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
+
+            test_total_loss += batch_loss_emd.item()
 
             if save:
                 save_result(test_dataloader, pcd1_out, idx, specs, "{}".format("0"))

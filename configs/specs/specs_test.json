@@ -1,6 +1,6 @@
 {
     "Description" : "Get prediction point cloud",
-    "DataSource" : "D:\\dataset\\IBPCDC",
+    "DataSource" : "data",
     "TestSplit" : "configs/test_scan_1024/test.json",
     "TestResult" : "test_result",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
@@ -12,6 +12,6 @@
     "DataLoaderThreads" : 4,
     "Visualize": false,
     "Save": true,
-    "SaveDir": "test_result\\pcd"
+    "SaveDir": "test_result/pcd"
 
 }

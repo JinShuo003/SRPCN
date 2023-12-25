@@ -35,14 +35,13 @@ def get_dataloader(specs):
     data_source = specs["DataSource"]
     test_split_file = specs["TestSplit"]
     scene_per_batch = specs["ScenesPerBatch"]
-    dataloader_cache_capacity = specs["DataLoaderSpecs"]["CacheCapacity"]
     num_data_loader_threads = get_spec_with_default(specs, "DataLoaderThreads", 1)
 
     with open(test_split_file, "r") as f:
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = utils.data.IntersectDataset(data_source, test_split, dataloader_cache_capacity)
+    test_dataset = utils.data.IntersectDataset(data_source, test_split)
     
     # get dataloader
     test_dataloader = data_utils.DataLoader(
@@ -128,7 +127,6 @@ def test(IBPCDCNet, test_dataloader, specs, model):
             if visualize:
                 visualize_data(pcd1_out, pcd2_out, specs)
 
-            print("handled a batch, idx: {}", idx)
         test_avrg_loss = test_total_loss / test_dataloader.__len__()
         print(' test_avrg_loss: {}\n'.format(test_avrg_loss))
 
@@ -175,7 +173,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/train_2023-11-15_20-05-11/epoch_195.pth",
+        default="trained_models/train_2023-12-23_18-19-46/epoch_195.pth",
         required=False,
         help="The network para"
     )

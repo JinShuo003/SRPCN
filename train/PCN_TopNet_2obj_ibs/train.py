@@ -9,6 +9,7 @@ import json
 import open3d as o3d
 from datetime import datetime, timedelta
 import argparse
+import time
 
 from networks.loss import chamfer_distance, earth_move_distance
 from networks.model_PCN_TopNet_2obj_ibs import *
@@ -247,8 +248,15 @@ def main_function(specs):
     tensorboard_writer = get_tensorboard_writer(specs, network)
 
     for epoch in range(epoch_num + 1):
+        time_begin_train = time.time()
         train(network, train_loader, lr_schedules, optimizer, epoch, specs, tensorboard_writer, TIMESTAMP)
+        time_end_train = time.time()
+        logger.info("use {} to train".format(time_end_train - time_begin_train))
+
+        time_begin_test = time.time()
         test(network, test_loader, epoch, specs, tensorboard_writer)
+        time_end_test = time.time()
+        logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     tensorboard_writer.close()
 

@@ -2,7 +2,10 @@
   "path_options": {
     "geometries_dir": {
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\pcd_partial_2048",
-      "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\pcd_partial_2048"
+      "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\pcd_partial_2048",
+      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\pcd_partial_2048\\Transformer_TopNet_2obj_ibs",
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\pcd_partial_2048\\Transformer_TopNet_2obj_no_ibs",
+      "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
     },
     "format_info": {
       "category_re": "scene\\d",
@@ -14,8 +17,10 @@
     }
   },
   "window_size_options": {
-    "scene_width": 800,
-    "scene_height": 500,
-    "tool_bar_width": 300
+    "sub_window_width": 800,
+    "sub_window_height": 500,
+    "tool_bar_width": 300,
+    "window_name_label_width": 80,
+    "window_name_label_height": 10
   }
 }

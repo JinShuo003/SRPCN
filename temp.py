@@ -1,460 +1,764 @@
+import glob
+import numpy as np
+import open3d as o3d
 import open3d.visualization.gui as gui
-import os.path
+import open3d.visualization.rendering as rendering
+import os
+import platform
+import sys
 
-basedir = os.path.dirname(os.path.realpath(__file__))
+isMacOS = (platform.system() == "Darwin")
 
 
-class ExampleWindow:
-    MENU_CHECKABLE = 1
-    MENU_DISABLED = 2
-    MENU_QUIT = 3
+class Settings:
+    UNLIT = "defaultUnlit"
+    LIT = "defaultLit"
+    NORMALS = "normals"
+    DEPTH = "depth"
+
+    DEFAULT_PROFILE_NAME = "Bright day with sun at +Y [default]"
+    POINT_CLOUD_PROFILE_NAME = "Cloudy day (no direct sun)"
+    CUSTOM_PROFILE_NAME = "Custom"
+    LIGHTING_PROFILES = {
+        DEFAULT_PROFILE_NAME: {
+            "ibl_intensity": 45000,
+            "sun_intensity": 45000,
+            "sun_dir": [0.577, -0.577, -0.577],
+            # "ibl_rotation":
+            "use_ibl": True,
+            "use_sun": True,
+        },
+        "Bright day with sun at -Y": {
+            "ibl_intensity": 45000,
+            "sun_intensity": 45000,
+            "sun_dir": [0.577, 0.577, 0.577],
+            # "ibl_rotation":
+            "use_ibl": True,
+            "use_sun": True,
+        },
+        "Bright day with sun at +Z": {
+            "ibl_intensity": 45000,
+            "sun_intensity": 45000,
+            "sun_dir": [0.577, 0.577, -0.577],
+            # "ibl_rotation":
+            "use_ibl": True,
+            "use_sun": True,
+        },
+        "Less Bright day with sun at +Y": {
+            "ibl_intensity": 35000,
+            "sun_intensity": 50000,
+            "sun_dir": [0.577, -0.577, -0.577],
+            # "ibl_rotation":
+            "use_ibl": True,
+            "use_sun": True,
+        },
+        "Less Bright day with sun at -Y": {
+            "ibl_intensity": 35000,
+            "sun_intensity": 50000,
+            "sun_dir": [0.577, 0.577, 0.577],
+            # "ibl_rotation":
+            "use_ibl": True,
+            "use_sun": True,
+        },
+        "Less Bright day with sun at +Z": {
+            "ibl_intensity": 35000,
+            "sun_intensity": 50000,
+            "sun_dir": [0.577, 0.577, -0.577],
+            # "ibl_rotation":
+            "use_ibl": True,
+            "use_sun": True,
+        },
+        POINT_CLOUD_PROFILE_NAME: {
+            "ibl_intensity": 60000,
+            "sun_intensity": 50000,
+            "use_ibl": True,
+            "use_sun": False,
+            # "ibl_rotation":
+        },
+    }
+
+    DEFAULT_MATERIAL_NAME = "Polished ceramic [default]"
+    PREFAB = {
+        DEFAULT_MATERIAL_NAME: {
+            "metallic": 0.0,
+            "roughness": 0.7,
+            "reflectance": 0.5,
+            "clearcoat": 0.2,
+            "clearcoat_roughness": 0.2,
+            "anisotropy": 0.0
+        },
+        "Metal (rougher)": {
+            "metallic": 1.0,
+            "roughness": 0.5,
+            "reflectance": 0.9,
+            "clearcoat": 0.0,
+            "clearcoat_roughness": 0.0,
+            "anisotropy": 0.0
+        },
+        "Metal (smoother)": {
+            "metallic": 1.0,
+            "roughness": 0.3,
+            "reflectance": 0.9,
+            "clearcoat": 0.0,
+            "clearcoat_roughness": 0.0,
+            "anisotropy": 0.0
+        },
+        "Plastic": {
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "reflectance": 0.5,
+            "clearcoat": 0.5,
+            "clearcoat_roughness": 0.2,
+            "anisotropy": 0.0
+        },
+        "Glazed ceramic": {
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "reflectance": 0.9,
+            "clearcoat": 1.0,
+            "clearcoat_roughness": 0.1,
+            "anisotropy": 0.0
+        },
+        "Clay": {
+            "metallic": 0.0,
+            "roughness": 1.0,
+            "reflectance": 0.5,
+            "clearcoat": 0.1,
+            "clearcoat_roughness": 0.287,
+            "anisotropy": 0.0
+        },
+    }
 
     def __init__(self):
-        self.window = gui.Application.instance.create_window("Test", 400, 768)
-        # self.window = gui.Application.instance.create_window("Test", 400, 768,
-        #                                                        x=50, y=100)
-        w = self.window  # for more concise code
+        self.mouse_model = gui.SceneWidget.Controls.ROTATE_CAMERA
+        self.bg_color = gui.Color(1, 1, 1)
+        self.show_skybox = False
+        self.show_axes = False
+        self.use_ibl = True
+        self.use_sun = True
+        self.new_ibl_name = None  # clear to None after loading
+        self.ibl_intensity = 45000
+        self.sun_intensity = 45000
+        self.sun_dir = [0.577, -0.577, -0.577]
+        self.sun_color = gui.Color(1, 1, 1)
 
+        self.apply_material = True  # clear to False after processing
+        self._materials = {
+            Settings.LIT: rendering.MaterialRecord(),
+            Settings.UNLIT: rendering.MaterialRecord(),
+            Settings.NORMALS: rendering.MaterialRecord(),
+            Settings.DEPTH: rendering.MaterialRecord()
+        }
+        self._materials[Settings.LIT].base_color = [0.9, 0.9, 0.9, 1.0]
+        self._materials[Settings.LIT].shader = Settings.LIT
+        self._materials[Settings.UNLIT].base_color = [0.9, 0.9, 0.9, 1.0]
+        self._materials[Settings.UNLIT].shader = Settings.UNLIT
+        self._materials[Settings.NORMALS].shader = Settings.NORMALS
+        self._materials[Settings.DEPTH].shader = Settings.DEPTH
+
+        # Conveniently, assigning from self._materials[...] assigns a reference,
+        # not a copy, so if we change the property of a material, then switch
+        # to another one, then come back, the old setting will still be there.
+        self.material = self._materials[Settings.LIT]
+
+    def set_material(self, name):
+        self.material = self._materials[name]
+        self.apply_material = True
+
+    def apply_material_prefab(self, name):
+        assert (self.material.shader == Settings.LIT)
+        prefab = Settings.PREFAB[name]
+        for key, val in prefab.items():
+            setattr(self.material, "base_" + key, val)
+
+    def apply_lighting_profile(self, name):
+        profile = Settings.LIGHTING_PROFILES[name]
+        for key, val in profile.items():
+            setattr(self, key, val)
+
+
+class AppWindow:
+    MENU_OPEN = 1
+    MENU_EXPORT = 2
+    MENU_QUIT = 3
+    MENU_SHOW_SETTINGS = 11
+    MENU_ABOUT = 21
+
+    DEFAULT_IBL = "default"
+
+    MATERIAL_NAMES = ["Lit", "Unlit", "Normals", "Depth"]
+    MATERIAL_SHADERS = [
+        Settings.LIT, Settings.UNLIT, Settings.NORMALS, Settings.DEPTH
+    ]
+
+    def __init__(self, width, height):
+        self.settings = Settings()
+        resource_path = gui.Application.instance.resource_path
+        self.settings.new_ibl_name = resource_path + "/" + AppWindow.DEFAULT_IBL
+
+        self.window = gui.Application.instance.create_window(
+            "Open3D", width, height)
+        w = self.window  # to make the code more concise
+
+        # 3D widget
+        self._scene = gui.SceneWidget()
+        self._scene.scene = rendering.Open3DScene(w.renderer)
+        self._scene.set_on_sun_direction_changed(self._on_sun_dir)
+
+        # ---- Settings panel ----
         # Rather than specifying sizes in pixels, which may vary in size based
         # on the monitor, especially on macOS which has 220 dpi monitors, use
         # the em-size. This way sizings will be proportional to the font size,
         # which will create a more visually consistent size across platforms.
         em = w.theme.font_size
+        separation_height = int(round(0.5 * em))
 
         # Widgets are laid out in layouts: gui.Horiz, gui.Vert,
         # gui.CollapsableVert, and gui.VGrid. By nesting the layouts we can
         # achieve complex designs. Usually we use a vertical layout as the
         # topmost widget, since widgets tend to be organized from top to bottom.
         # Within that, we usually have a series of horizontal layouts for each
-        # row.
-        layout = gui.Vert(0, gui.Margins(0.5 * em, 0.5 * em, 0.5 * em,
-                                         0.5 * em))
-
-        # Create the menu. The menu is global (because the macOS menu is global),
-        # so only create it once.
-        if gui.Application.instance.menubar is None:
-            menubar = gui.Menu()
-            test_menu = gui.Menu()
-            test_menu.add_item("An option", ExampleWindow.MENU_CHECKABLE)
-            test_menu.set_checked(ExampleWindow.MENU_CHECKABLE, True)
-            test_menu.add_item("Unavailable feature",
-                               ExampleWindow.MENU_DISABLED)
-            test_menu.set_enabled(ExampleWindow.MENU_DISABLED, False)
-            test_menu.add_separator()
-            test_menu.add_item("Quit", ExampleWindow.MENU_QUIT)
-            # On macOS the first menu item is the application menu item and will
-            # always be the name of the application (probably "Python"),
-            # regardless of what you pass in here. The application menu is
-            # typically where About..., Preferences..., and Quit go.
-            menubar.add_menu("Test", test_menu)
-            gui.Application.instance.menubar = menubar
-
-        # Each window needs to know what to do with the menu items, so we need
-        # to tell the window how to handle menu items.
-        w.set_on_menu_item_activated(ExampleWindow.MENU_CHECKABLE,
-                                     self._on_menu_checkable)
-        w.set_on_menu_item_activated(ExampleWindow.MENU_QUIT,
-                                     self._on_menu_quit)
-
-        # Create a file-chooser widget. One part will be a text edit widget for
-        # the filename and clicking on the button will let the user choose using
-        # the file dialog.
-        self._fileedit = gui.TextEdit()
-        filedlgbutton = gui.Button("...")
-        filedlgbutton.horizontal_padding_em = 0.5
-        filedlgbutton.vertical_padding_em = 0
-        filedlgbutton.set_on_clicked(self._on_filedlg_button)
-
-        # (Create the horizontal widget for the row. This will make sure the
-        # text editor takes up as much space as it can.)
-        fileedit_layout = gui.Horiz()
-        fileedit_layout.add_child(gui.Label("Model file"))
-        fileedit_layout.add_child(self._fileedit)
-        fileedit_layout.add_fixed(0.25 * em)
-        fileedit_layout.add_child(filedlgbutton)
-        # add to the top-level (vertical) layout
-        layout.add_child(fileedit_layout)
+        # row. All layouts take a spacing parameter, which is the spacing
+        # between items in the widget, and a margins parameter, which specifies
+        # the spacing of the left, top, right, bottom margins. (This acts like
+        # the 'padding' property in CSS.)
+        self._settings_panel = gui.Vert(
+            0, gui.Margins(0.25 * em, 0.25 * em, 0.25 * em, 0.25 * em))
 
         # Create a collapsible vertical widget, which takes up enough vertical
         # space for all its children when open, but only enough for text when
         # closed. This is useful for property pages, so the user can hide sets
-        # of properties they rarely use. All layouts take a spacing parameter,
-        # which is the spacinging between items in the widget, and a margins
-        # parameter, which specifies the spacing of the left, top, right,
-        # bottom margins. (This acts like the 'padding' property in CSS.)
-        collapse = gui.CollapsableVert("Widgets", 0.33 * em,
+        # of properties they rarely use.
+        view_ctrls = gui.CollapsableVert("View controls", 0.25 * em,
+                                         gui.Margins(em, 0, 0, 0))
+
+        self._arcball_button = gui.Button("Arcball")
+        self._arcball_button.horizontal_padding_em = 0.5
+        self._arcball_button.vertical_padding_em = 0
+        self._arcball_button.set_on_clicked(self._set_mouse_mode_rotate)
+        self._fly_button = gui.Button("Fly")
+        self._fly_button.horizontal_padding_em = 0.5
+        self._fly_button.vertical_padding_em = 0
+        self._fly_button.set_on_clicked(self._set_mouse_mode_fly)
+        self._model_button = gui.Button("Model")
+        self._model_button.horizontal_padding_em = 0.5
+        self._model_button.vertical_padding_em = 0
+        self._model_button.set_on_clicked(self._set_mouse_mode_model)
+        self._sun_button = gui.Button("Sun")
+        self._sun_button.horizontal_padding_em = 0.5
+        self._sun_button.vertical_padding_em = 0
+        self._sun_button.set_on_clicked(self._set_mouse_mode_sun)
+        self._ibl_button = gui.Button("Environment")
+        self._ibl_button.horizontal_padding_em = 0.5
+        self._ibl_button.vertical_padding_em = 0
+        self._ibl_button.set_on_clicked(self._set_mouse_mode_ibl)
+        view_ctrls.add_child(gui.Label("Mouse controls"))
+        # We want two rows of buttons, so make two horizontal layouts. We also
+        # want the buttons centered, which we can do be putting a stretch item
+        # as the first and last item. Stretch items take up as much space as
+        # possible, and since there are two, they will each take half the extra
+        # space, thus centering the buttons.
+        h = gui.Horiz(0.25 * em)  # row 1
+        h.add_stretch()
+        h.add_child(self._arcball_button)
+        h.add_child(self._fly_button)
+        h.add_child(self._model_button)
+        h.add_stretch()
+        view_ctrls.add_child(h)
+        h = gui.Horiz(0.25 * em)  # row 2
+        h.add_stretch()
+        h.add_child(self._sun_button)
+        h.add_child(self._ibl_button)
+        h.add_stretch()
+        view_ctrls.add_child(h)
+
+        self._show_skybox = gui.Checkbox("Show skymap")
+        self._show_skybox.set_on_checked(self._on_show_skybox)
+        view_ctrls.add_fixed(separation_height)
+        view_ctrls.add_child(self._show_skybox)
+
+        self._bg_color = gui.ColorEdit()
+        self._bg_color.set_on_value_changed(self._on_bg_color)
+
+        grid = gui.VGrid(2, 0.25 * em)
+        grid.add_child(gui.Label("BG Color"))
+        grid.add_child(self._bg_color)
+        view_ctrls.add_child(grid)
+
+        self._show_axes = gui.Checkbox("Show axes")
+        self._show_axes.set_on_checked(self._on_show_axes)
+        view_ctrls.add_fixed(separation_height)
+        view_ctrls.add_child(self._show_axes)
+
+        self._profiles = gui.Combobox()
+        for name in sorted(Settings.LIGHTING_PROFILES.keys()):
+            self._profiles.add_item(name)
+        self._profiles.add_item(Settings.CUSTOM_PROFILE_NAME)
+        self._profiles.set_on_selection_changed(self._on_lighting_profile)
+        view_ctrls.add_fixed(separation_height)
+        view_ctrls.add_child(gui.Label("Lighting profiles"))
+        view_ctrls.add_child(self._profiles)
+        self._settings_panel.add_fixed(separation_height)
+        self._settings_panel.add_child(view_ctrls)
+
+        advanced = gui.CollapsableVert("Advanced lighting", 0,
                                        gui.Margins(em, 0, 0, 0))
-        self._label = gui.Label("Lorem ipsum dolor")
-        self._label.text_color = gui.Color(1.0, 0.5, 0.0)
-        collapse.add_child(self._label)
+        advanced.set_is_open(False)
 
-        # Create a checkbox. Checking or unchecking would usually be used to set
-        # a binary property, but in this case it will show a simple message box,
-        # which illustrates how to create simple dialogs.
-        cb = gui.Checkbox("Enable some really cool effect")
-        cb.set_on_checked(self._on_cb)  # set the callback function
-        collapse.add_child(cb)
+        self._use_ibl = gui.Checkbox("HDR map")
+        self._use_ibl.set_on_checked(self._on_use_ibl)
+        self._use_sun = gui.Checkbox("Sun")
+        self._use_sun.set_on_checked(self._on_use_sun)
+        advanced.add_child(gui.Label("Light sources"))
+        h = gui.Horiz(em)
+        h.add_child(self._use_ibl)
+        h.add_child(self._use_sun)
+        advanced.add_child(h)
 
-        # Create a color editor. We will change the color of the orange label
-        # above when the color changes.
-        color = gui.ColorEdit()
-        color.color_value = self._label.text_color
-        color.set_on_value_changed(self._on_color)
-        collapse.add_child(color)
+        self._ibl_map = gui.Combobox()
+        for ibl in glob.glob(gui.Application.instance.resource_path +
+                             "/*_ibl.ktx"):
 
-        # This is a combobox, nothing fancy here, just set a simple function to
-        # handle the user selecting an item.
-        combo = gui.Combobox()
-        combo.add_item("Show point labels")
-        combo.add_item("Show point velocity")
-        combo.add_item("Show bounding boxes")
-        combo.set_on_selection_changed(self._on_combo)
-        collapse.add_child(combo)
+            self._ibl_map.add_item(os.path.basename(ibl[:-8]))
+        self._ibl_map.selected_text = AppWindow.DEFAULT_IBL
+        self._ibl_map.set_on_selection_changed(self._on_new_ibl)
+        self._ibl_intensity = gui.Slider(gui.Slider.INT)
+        self._ibl_intensity.set_limits(0, 200000)
+        self._ibl_intensity.set_on_value_changed(self._on_ibl_intensity)
+        grid = gui.VGrid(2, 0.25 * em)
+        grid.add_child(gui.Label("HDR map"))
+        grid.add_child(self._ibl_map)
+        grid.add_child(gui.Label("Intensity"))
+        grid.add_child(self._ibl_intensity)
+        advanced.add_fixed(separation_height)
+        advanced.add_child(gui.Label("Environment"))
+        advanced.add_child(grid)
 
-        # This is a toggle switch, which is similar to a checkbox. To my way of
-        # thinking the difference is subtle: a checkbox toggles properties
-        # (for example, purely visual changes like enabling lighting) while a
-        # toggle switch is better for changing the behavior of the app (for
-        # example, turning on processing from the camera).
-        switch = gui.ToggleSwitch("Continuously update from camera")
-        switch.set_on_clicked(self._on_switch)
-        collapse.add_child(switch)
+        self._sun_intensity = gui.Slider(gui.Slider.INT)
+        self._sun_intensity.set_limits(0, 200000)
+        self._sun_intensity.set_on_value_changed(self._on_sun_intensity)
+        self._sun_dir = gui.VectorEdit()
+        self._sun_dir.set_on_value_changed(self._on_sun_dir)
+        self._sun_color = gui.ColorEdit()
+        self._sun_color.set_on_value_changed(self._on_sun_color)
+        grid = gui.VGrid(2, 0.25 * em)
+        grid.add_child(gui.Label("Intensity"))
+        grid.add_child(self._sun_intensity)
+        grid.add_child(gui.Label("Direction"))
+        grid.add_child(self._sun_dir)
+        grid.add_child(gui.Label("Color"))
+        grid.add_child(self._sun_color)
+        advanced.add_fixed(separation_height)
+        advanced.add_child(gui.Label("Sun (Directional light)"))
+        advanced.add_child(grid)
 
-        self.logo_idx = 0
-        proxy = gui.WidgetProxy()
+        self._settings_panel.add_fixed(separation_height)
+        self._settings_panel.add_child(advanced)
 
-        def switch_proxy():
-            self.logo_idx += 1
-            if self.logo_idx % 3 == 0:
-                proxy.set_widget(None)
-            elif self.logo_idx % 3 == 1:
-                # Add a simple image
-                logo = gui.ImageWidget(basedir + "/icon-32.png")
-                proxy.set_widget(logo)
+        material_settings = gui.CollapsableVert("Material settings", 0,
+                                                gui.Margins(em, 0, 0, 0))
+
+        self._shader = gui.Combobox()
+        self._shader.add_item(AppWindow.MATERIAL_NAMES[0])
+        self._shader.add_item(AppWindow.MATERIAL_NAMES[1])
+        self._shader.add_item(AppWindow.MATERIAL_NAMES[2])
+        self._shader.add_item(AppWindow.MATERIAL_NAMES[3])
+        self._shader.set_on_selection_changed(self._on_shader)
+        self._material_prefab = gui.Combobox()
+        for prefab_name in sorted(Settings.PREFAB.keys()):
+            self._material_prefab.add_item(prefab_name)
+        self._material_prefab.selected_text = Settings.DEFAULT_MATERIAL_NAME
+        self._material_prefab.set_on_selection_changed(self._on_material_prefab)
+        self._material_color = gui.ColorEdit()
+        self._material_color.set_on_value_changed(self._on_material_color)
+        self._point_size = gui.Slider(gui.Slider.INT)
+        self._point_size.set_limits(1, 10)
+        self._point_size.set_on_value_changed(self._on_point_size)
+
+        grid = gui.VGrid(2, 0.25 * em)
+        grid.add_child(gui.Label("Type"))
+        grid.add_child(self._shader)
+        grid.add_child(gui.Label("Material"))
+        grid.add_child(self._material_prefab)
+        grid.add_child(gui.Label("Color"))
+        grid.add_child(self._material_color)
+        grid.add_child(gui.Label("Point size"))
+        grid.add_child(self._point_size)
+        material_settings.add_child(grid)
+
+        self._settings_panel.add_fixed(separation_height)
+        self._settings_panel.add_child(material_settings)
+        # ----
+
+        # Normally our user interface can be children of all one layout (usually
+        # a vertical layout), which is then the only child of the window. In our
+        # case we want the scene to take up all the space and the settings panel
+        # to go above it. We can do this custom layout by providing an on_layout
+        # callback. The on_layout callback should set the frame
+        # (position + size) of every child correctly. After the callback is
+        # done the window will layout the grandchildren.
+        w.set_on_layout(self._on_layout)
+        w.add_child(self._scene)
+        w.add_child(self._settings_panel)
+
+        # ---- Menu ----
+        # The menu is global (because the macOS menu is global), so only create
+        # it once, no matter how many windows are created
+        if gui.Application.instance.menubar is None:
+            if isMacOS:
+                app_menu = gui.Menu()
+                app_menu.add_item("About", AppWindow.MENU_ABOUT)
+                app_menu.add_separator()
+                app_menu.add_item("Quit", AppWindow.MENU_QUIT)
+            file_menu = gui.Menu()
+            file_menu.add_item("Open...", AppWindow.MENU_OPEN)
+            file_menu.add_item("Export Current Image...", AppWindow.MENU_EXPORT)
+            if not isMacOS:
+                file_menu.add_separator()
+                file_menu.add_item("Quit", AppWindow.MENU_QUIT)
+            settings_menu = gui.Menu()
+            settings_menu.add_item("Lighting & Materials",
+                                   AppWindow.MENU_SHOW_SETTINGS)
+            settings_menu.set_checked(AppWindow.MENU_SHOW_SETTINGS, True)
+            help_menu = gui.Menu()
+            help_menu.add_item("About", AppWindow.MENU_ABOUT)
+
+            menu = gui.Menu()
+            if isMacOS:
+                # macOS will name the first menu item for the running application
+                # (in our case, probably "Python"), regardless of what we call
+                # it. This is the application menu, and it is where the
+                # About..., Preferences..., and Quit menu items typically go.
+                menu.add_menu("Example", app_menu)
+                menu.add_menu("File", file_menu)
+                menu.add_menu("Settings", settings_menu)
+                # Don't include help menu unless it has something more than
+                # About...
             else:
-                label = gui.Label(
-                    'Open3D: A Modern Library for 3D Data Processing')
-                proxy.set_widget(label)
-            w.set_needs_layout()
+                menu.add_menu("File", file_menu)
+                menu.add_menu("Settings", settings_menu)
+                menu.add_menu("Help", help_menu)
+            gui.Application.instance.menubar = menu
 
-        logo_btn = gui.Button('Switch Logo By WidgetProxy')
-        logo_btn.vertical_padding_em = 0
-        logo_btn.background_color = gui.Color(r=0, b=0.5, g=0)
-        logo_btn.set_on_clicked(switch_proxy)
-        collapse.add_child(logo_btn)
-        collapse.add_child(proxy)
+        # The menubar is global, but we need to connect the menu items to the
+        # window, so that the window can call the appropriate function when the
+        # menu item is activated.
+        w.set_on_menu_item_activated(AppWindow.MENU_OPEN, self._on_menu_open)
+        w.set_on_menu_item_activated(AppWindow.MENU_EXPORT,
+                                     self._on_menu_export)
+        w.set_on_menu_item_activated(AppWindow.MENU_QUIT, self._on_menu_quit)
+        w.set_on_menu_item_activated(AppWindow.MENU_SHOW_SETTINGS,
+                                     self._on_menu_toggle_settings_panel)
+        w.set_on_menu_item_activated(AppWindow.MENU_ABOUT, self._on_menu_about)
+        # ----
 
-        # Widget stack demo
-        self._widget_idx = 0
-        hz = gui.Horiz(spacing=5)
-        push_widget_btn = gui.Button('Push widget')
-        push_widget_btn.vertical_padding_em = 0
-        pop_widget_btn = gui.Button('Pop widget')
-        pop_widget_btn.vertical_padding_em = 0
-        stack = gui.WidgetStack()
-        stack.set_on_top(lambda w: print(f'New widget is: {w.text}'))
-        hz.add_child(gui.Label('WidgetStack '))
-        hz.add_child(push_widget_btn)
-        hz.add_child(pop_widget_btn)
-        hz.add_child(stack)
-        collapse.add_child(hz)
+        self._apply_settings()
 
-        def push_widget():
-            self._widget_idx += 1
-            stack.push_widget(gui.Label(f'Widget {self._widget_idx}'))
+    def _apply_settings(self):
+        bg_color = [
+            self.settings.bg_color.red, self.settings.bg_color.green,
+            self.settings.bg_color.blue, self.settings.bg_color.alpha
+        ]
+        self._scene.scene.set_background(bg_color)
+        self._scene.scene.show_skybox(self.settings.show_skybox)
+        self._scene.scene.show_axes(self.settings.show_axes)
+        if self.settings.new_ibl_name is not None:
+            self._scene.scene.scene.set_indirect_light(
+                self.settings.new_ibl_name)
+            # Clear new_ibl_name, so we don't keep reloading this image every
+            # time the settings are applied.
+            self.settings.new_ibl_name = None
+        self._scene.scene.scene.enable_indirect_light(self.settings.use_ibl)
+        self._scene.scene.scene.set_indirect_light_intensity(
+            self.settings.ibl_intensity)
+        sun_color = [
+            self.settings.sun_color.red, self.settings.sun_color.green,
+            self.settings.sun_color.blue
+        ]
+        self._scene.scene.scene.set_sun_light(self.settings.sun_dir, sun_color,
+                                              self.settings.sun_intensity)
+        self._scene.scene.scene.enable_sun_light(self.settings.use_sun)
 
-        push_widget_btn.set_on_clicked(push_widget)
-        pop_widget_btn.set_on_clicked(stack.pop_widget)
+        if self.settings.apply_material:
+            self._scene.scene.update_material(self.settings.material)
+            self.settings.apply_material = False
 
-        # Add a list of items
-        lv = gui.ListView()
-        lv.set_items(["Ground", "Trees", "Buildings", "Cars", "People", "Cats"])
-        lv.selected_index = lv.selected_index + 2  # initially is -1, so now 1
-        lv.set_max_visible_items(4)
-        lv.set_on_selection_changed(self._on_list)
-        collapse.add_child(lv)
+        self._bg_color.color_value = self.settings.bg_color
+        self._show_skybox.checked = self.settings.show_skybox
+        self._show_axes.checked = self.settings.show_axes
+        self._use_ibl.checked = self.settings.use_ibl
+        self._use_sun.checked = self.settings.use_sun
+        self._ibl_intensity.int_value = self.settings.ibl_intensity
+        self._sun_intensity.int_value = self.settings.sun_intensity
+        self._sun_dir.vector_value = self.settings.sun_dir
+        self._sun_color.color_value = self.settings.sun_color
+        self._material_prefab.enabled = (
+            self.settings.material.shader == Settings.LIT)
+        c = gui.Color(self.settings.material.base_color[0],
+                      self.settings.material.base_color[1],
+                      self.settings.material.base_color[2],
+                      self.settings.material.base_color[3])
+        self._material_color.color_value = c
+        self._point_size.double_value = self.settings.material.point_size
 
-        # Add a tree view
-        tree = gui.TreeView()
-        tree.add_text_item(tree.get_root_item(), "Camera")
-        geo_id = tree.add_text_item(tree.get_root_item(), "Geometries")
-        mesh_id = tree.add_text_item(geo_id, "Mesh")
-        tree.add_text_item(mesh_id, "Triangles")
-        tree.add_text_item(mesh_id, "Albedo texture")
-        tree.add_text_item(mesh_id, "Normal map")
-        points_id = tree.add_text_item(geo_id, "Points")
-        tree.can_select_items_with_children = True
-        tree.set_on_selection_changed(self._on_tree)
-        # does not call on_selection_changed: user did not change selection
-        tree.selected_item = points_id
-        collapse.add_child(tree)
+    def _on_layout(self, layout_context):
+        # The on_layout callback should set the frame (position + size) of every
+        # child correctly. After the callback is done the window will layout
+        # the grandchildren.
+        r = self.window.content_rect
+        self._scene.frame = r
+        width = 17 * layout_context.theme.font_size
+        height = min(
+            r.height,
+            self._settings_panel.calc_preferred_size(
+                layout_context, gui.Widget.Constraints()).height)
+        self._settings_panel.frame = gui.Rect(r.get_right() - width, r.y, width,
+                                              height)
 
-        # Add two number editors, one for integers and one for floating point
-        # Number editor can clamp numbers to a range, although this is more
-        # useful for integers than for floating point.
-        intedit = gui.NumberEdit(gui.NumberEdit.INT)
-        intedit.int_value = 0
-        intedit.set_limits(1, 19)  # value coerced to 1
-        intedit.int_value = intedit.int_value + 2  # value should be 3
-        doubleedit = gui.NumberEdit(gui.NumberEdit.DOUBLE)
-        numlayout = gui.Horiz()
-        numlayout.add_child(gui.Label("int"))
-        numlayout.add_child(intedit)
-        numlayout.add_fixed(em)  # manual spacing (could set it in Horiz() ctor)
-        numlayout.add_child(gui.Label("double"))
-        numlayout.add_child(doubleedit)
-        collapse.add_child(numlayout)
+    def _set_mouse_mode_rotate(self):
+        self._scene.set_view_controls(gui.SceneWidget.Controls.ROTATE_CAMERA)
 
-        # Create a progress bar. It ranges from 0.0 to 1.0.
-        self._progress = gui.ProgressBar()
-        self._progress.value = 0.25  # 25% complete
-        self._progress.value = self._progress.value + 0.08  # 0.25 + 0.08 = 33%
-        prog_layout = gui.Horiz(em)
-        prog_layout.add_child(gui.Label("Progress..."))
-        prog_layout.add_child(self._progress)
-        collapse.add_child(prog_layout)
+    def _set_mouse_mode_fly(self):
+        self._scene.set_view_controls(gui.SceneWidget.Controls.FLY)
 
-        # Create a slider. It acts very similar to NumberEdit except that the
-        # user moves a slider and cannot type the number.
-        slider = gui.Slider(gui.Slider.INT)
-        slider.set_limits(5, 13)
-        slider.set_on_value_changed(self._on_slider)
-        collapse.add_child(slider)
+    def _set_mouse_mode_sun(self):
+        self._scene.set_view_controls(gui.SceneWidget.Controls.ROTATE_SUN)
 
-        # Create a text editor. The placeholder text (if not empty) will be
-        # displayed when there is no text, as concise help, or visible tooltip.
-        tedit = gui.TextEdit()
-        tedit.placeholder_text = "Edit me some text here"
+    def _set_mouse_mode_ibl(self):
+        self._scene.set_view_controls(gui.SceneWidget.Controls.ROTATE_IBL)
 
-        # on_text_changed fires whenever the user changes the text (but not if
-        # the text_value property is assigned to).
-        tedit.set_on_text_changed(self._on_text_changed)
+    def _set_mouse_mode_model(self):
+        self._scene.set_view_controls(gui.SceneWidget.Controls.ROTATE_MODEL)
 
-        # on_value_changed fires whenever the user signals that they are finished
-        # editing the text, either by pressing return or by clicking outside of
-        # the text editor, thus losing text focus.
-        tedit.set_on_value_changed(self._on_value_changed)
-        collapse.add_child(tedit)
+    def _on_bg_color(self, new_color):
+        self.settings.bg_color = new_color
+        self._apply_settings()
 
-        # Create a widget for showing/editing a 3D vector
-        vedit = gui.VectorEdit()
-        vedit.vector_value = [1, 2, 3]
-        vedit.set_on_value_changed(self._on_vedit)
-        collapse.add_child(vedit)
+    def _on_show_skybox(self, show):
+        self.settings.show_skybox = show
+        self._apply_settings()
 
-        # Create a VGrid layout. This layout specifies the number of columns
-        # (two, in this case), and will place the first child in the first
-        # column, the second in the second, the third in the first, the fourth
-        # in the second, etc.
-        # So:
-        #      2 cols             3 cols                  4 cols
-        #   |  1  |  2  |   |  1  |  2  |  3  |   |  1  |  2  |  3  |  4  |
-        #   |  3  |  4  |   |  4  |  5  |  6  |   |  5  |  6  |  7  |  8  |
-        #   |  5  |  6  |   |  7  |  8  |  9  |   |  9  | 10  | 11  | 12  |
-        #   |    ...    |   |       ...       |   |         ...           |
-        vgrid = gui.VGrid(2)
-        vgrid.add_child(gui.Label("Trees"))
-        vgrid.add_child(gui.Label("12 items"))
-        vgrid.add_child(gui.Label("People"))
-        vgrid.add_child(gui.Label("2 (93% certainty)"))
-        vgrid.add_child(gui.Label("Cars"))
-        vgrid.add_child(gui.Label("5 (87% certainty)"))
-        collapse.add_child(vgrid)
+    def _on_show_axes(self, show):
+        self.settings.show_axes = show
+        self._apply_settings()
 
-        # Create a tab control. This is really a set of N layouts on top of each
-        # other, but with only one selected.
-        tabs = gui.TabControl()
-        tab1 = gui.Vert()
-        tab1.add_child(gui.Checkbox("Enable option 1"))
-        tab1.add_child(gui.Checkbox("Enable option 2"))
-        tab1.add_child(gui.Checkbox("Enable option 3"))
-        tabs.add_tab("Options", tab1)
-        tab2 = gui.Vert()
-        tab2.add_child(gui.Label("No plugins detected"))
-        tab2.add_stretch()
-        tabs.add_tab("Plugins", tab2)
-        tab3 = gui.RadioButton(gui.RadioButton.VERT)
-        tab3.set_items(["Apple", "Orange"])
+    def _on_use_ibl(self, use):
+        self.settings.use_ibl = use
+        self._profiles.selected_text = Settings.CUSTOM_PROFILE_NAME
+        self._apply_settings()
 
-        def vt_changed(idx):
-            print(f"current cargo: {tab3.selected_value}")
+    def _on_use_sun(self, use):
+        self.settings.use_sun = use
+        self._profiles.selected_text = Settings.CUSTOM_PROFILE_NAME
+        self._apply_settings()
 
-        tab3.set_on_selection_changed(vt_changed)
-        tabs.add_tab("Cargo", tab3)
-        tab4 = gui.RadioButton(gui.RadioButton.HORIZ)
-        tab4.set_items(["Air plane", "Train", "Bus"])
+    def _on_lighting_profile(self, name, index):
+        if name != Settings.CUSTOM_PROFILE_NAME:
+            self.settings.apply_lighting_profile(name)
+            self._apply_settings()
 
-        def hz_changed(idx):
-            print(f"current traffic plan: {tab4.selected_value}")
+    def _on_new_ibl(self, name, index):
+        self.settings.new_ibl_name = gui.Application.instance.resource_path + "/" + name
+        self._profiles.selected_text = Settings.CUSTOM_PROFILE_NAME
+        self._apply_settings()
 
-        tab4.set_on_selection_changed(hz_changed)
-        tabs.add_tab("Traffic", tab4)
-        collapse.add_child(tabs)
+    def _on_ibl_intensity(self, intensity):
+        self.settings.ibl_intensity = int(intensity)
+        self._profiles.selected_text = Settings.CUSTOM_PROFILE_NAME
+        self._apply_settings()
 
-        # Quit button. (Typically this is a menu item)
-        button_layout = gui.Horiz()
-        ok_button = gui.Button("Ok")
-        ok_button.set_on_clicked(self._on_ok)
-        button_layout.add_stretch()
-        button_layout.add_child(ok_button)
+    def _on_sun_intensity(self, intensity):
+        self.settings.sun_intensity = int(intensity)
+        self._profiles.selected_text = Settings.CUSTOM_PROFILE_NAME
+        self._apply_settings()
 
-        layout.add_child(collapse)
-        layout.add_child(button_layout)
+    def _on_sun_dir(self, sun_dir):
+        self.settings.sun_dir = sun_dir
+        self._profiles.selected_text = Settings.CUSTOM_PROFILE_NAME
+        self._apply_settings()
 
-        # We're done, set the window's layout
-        w.add_child(layout)
+    def _on_sun_color(self, color):
+        self.settings.sun_color = color
+        self._apply_settings()
 
-    def _on_filedlg_button(self):
-        filedlg = gui.FileDialog(gui.FileDialog.OPEN, "Select file",
-                                 self.window.theme)
-        # filedlg.add_filter(".obj .ply .stl", "Triangle mesh (.obj, .ply, .stl)")
-        # filedlg.add_filter("", "All files")
-        filedlg.set_on_cancel(self._on_filedlg_cancel)
-        filedlg.set_on_done(self._on_filedlg_done)
-        self.window.show_dialog(filedlg)
+    def _on_shader(self, name, index):
+        self.settings.set_material(AppWindow.MATERIAL_SHADERS[index])
+        self._apply_settings()
 
-    def _on_filedlg_cancel(self):
-        self.window.close_dialog()
+    def _on_material_prefab(self, name, index):
+        self.settings.apply_material_prefab(name)
+        self.settings.apply_material = True
+        self._apply_settings()
 
-    def _on_filedlg_done(self, path):
-        self._fileedit.text_value = path
-        self.window.close_dialog()
+    def _on_material_color(self, color):
+        self.settings.material.base_color = [
+            color.red, color.green, color.blue, color.alpha
+        ]
+        self.settings.apply_material = True
+        self._apply_settings()
 
-    def _on_cb(self, is_checked):
-        if is_checked:
-            text = "Sorry, effects are unimplemented"
-        else:
-            text = "Good choice"
+    def _on_point_size(self, size):
+        self.settings.material.point_size = int(size)
+        self.settings.apply_material = True
+        self._apply_settings()
 
-        self.show_message_dialog("There might be a problem...", text)
+    def _on_menu_open(self):
+        dlg = gui.FileDialog(gui.FileDialog.OPEN, "Choose file to load",
+                             self.window.theme)
+        dlg.add_filter(
+            ".ply .stl .fbx .obj .off .gltf .glb",
+            "Triangle mesh files (.ply, .stl, .fbx, .obj, .off, "
+            ".gltf, .glb)")
+        dlg.add_filter(
+            ".xyz .xyzn .xyzrgb .ply .pcd .pts",
+            "Point cloud files (.xyz, .xyzn, .xyzrgb, .ply, "
+            ".pcd, .pts)")
+        dlg.add_filter(".ply", "Polygon files (.ply)")
+        dlg.add_filter(".stl", "Stereolithography files (.stl)")
+        dlg.add_filter(".fbx", "Autodesk Filmbox files (.fbx)")
+        dlg.add_filter(".obj", "Wavefront OBJ files (.obj)")
+        dlg.add_filter(".off", "Object file format (.off)")
+        dlg.add_filter(".gltf", "OpenGL transfer files (.gltf)")
+        dlg.add_filter(".glb", "OpenGL binary transfer files (.glb)")
+        dlg.add_filter(".xyz", "ASCII point cloud files (.xyz)")
+        dlg.add_filter(".xyzn", "ASCII point cloud with normals (.xyzn)")
+        dlg.add_filter(".xyzrgb",
+                       "ASCII point cloud files with colors (.xyzrgb)")
+        dlg.add_filter(".pcd", "Point Cloud Data files (.pcd)")
+        dlg.add_filter(".pts", "3D Points files (.pts)")
+        dlg.add_filter("", "All files")
 
-    def _on_switch(self, is_on):
-        if is_on:
-            print("Camera would now be running")
-        else:
-            print("Camera would now be off")
-
-    # This function is essentially the same as window.show_message_box(),
-    # so for something this simple just use that, but it illustrates making a
-    # dialog.
-    def show_message_dialog(self, title, message):
-        # A Dialog is just a widget, so you make its child a layout just like
-        # a Window.
-        dlg = gui.Dialog(title)
-
-        # Add the message text
-        em = self.window.theme.font_size
-        dlg_layout = gui.Vert(em, gui.Margins(em, em, em, em))
-        dlg_layout.add_child(gui.Label(message))
-
-        # Add the Ok button. We need to define a callback function to handle
-        # the click.
-        ok_button = gui.Button("Ok")
-        ok_button.set_on_clicked(self._on_dialog_ok)
-
-        # We want the Ok button to be an the right side, so we need to add
-        # a stretch item to the layout, otherwise the button will be the size
-        # of the entire row. A stretch item takes up as much space as it can,
-        # which forces the button to be its minimum size.
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(ok_button)
-
-        # Add the button layout,
-        dlg_layout.add_child(button_layout)
-        # ... then add the layout as the child of the Dialog
-        dlg.add_child(dlg_layout)
-        # ... and now we can show the dialog
+        # A file dialog MUST define on_cancel and on_done functions
+        dlg.set_on_cancel(self._on_file_dialog_cancel)
+        dlg.set_on_done(self._on_load_dialog_done)
         self.window.show_dialog(dlg)
 
-    def _on_dialog_ok(self):
+    def _on_file_dialog_cancel(self):
         self.window.close_dialog()
 
-    def _on_color(self, new_color):
-        self._label.text_color = new_color
+    def _on_load_dialog_done(self, filename):
+        self.window.close_dialog()
+        self.load(filename)
 
-    def _on_combo(self, new_val, new_idx):
-        print(new_idx, new_val)
+    def _on_menu_export(self):
+        dlg = gui.FileDialog(gui.FileDialog.SAVE, "Choose file to save",
+                             self.window.theme)
+        dlg.add_filter(".png", "PNG files (.png)")
+        dlg.set_on_cancel(self._on_file_dialog_cancel)
+        dlg.set_on_done(self._on_export_dialog_done)
+        self.window.show_dialog(dlg)
 
-    def _on_list(self, new_val, is_dbl_click):
-        print(new_val)
-
-    def _on_tree(self, new_item_id):
-        print(new_item_id)
-
-    def _on_slider(self, new_val):
-        self._progress.value = new_val / 20.0
-
-    def _on_text_changed(self, new_text):
-        print("edit:", new_text)
-
-    def _on_value_changed(self, new_text):
-        print("value:", new_text)
-
-    def _on_vedit(self, new_val):
-        print(new_val)
-
-    def _on_ok(self):
-        gui.Application.instance.quit()
-
-    def _on_menu_checkable(self):
-        gui.Application.instance.menubar.set_checked(
-            ExampleWindow.MENU_CHECKABLE,
-            not gui.Application.instance.menubar.is_checked(
-                ExampleWindow.MENU_CHECKABLE))
+    def _on_export_dialog_done(self, filename):
+        self.window.close_dialog()
+        frame = self._scene.frame
+        self.export_image(filename, frame.width, frame.height)
 
     def _on_menu_quit(self):
         gui.Application.instance.quit()
 
+    def _on_menu_toggle_settings_panel(self):
+        self._settings_panel.visible = not self._settings_panel.visible
+        gui.Application.instance.menubar.set_checked(
+            AppWindow.MENU_SHOW_SETTINGS, self._settings_panel.visible)
 
-# This class is essentially the same as window.show_message_box(),
-# so for something this simple just use that, but it illustrates making a
-# dialog.
-class MessageBox:
-
-    def __init__(self, title, message):
-        self._window = None
-
-        # A Dialog is just a widget, so you make its child a layout just like
-        # a Window.
-        dlg = gui.Dialog(title)
-
-        # Add the message text
+    def _on_menu_about(self):
+        # Show a simple dialog. Although the Dialog is actually a widget, you can
+        # treat it similar to a Window for layout and put all the widgets in a
+        # layout which you make the only child of the Dialog.
         em = self.window.theme.font_size
+        dlg = gui.Dialog("About")
+
+        # Add the text
         dlg_layout = gui.Vert(em, gui.Margins(em, em, em, em))
-        dlg_layout.add_child(gui.Label(message))
+        dlg_layout.add_child(gui.Label("Open3D GUI Example"))
 
         # Add the Ok button. We need to define a callback function to handle
         # the click.
-        ok_button = gui.Button("Ok")
-        ok_button.set_on_clicked(self._on_ok)
+        ok = gui.Button("OK")
+        ok.set_on_clicked(self._on_about_ok)
 
         # We want the Ok button to be an the right side, so we need to add
         # a stretch item to the layout, otherwise the button will be the size
         # of the entire row. A stretch item takes up as much space as it can,
         # which forces the button to be its minimum size.
-        button_layout = gui.Horiz()
-        button_layout.add_stretch()
-        button_layout.add_child(ok_button)
+        h = gui.Horiz()
+        h.add_stretch()
+        h.add_child(ok)
+        h.add_stretch()
+        dlg_layout.add_child(h)
 
-        # Add the button layout,
-        dlg_layout.add_child(button_layout)
-        # ... then add the layout as the child of the Dialog
         dlg.add_child(dlg_layout)
+        self.window.show_dialog(dlg)
 
-    def show(self, window):
-        self._window = window
+    def _on_about_ok(self):
+        self.window.close_dialog()
 
-    def _on_ok(self):
-        self._window.close_dialog()
+    def load(self, path):
+        self._scene.scene.clear_geometry()
+
+        geometry = None
+        geometry_type = o3d.io.read_file_geometry_type(path)
+
+        mesh = None
+        if geometry_type & o3d.io.CONTAINS_TRIANGLES:
+            mesh = o3d.io.read_triangle_model(path)
+        if mesh is None:
+            print("[Info]", path, "appears to be a point cloud")
+            cloud = None
+            try:
+                cloud = o3d.io.read_point_cloud(path)
+            except Exception:
+                pass
+            if cloud is not None:
+                print("[Info] Successfully read", path)
+                if not cloud.has_normals():
+                    cloud.estimate_normals()
+                cloud.normalize_normals()
+                geometry = cloud
+            else:
+                print("[WARNING] Failed to read points", path)
+
+        if geometry is not None or mesh is not None:
+            try:
+                if mesh is not None:
+                    # Triangle model
+                    self._scene.scene.add_model("__model__", mesh)
+                else:
+                    # Point cloud
+                    self._scene.scene.add_geometry("__model__", geometry,
+                                                   self.settings.material)
+                bounds = self._scene.scene.bounding_box
+                self._scene.setup_camera(60, bounds, bounds.get_center())
+            except Exception as e:
+                print(e)
+
+    def export_image(self, path, width, height):
+
+        def on_image(image):
+            img = image
+
+            quality = 9  # png
+            if path.endswith(".jpg"):
+                quality = 100
+            o3d.io.write_image(path, img, quality)
+
+        self._scene.scene.scene.render_to_image(on_image)
 
 
 def main():
-    # We need to initialize the application, which finds the necessary shaders for
-    # rendering and prepares the cross-platform window abstraction.
+    # We need to initialize the application, which finds the necessary shaders
+    # for rendering and prepares the cross-platform window abstraction.
     gui.Application.instance.initialize()
 
-    w = ExampleWindow()
+    w = AppWindow(1024, 768)
+
+    if len(sys.argv) > 1:
+        path = sys.argv[1]
+        if os.path.exists(path):
+            w.load(path)
+        else:
+            w.window.show_message_box("Error",
+                                      "Could not open file '" + path + "'")
 
     # Run the event loop. This will not return until the last window is closed.
     gui.Application.instance.run()

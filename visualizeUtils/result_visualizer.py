@@ -26,9 +26,11 @@ class App:
         self.key_pcd_pred1_2 = "pcd_pred1_2"
         self.key_pcd_pred2_1 = "pcd_pred2_1"
         self.key_pcd_pred2_2 = "pcd_pred2_2"
+        self.key_IBS = "IBS"
 
         self.TAG_PCD1 = "pcd1"
         self.TAG_PCD2 = "pcd2"
+        self.TAG_IBS = "IBS"
 
         self.obj_material = rendering.MaterialRecord()
         self.obj_material.shader = 'defaultLit'
@@ -38,29 +40,41 @@ class App:
 
         gui.Application.instance.initialize()
 
-        self.scene_width = specs.get("window_size_options").get("scene_width")
-        self.scene_height = specs.get("window_size_options").get("scene_height")
+        self.sub_window_width = specs.get("window_size_options").get("sub_window_width")
+        self.sub_window_height = specs.get("window_size_options").get("sub_window_height")
         self.tool_bar_width = specs.get("window_size_options").get("tool_bar_width")
-        self.window = gui.Application.instance.create_window("layout", self.scene_width*2+self.tool_bar_width, self.scene_height*2)
+        self.window_name_label_width = specs.get("window_size_options").get("window_name_label_width")
+        self.window_name_label_height = specs.get("window_size_options").get("window_name_label_height")
+        self.window = gui.Application.instance.create_window("layout", self.sub_window_width * 2 + self.tool_bar_width,
+                                                             self.sub_window_height * 2)
         self.window.set_on_layout(self.on_layout)
+        self.window.set_on_key(self.on_key)
 
         self.em = self.window.theme.font_size
 
         # 完整点云窗口
         self.scene_pcd_complete = gui.SceneWidget()
         self.scene_pcd_complete.scene = rendering.Open3DScene(self.window.renderer)
+        self.scene_pcd_complete_text = gui.Label("complete")
 
         # 残缺点云窗口
         self.scene_pcd_partial = gui.SceneWidget()
         self.scene_pcd_partial.scene = rendering.Open3DScene(self.window.renderer)
+        self.scene_pcd_partial_text = gui.Label("partial")
 
         # 补全结果1窗口
         self.scene_pcd_pred1 = gui.SceneWidget()
         self.scene_pcd_pred1.scene = rendering.Open3DScene(self.window.renderer)
+        self.scene_pcd_pred1_text = gui.Label("pred1")
 
         # 补全结果2窗口
         self.scene_pcd_pred2 = gui.SceneWidget()
         self.scene_pcd_pred2.scene = rendering.Open3DScene(self.window.renderer)
+        self.scene_pcd_pred2_text = gui.Label("pred2")
+
+        # 窗口是否显示的标记
+        self.flag_pcd_pred1_window_show = False
+        self.flag_pcd_pred2_window_show = True
 
         # 点云
         self.pcd_complete_1 = None
@@ -71,6 +85,7 @@ class App:
         self.pcd_pred1_2 = None
         self.pcd_pred2_1 = None
         self.pcd_pred2_2 = None
+        self.IBS = None
 
         # 工具栏
         self.tool_bar_layout = gui.Vert()
@@ -100,10 +115,22 @@ class App:
         self.btn_load = None
 
         # 数据切换区域
-        self.view_switch_layout = None
-        self.data_switch_text = None
-        self.btn_pre = None
-        self.btn_next = None
+        self.data_switch_layout = None
+        self.category_switch_area = None
+        self.category_switch_text = None
+        self.category_switch_btn_area = None
+        self.btn_pre_category = None
+        self.btn_next_category = None
+        self.scene_switch_area = None
+        self.scene_switch_text = None
+        self.scene_switch_btn_area = None
+        self.btn_pre_scene = None
+        self.btn_next_scene = None
+        self.view_switch_area = None
+        self.view_switch_text = None
+        self.view_switch_btn_area = None
+        self.btn_pre_view = None
+        self.btn_next_view = None
 
         # 可见性
         self.visible_control_layout = None
@@ -137,7 +164,7 @@ class App:
 
         self.tool_bar_layout.add_child(self.data_dir_editor_layout)
         self.tool_bar_layout.add_child(self.geometry_select_layout)
-        self.tool_bar_layout.add_child(self.view_switch_layout)
+        self.tool_bar_layout.add_child(self.data_switch_layout)
         self.tool_bar_layout.add_child(self.visible_control_layout)
         self.tool_bar_layout.add_stretch()
         self.tool_bar_layout.add_child(self.data_info_layout)
@@ -147,6 +174,10 @@ class App:
         self.window.add_child(self.scene_pcd_pred1)
         self.window.add_child(self.scene_pcd_pred2)
         self.window.add_child(self.tool_bar_layout)
+        self.window.add_child(self.scene_pcd_complete_text)
+        self.window.add_child(self.scene_pcd_partial_text)
+        self.window.add_child(self.scene_pcd_pred1_text)
+        self.window.add_child(self.scene_pcd_pred2_text)
 
     def on_data_dir_comfirm_btn_clicked(self):
         # 根据用户填写的文件路径构建目录树
@@ -237,10 +268,14 @@ class App:
         print("seleted view: ", self.selected_view)
 
     def clear_all_window(self):
-        self.scene_pcd_complete.scene.clear_geometry()
-        self.scene_pcd_partial.scene.clear_geometry()
-        self.scene_pcd_pred1.scene.clear_geometry()
-        self.scene_pcd_pred2.scene.clear_geometry()
+        if self.scene_pcd_complete:
+            self.scene_pcd_complete.scene.clear_geometry()
+        if self.scene_pcd_partial:
+            self.scene_pcd_partial.scene.clear_geometry()
+        if self.scene_pcd_pred1:
+            self.scene_pcd_pred1.scene.clear_geometry()
+        if self.scene_pcd_pred2:
+            self.scene_pcd_pred2.scene.clear_geometry()
 
     def paint_color(self, geometry, color):
         if geometry is None:
@@ -267,6 +302,15 @@ class App:
         self.pcd_pred1_2 = self.read_pcd(geometry_path_dict.get("pcd_pred1_2"))
         self.pcd_pred2_1 = self.read_pcd(geometry_path_dict.get("pcd_pred2_1"))
         self.pcd_pred2_2 = self.read_pcd(geometry_path_dict.get("pcd_pred2_2"))
+        self.IBS = self.read_mesh(geometry_path_dict.get("IBS"))
+        if self.pcd_pred1_1 is None and self.pcd_pred1_2 is None:
+            self.flag_pcd_pred1_window_show = False
+        else:
+            self.flag_pcd_pred1_window_show = True
+        if self.pcd_pred2_1 is None and self.pcd_pred2_2 is None:
+            self.flag_pcd_pred2_window_show = False
+        else:
+            self.flag_pcd_pred2_window_show = True
 
         self.paint_color(self.pcd_complete_1, (0.7, 0.2, 0.2))
         self.paint_color(self.pcd_complete_2, (0.2, 0.7, 0.2))
@@ -276,52 +320,84 @@ class App:
         self.paint_color(self.pcd_pred1_2, (0.2, 0.7, 0.2))
         self.paint_color(self.pcd_pred2_1, (0.7, 0.2, 0.2))
         self.paint_color(self.pcd_pred2_2, (0.2, 0.7, 0.2))
+        self.paint_color(self.IBS, (0.2, 0.2, 0.7))
 
         self.clear_all_window()
-        self.add_object(self.scene_pcd_complete, "pcd1", self.pcd_complete_1)
-        self.add_object(self.scene_pcd_complete, "pcd2", self.pcd_complete_2)
-        self.add_object(self.scene_pcd_partial, "pcd1", self.pcd_partial_1)
-        self.add_object(self.scene_pcd_partial, "pcd2", self.pcd_partial_2)
-        self.add_object(self.scene_pcd_pred1, "pcd1", self.pcd_pred1_1)
-        self.add_object(self.scene_pcd_pred1, "pcd2", self.pcd_pred1_2)
-        self.add_object(self.scene_pcd_pred2, "pcd1", self.pcd_pred2_1)
-        self.add_object(self.scene_pcd_pred2, "pcd2", self.pcd_pred2_2)
+        if self.show_pcd1_checkbox.checked:
+            self.add_object(self.scene_pcd_complete, self.TAG_PCD1, self.pcd_complete_1)
+            self.add_object(self.scene_pcd_partial, self.TAG_PCD1, self.pcd_partial_1)
+            self.add_object(self.scene_pcd_pred1, self.TAG_PCD1, self.pcd_pred1_1)
+            self.add_object(self.scene_pcd_pred2, self.TAG_PCD1, self.pcd_pred2_1)
+        if self.show_pcd2_checkbox.checked:
+            self.add_object(self.scene_pcd_complete, self.TAG_PCD2, self.pcd_complete_2)
+            self.add_object(self.scene_pcd_partial, self.TAG_PCD2, self.pcd_partial_2)
+            self.add_object(self.scene_pcd_pred1, self.TAG_PCD2, self.pcd_pred1_2)
+            self.add_object(self.scene_pcd_pred2, self.TAG_PCD2, self.pcd_pred2_2)
+        if self.show_ibs_checkbox.checked:
+            self.add_object(self.scene_pcd_complete, self.TAG_IBS, self.IBS)
+            self.add_object(self.scene_pcd_partial, self.TAG_IBS, self.IBS)
+            if self.flag_pcd_pred1_window_show:
+                self.add_object(self.scene_pcd_pred1, self.TAG_IBS, self.IBS)
+            if self.flag_pcd_pred2_window_show:
+                self.add_object(self.scene_pcd_pred2, self.TAG_IBS, self.IBS)
 
         self.update_camera(self.scene_pcd_complete, self.pcd_complete_1, self.pcd_complete_2)
         self.update_camera(self.scene_pcd_partial, self.pcd_partial_1, self.pcd_partial_2)
         self.update_camera(self.scene_pcd_pred1, self.pcd_pred1_1, self.pcd_pred1_2)
         self.update_camera(self.scene_pcd_pred2, self.pcd_pred2_1, self.pcd_pred2_2)
 
-        self.show_pcd1_checkbox.checked = True
-        self.show_pcd2_checkbox.checked = True
-
         self.update_info_area()
 
     def get_view_info(self):
         view = self.view_selector.get_item(self.selected_view)
         view_idx = re.findall(r'\d+', view)
-        theta = int(int(view_idx[-1])/8) * 45 + 45
+        theta = int(int(view_idx[-1]) / 8) * 45 + 45
         phi = (int(view_idx[-1]) % 8) * 45
         return theta, phi
 
     def update_info_area(self):
-        self.category_info.text = self.category_info_patten.format(self.category_selector.get_item(self.selected_category))
+        self.category_info.text = self.category_info_patten.format(
+            self.category_selector.get_item(self.selected_category))
         self.scene_info.text = self.scene_info_patten.format(self.scene_selector.get_item(self.selected_scene))
         self.view_info.text = self.view_info_patten.format(self.view_selector.get_item(self.selected_view))
         theta, phi = self.get_view_info()
         self.theta.text = self.theta_patten.format(theta)
         self.phi.text = self.theta_patten.format(phi)
 
+    def on_pre_category_btn_clicked(self):
+        if self.selected_category <= 0:
+            return
+        self.on_category_selection_changed(self.category_selector.get_item(self.selected_category - 1),
+                                           self.selected_category - 1)
+        self.on_load_btn_clicked()
+
+    def on_next_category_btn_clicked(self):
+        if self.selected_category >= self.category_selector.number_of_items - 1:
+            return
+        self.on_category_selection_changed(self.category_selector.get_item(self.selected_category + 1),
+                                           self.selected_category + 1)
+        self.on_load_btn_clicked()
+
+    def on_pre_scene_btn_clicked(self):
+        if self.selected_scene <= 0:
+            return
+        self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene - 1), self.selected_scene - 1)
+        self.on_load_btn_clicked()
+
+    def on_next_scene_btn_clicked(self):
+        if self.selected_scene >= self.scene_selector.number_of_items - 1:
+            return
+        self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene + 1), self.selected_scene + 1)
+        self.on_load_btn_clicked()
+
     def on_pre_view_btn_clicked(self):
         if self.selected_view <= 0:
-            self.show_message_dialog("info", "No more view before current view")
             return
-        self.on_view_selection_changed(self.view_selector.get_item(self.selected_view-1), self.selected_view-1)
+        self.on_view_selection_changed(self.view_selector.get_item(self.selected_view - 1), self.selected_view - 1)
         self.on_load_btn_clicked()
 
     def on_next_view_btn_clicked(self):
-        if self.selected_view >= self.view_selector.number_of_items-1:
-            self.show_message_dialog("info", "No more view after current view")
+        if self.selected_view >= self.view_selector.number_of_items - 1:
             return
         self.on_view_selection_changed(self.view_selector.get_item(self.selected_view + 1), self.selected_view + 1)
         self.on_load_btn_clicked()
@@ -330,8 +406,10 @@ class App:
         if is_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_PCD1, self.pcd_complete_1)
             self.add_object(self.scene_pcd_partial, self.TAG_PCD1, self.pcd_partial_1)
-            self.add_object(self.scene_pcd_pred1, self.TAG_PCD1, self.pcd_pred1_1)
-            self.add_object(self.scene_pcd_pred2, self.TAG_PCD1, self.pcd_pred2_1)
+            if self.flag_pcd_pred1_window_show:
+                self.add_object(self.scene_pcd_pred1, self.TAG_PCD1, self.pcd_pred1_1)
+            if self.flag_pcd_pred2_window_show:
+                self.add_object(self.scene_pcd_pred2, self.TAG_PCD1, self.pcd_pred2_1)
         else:
             self.remove_object(self.scene_pcd_complete, self.TAG_PCD1)
             self.remove_object(self.scene_pcd_partial, self.TAG_PCD1)
@@ -342,8 +420,10 @@ class App:
         if is_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_PCD2, self.pcd_complete_2)
             self.add_object(self.scene_pcd_partial, self.TAG_PCD2, self.pcd_partial_2)
-            self.add_object(self.scene_pcd_pred1, self.TAG_PCD2, self.pcd_pred1_2)
-            self.add_object(self.scene_pcd_pred2, self.TAG_PCD2, self.pcd_pred2_2)
+            if self.flag_pcd_pred1_window_show:
+                self.add_object(self.scene_pcd_pred1, self.TAG_PCD2, self.pcd_pred1_2)
+            if self.flag_pcd_pred2_window_show:
+                self.add_object(self.scene_pcd_pred2, self.TAG_PCD2, self.pcd_pred2_2)
         else:
             self.remove_object(self.scene_pcd_complete, self.TAG_PCD2)
             self.remove_object(self.scene_pcd_partial, self.TAG_PCD2)
@@ -351,14 +431,30 @@ class App:
             self.remove_object(self.scene_pcd_pred2, self.TAG_PCD2)
 
     def on_show_ibs_checked(self, is_checked):
-        if self.mesh2 is None:
-            self.show_message_dialog("warning", "Please load obj2 first")
-            self.show_obj1_checkbox.checked = False
-            return
         if is_checked:
-            self.scene1.scene.add_geometry("mesh2", self.mesh2, self.material.get("obj"))
+            self.add_object(self.scene_pcd_complete, self.TAG_IBS, self.IBS)
+            self.add_object(self.scene_pcd_partial, self.TAG_IBS, self.IBS)
+            if self.flag_pcd_pred1_window_show:
+                self.add_object(self.scene_pcd_pred1, self.TAG_IBS, self.IBS)
+            if self.flag_pcd_pred2_window_show:
+                self.add_object(self.scene_pcd_pred2, self.TAG_IBS, self.IBS)
         else:
-            self.scene1.scene.remove_geometry("mesh2")
+            self.remove_object(self.scene_pcd_complete, self.TAG_IBS)
+            self.remove_object(self.scene_pcd_partial, self.TAG_IBS)
+            self.remove_object(self.scene_pcd_pred1, self.TAG_IBS)
+            self.remove_object(self.scene_pcd_pred2, self.TAG_IBS)
+
+    def read_mesh(self, mesh_path):
+        if not os.path.exists(mesh_path):
+            return None
+        if not os.path.isfile(mesh_path):
+            self.show_message_dialog("warning", "{} is not a file".format(mesh_path))
+            return None
+        mesh = o3d.io.read_triangle_mesh(mesh_path)
+        if np.asarray(mesh.vertices).shape[0] == 0:
+            self.show_message_dialog("warning", "{} is not a mesh file".format(mesh_path))
+            return None
+        return mesh
 
     def read_pcd(self, pcd_path):
         if not os.path.exists(pcd_path):
@@ -367,8 +463,9 @@ class App:
             self.show_message_dialog("warning", "{} is not a file".format(pcd_path))
             return None
         pcd = o3d.io.read_point_cloud(pcd_path)
+        pcd.normals = o3d.utility.Vector3dVector(np.array([]).reshape(0, 3))
         if np.asarray(pcd.points).shape[0] == 0:
-            self.show_message_dialog("warning", "{} is not a file".format(pcd_path))
+            self.show_message_dialog("warning", "{} is not a pcd file".format(pcd_path))
             return None
         return pcd
 
@@ -376,12 +473,11 @@ class App:
         if scene is None:
             return
         if scene.scene.has_geometry(name):
-            scene.scene.remove_geometry("mesh1")
+            scene.scene.remove_geometry(name)
 
     def add_object(self, scene, name, geometry):
-        if geometry is None:
+        if scene is None or geometry is None:
             return
-
         if scene.scene.has_geometry(name):
             scene.scene.remove_geometry(name)
         scene.scene.add_geometry(name, geometry, self.material.get("obj"))
@@ -409,12 +505,49 @@ class App:
     def on_layout(self, layout_context):
         r = self.window.content_rect
 
-        self.scene_pcd_complete.frame = gui.Rect(r.x, r.y, self.scene_width, self.scene_height)
-        self.scene_pcd_partial.frame = gui.Rect(r.x+self.scene_width, r.y, self.scene_width, self.scene_height)
-        self.scene_pcd_pred1.frame = gui.Rect(r.x, r.y+self.scene_height, self.scene_width, self.scene_height)
-        self.scene_pcd_pred2.frame = gui.Rect(r.x+self.scene_width, r.y+self.scene_height, self.scene_width, self.scene_height)
+        if self.scene_pcd_complete:
+            self.scene_pcd_complete.frame = gui.Rect(r.x, r.y, self.sub_window_width, self.sub_window_height)
+            self.scene_pcd_complete_text.frame = gui.Rect(r.x, r.y,
+                                                          self.window_name_label_width, self.window_name_label_height)
+        if self.scene_pcd_partial:
+            self.scene_pcd_partial.frame = gui.Rect(r.x + self.sub_window_width, r.y, self.sub_window_width,
+                                                    self.sub_window_height)
+            self.scene_pcd_partial_text.frame = gui.Rect(r.x + self.sub_window_width, r.y,
+                                                         self.window_name_label_width, self.window_name_label_height)
+        if self.scene_pcd_pred1:
+            self.scene_pcd_pred1.frame = gui.Rect(r.x, r.y + self.sub_window_height, self.sub_window_width,
+                                                  self.sub_window_height)
+            self.scene_pcd_pred1_text.frame = gui.Rect(r.x, r.y + self.sub_window_height,
+                                                       self.window_name_label_width, self.window_name_label_height)
+        if self.scene_pcd_pred2:
+            self.scene_pcd_pred2.frame = gui.Rect(r.x + self.sub_window_width, r.y + self.sub_window_height,
+                                                  self.sub_window_width, self.sub_window_height)
+            self.scene_pcd_pred2_text.frame = gui.Rect(r.x + self.sub_window_width, r.y + self.sub_window_height,
+                                                       self.window_name_label_width, self.window_name_label_height)
 
-        self.tool_bar_layout.frame = gui.Rect(r.x+self.scene_width*2, r.y, self.tool_bar_width, r.height)
+        self.tool_bar_layout.frame = gui.Rect(r.x + self.sub_window_width * 2, r.y, self.tool_bar_width, r.height)
+
+    def on_key(self, key_event):
+        if key_event.type == o3d.visualization.gui.KeyEvent.Type.UP:
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.RIGHT:
+            self.on_next_view_btn_clicked()
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.LEFT:
+            self.on_pre_view_btn_clicked()
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.UP:
+            self.on_pre_scene_btn_clicked()
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.DOWN:
+            self.on_next_scene_btn_clicked()
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.Q:
+            self.on_pre_category_btn_clicked()
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.E:
+            self.on_next_category_btn_clicked()
+            return
 
     def on_dialog_ok(self):
         self.window.close_dialog()
@@ -424,11 +557,11 @@ class App:
 
         self.pcd_pred1_dir_editor_text = gui.Label("pcd_pred1_dir")
         self.pcd_pred1_dir_editor = gui.TextEdit()
-        self.pcd_pred1_dir_editor.text_value = "D:\dataset\IBPCDC\pcdPred\pcd_partial_1024_test"
+        self.pcd_pred1_dir_editor.text_value = self.specs.get("path_options").get("geometries_dir").get("pcd_pred1_dir")
 
         self.pcd_pred2_dir_editor_text = gui.Label("pcd_pred2_dir")
         self.pcd_pred2_dir_editor = gui.TextEdit()
-        self.pcd_pred2_dir_editor.text_value = "D:\dataset\IBPCDC\pcdPred\pcd_partial_1024_test"
+        self.pcd_pred2_dir_editor.text_value = self.specs.get("path_options").get("geometries_dir").get("pcd_pred2_dir")
 
         self.data_dir_confirm_btn = gui.Button("confirm")
         self.data_dir_confirm_btn.set_on_clicked(self.on_data_dir_comfirm_btn_clicked)
@@ -484,18 +617,43 @@ class App:
         self.geometry_select_layout.add_child(self.btn_load)
 
     def init_data_switch_area(self):
-        self.view_switch_layout = gui.Vert(0, gui.Margins(self.em, self.em, self.em, self.em))
+        self.data_switch_layout = gui.Vert(0, gui.Margins(self.em, self.em, self.em, self.em))
 
-        self.data_switch_text = gui.Label("switch view")
-        self.btn_pre = gui.Button("previous view")
-        self.btn_pre.set_on_clicked(self.on_pre_view_btn_clicked)
-        self.btn_next = gui.Button("next view")
-        self.btn_next.set_on_clicked(self.on_next_view_btn_clicked)
+        self.category_switch_area = gui.Vert()
+        self.category_switch_text = gui.Label("switch category")
+        self.btn_pre_category = gui.Button("previous category")
+        self.btn_pre_category.set_on_clicked(self.on_pre_category_btn_clicked)
+        self.btn_next_category = gui.Button("next category")
+        self.btn_next_category.set_on_clicked(self.on_next_category_btn_clicked)
+        self.category_switch_area.add_child(self.category_switch_text)
+        self.category_switch_area.add_child(self.btn_pre_category)
+        self.category_switch_area.add_child(self.btn_next_category)
 
-        self.view_switch_layout.add_child(self.data_switch_text)
-        self.view_switch_layout.add_child(self.btn_pre)
-        self.view_switch_layout.add_fixed(self.em/2)
-        self.view_switch_layout.add_child(self.btn_next)
+        self.scene_switch_area = gui.Vert()
+        self.scene_switch_text = gui.Label("switch scene")
+        self.btn_pre_scene = gui.Button("previous scene")
+        self.btn_pre_scene.set_on_clicked(self.on_pre_scene_btn_clicked)
+        self.btn_next_scene = gui.Button("next scene")
+        self.btn_next_scene.set_on_clicked(self.on_next_scene_btn_clicked)
+        self.scene_switch_area.add_child(self.scene_switch_text)
+        self.scene_switch_area.add_child(self.btn_pre_scene)
+        self.scene_switch_area.add_child(self.btn_next_scene)
+
+        self.view_switch_area = gui.Vert()
+        self.view_switch_text = gui.Label("switch view")
+        self.btn_pre_view = gui.Button("previous view")
+        self.btn_pre_view.set_on_clicked(self.on_pre_view_btn_clicked)
+        self.btn_next_view = gui.Button("next view")
+        self.btn_next_view.set_on_clicked(self.on_next_view_btn_clicked)
+        self.view_switch_area.add_child(self.view_switch_text)
+        self.view_switch_area.add_child(self.btn_pre_view)
+        self.view_switch_area.add_child(self.btn_next_view)
+
+        self.data_switch_layout.add_child(self.category_switch_area)
+        self.data_switch_layout.add_fixed(self.em)
+        self.data_switch_layout.add_child(self.scene_switch_area)
+        self.data_switch_layout.add_fixed(self.em)
+        self.data_switch_layout.add_child(self.view_switch_area)
 
     def init_visible_control_area(self):
         self.visible_control_layout = gui.Vert(0, gui.Margins(self.em, self.em, self.em, self.em))
@@ -507,7 +665,9 @@ class App:
         self.show_pcd2_checkbox_text = gui.Label("pcd2")
         self.show_ibs_checkbox_text = gui.Label("ibs")
         self.show_pcd1_checkbox = gui.Checkbox("")
+        self.show_pcd1_checkbox.checked = True
         self.show_pcd2_checkbox = gui.Checkbox("")
+        self.show_pcd2_checkbox.checked = True
         self.show_ibs_checkbox = gui.Checkbox("")
         self.show_pcd1_checkbox.set_on_checked(self.on_show_pcd1_checked)
         self.show_pcd2_checkbox.set_on_checked(self.on_show_pcd2_checked)
@@ -545,6 +705,7 @@ class App:
         pcd_partial_dir = self.specs.get("path_options").get("geometries_dir").get("pcd_partial_dir")
         pcd_pred1_dir = self.pcd_pred1_dir_editor.text_value
         pcd_pred2_dir = self.pcd_pred2_dir_editor.text_value
+        IBS_dir = self.specs.get("path_options").get("geometries_dir").get("IBS_dir")
 
         category = self.category_selector.get_item(self.selected_category)
         scene = self.scene_selector.get_item(self.selected_scene)
@@ -558,6 +719,7 @@ class App:
         pcd_pred1_2_filename = "{}_1.ply".format(view)
         pcd_pred2_1_filename = "{}_0.ply".format(view)
         pcd_pred2_2_filename = "{}_1.ply".format(view)
+        IBS_filename = "{}.obj".format(scene)
 
         pcd_complete_1_path = os.path.join(pcd_complete_dir, category, pcd_complete_1_filename)
         pcd_complete_2_path = os.path.join(pcd_complete_dir, category, pcd_complete_2_filename)
@@ -567,6 +729,7 @@ class App:
         pcd_pred1_2_path = os.path.join(pcd_pred1_dir, category, pcd_pred1_2_filename)
         pcd_pred2_1_path = os.path.join(pcd_pred2_dir, category, pcd_pred2_1_filename)
         pcd_pred2_2_path = os.path.join(pcd_pred2_dir, category, pcd_pred2_2_filename)
+        IBS_path = os.path.join(IBS_dir, category, IBS_filename)
 
         geometry_path_dict = {
             self.key_pcd_complete_1: pcd_complete_1_path,
@@ -577,6 +740,7 @@ class App:
             self.key_pcd_pred1_2: pcd_pred1_2_path,
             self.key_pcd_pred2_1: pcd_pred2_1_path,
             self.key_pcd_pred2_2: pcd_pred2_2_path,
+            self.key_IBS: IBS_path,
         }
 
         return geometry_path_dict

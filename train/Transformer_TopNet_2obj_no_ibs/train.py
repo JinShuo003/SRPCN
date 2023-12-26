@@ -12,7 +12,7 @@ import argparse
 import time
 
 from networks.loss import chamfer_distance, earth_move_distance
-from networks.model_transformer_TopNet_2obj_no_ibs import *
+from networks.model_Transformer_TopNet_2obj_no_ibs import *
 
 import utils.data
 from utils.learning_rate import get_learning_rate_schedules
@@ -251,7 +251,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_PCN_TopNet_2obj_ibs.json",
+        default="configs/specs/specs_train_Transformer_TopNet_2obj_no_ibs.json",
         required=False,
         help="The experiment config file."
     )

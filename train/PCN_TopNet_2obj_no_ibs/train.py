@@ -252,7 +252,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_PCN_TopNet_2obj_ibs.json",
+        default="configs/specs/specs_train_PCN_TopNet_2obj_no_ibs.json",
         required=False,
         help="The experiment config file."
     )

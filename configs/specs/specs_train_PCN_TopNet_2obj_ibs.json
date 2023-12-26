@@ -6,7 +6,7 @@
     "TestSplit" : "configs/test_scan_2048/test.json",
     "ParaSaveDir" : "trained_models",
     "TensorboardLogDir" : "tensorboard_logs",
-    "LogDir" : "logs",
+    "LogDir" : "logs/train",
     "Device" : 0,
     "LearningRateSchedule" : {
 	    "Type" : "Step",
@@ -18,6 +18,6 @@
     "PcdPointNum": 2048,
     "IBSPointNum": 2048,
 
-    "ScenesPerBatch" : 400,
+    "BatchSize" : 320,
     "DataLoaderThreads" : 8
 }

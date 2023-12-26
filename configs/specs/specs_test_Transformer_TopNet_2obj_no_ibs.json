@@ -1,13 +1,11 @@
 {
-    "Description" : "Get prediction point cloud",
+    "TAG": "Transformer_TopNet_2obj_no_ibs",
     "DataSource" : "data",
     "TestSplit" : "configs/test_scan_2048/test.json",
-    "TestResult" : "test_result",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
+    "LogDir" : "logs/train",
+    "ResultSaveDir": "test_result/Transformer_TopNet_2obj_no_ibs",
     "Device" : 0,
-    "ScenesPerBatch" : 320,
-    "DataLoaderThreads" : 8,
-    "Visualize": false,
-    "Save": true,
-    "SaveDir": "test_result/Transformer_TopNet_2obj_no_ibs"
+    "BatchSize" : 320,
+    "DataLoaderThreads" : 8
 }

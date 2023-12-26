@@ -53,10 +53,10 @@ def get_dataloader(specs):
     data_source = specs.get("DataSource")
     train_split_file = specs.get("TrainSplit")
     test_split_file = specs.get("TestSplit")
-    scene_per_batch = specs.get("ScenesPerBatch")
+    batch_size = specs.get("BatchSize")
     num_data_loader_threads = specs.get("DataLoaderThreads")
 
-    logger.info("batch_size: {}".format(scene_per_batch))
+    logger.info("batch_size: {}".format(batch_size))
     logger.info("dataLoader threads: {}".format(num_data_loader_threads))
 
     with open(train_split_file, "r") as f:
@@ -74,14 +74,14 @@ def get_dataloader(specs):
     # get dataloader
     train_loader = data_utils.DataLoader(
         train_dataset,
-        batch_size=scene_per_batch,
+        batch_size=batch_size,
         shuffle=True,
         num_workers=num_data_loader_threads,
         drop_last=False,
     )
     test_loader = data_utils.DataLoader(
         test_dataset,
-        batch_size=scene_per_batch,
+        batch_size=batch_size,
         shuffle=True,
         num_workers=num_data_loader_threads,
         drop_last=False,
@@ -147,11 +147,6 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     train_total_loss_emd = 0
     train_total_loss_cd = 0
     for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in sdf_train_loader:
-        pcd1_partial.requires_grad = False
-        pcd2_partial.requires_grad = False
-        pcd1_gt.requires_grad = False
-        pcd2_gt.requires_grad = False
-
         pcd1_partial = pcd1_partial.to(device)
         pcd2_partial = pcd2_partial.to(device)
         pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
@@ -197,11 +192,6 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
         test_total_loss_emd = 0
         test_total_loss_cd = 0
         for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
-            pcd1_partial.requires_grad = False
-            pcd2_partial.requires_grad = False
-            pcd1_gt.requires_grad = False
-            pcd2_gt.requires_grad = False
-
             pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
             pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)

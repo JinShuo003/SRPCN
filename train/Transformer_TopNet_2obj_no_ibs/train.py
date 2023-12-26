@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import logging
 import os.path
@@ -10,7 +11,7 @@ import open3d as o3d
 from datetime import datetime, timedelta
 
 import networks.loss
-from networks.model_PCN_TopNet_2obj_no_ibs import *
+from networks.model_transformer_TopNet_2obj_no_ibs import *
 
 import utils.data
 import utils.workspace as ws
@@ -90,9 +91,8 @@ def get_dataloader(specs):
 
 def get_network(specs):
     device = specs["Device"]
-    points_num = specs.get("PcdPointNum")
 
-    net = IBPCDCNet(points_num)
+    net = IBPCDCNet()
 
     if torch.cuda.is_available():
         net = net.to(device)
@@ -252,7 +252,7 @@ def main_function(experiment_config_file):
     lr_schedules, optimizer = get_optimizer(specs, IBS_Net)
     tensorboard_writer = get_tensorboard_writer(specs, './tensorboard_logs', IBS_Net, TIMESTAMP)
 
-    for epoch in range(epoch_num):
+    for epoch in range(epoch_num + 1):
         train(IBS_Net, train_loader, lr_schedules, optimizer, epoch, specs, tensorboard_writer, TIMESTAMP)
         test(IBS_Net, test_loader, epoch, specs, tensorboard_writer)
 
@@ -269,7 +269,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train.json",
+        default="configs/specs/specs_train_Transformer_TopNet_2obj_no_ibs.json",
         required=False,
         help="The experiment config file."
     )

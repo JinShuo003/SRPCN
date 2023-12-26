@@ -1,4 +1,5 @@
 import sys
+
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import logging
 import os.path
@@ -254,7 +255,7 @@ def main_function(experiment_config_file):
     lr_schedules, optimizer = get_optimizer(specs, IBS_Net)
     tensorboard_writer = get_tensorboard_writer(specs, './tensorboard_logs', IBS_Net, TIMESTAMP)
 
-    for epoch in range(epoch_num):
+    for epoch in range(epoch_num + 1):
         train(IBS_Net, train_loader, lr_schedules, optimizer, epoch, specs, tensorboard_writer, TIMESTAMP)
         test(IBS_Net, test_loader, epoch, specs, tensorboard_writer)
 
@@ -271,7 +272,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train.json",
+        default="configs/specs/specs_train_Transformer_TopNet_2obj_ibs.json",
         required=False,
         help="The experiment config file."
     )

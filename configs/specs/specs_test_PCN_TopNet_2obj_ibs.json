@@ -1,0 +1,13 @@
+{
+    "Description" : "Get prediction point cloud",
+    "DataSource" : "data",
+    "TestSplit" : "configs/test_scan_2048/test.json",
+    "TestResult" : "test_result",
+    "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
+    "Device" : 0,
+    "ScenesPerBatch" : 320,
+    "DataLoaderThreads" : 8,
+    "Visualize": false,
+    "Save": true,
+    "SaveDir": "test_result/PCN_TopNet_2obj_ibs"
+}

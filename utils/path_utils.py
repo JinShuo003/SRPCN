@@ -12,9 +12,10 @@ def read_config(config_filepath: str):
     Returns:
         dict格式的配置文件
     """
-    with open(config_filepath, 'r') as configfile:
-        config = json.load(configfile)
-    return config
+    if not os.path.isfile(config_filepath):
+        raise Exception("The experiment config file does not exist")
+
+    return json.load(open(config_filepath))
 
 
 def get_filename_tree(specs: dict, base_path: str):

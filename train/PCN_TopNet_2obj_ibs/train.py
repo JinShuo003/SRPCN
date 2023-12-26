@@ -1,6 +1,6 @@
 import sys
+
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
-import logging
 import os.path
 
 import torch.utils.data as data_utils
@@ -8,13 +8,16 @@ from torch.utils.tensorboard import SummaryWriter
 import json
 import open3d as o3d
 from datetime import datetime, timedelta
+import argparse
 
 import networks.loss
-from networks.model_transformer_TopNet_2obj_no_ibs import *
+from networks.model_PCN_TopNet_2obj_no_ibs import *
 
 import utils.data
-import utils.workspace as ws
 from utils.learning_rate import get_learning_rate_schedules
+from utils import path_utils, log_utils
+
+logger = None
 
 
 def visualize(pcd1, pcd2, IBS, pcd1_gt, pcd2_gt):
@@ -46,14 +49,14 @@ def visualize(pcd1, pcd2, IBS, pcd1_gt, pcd2_gt):
 
 
 def get_dataloader(specs):
-    data_source = specs["DataSource"]
-    train_split_file = specs["TrainSplit"]
-    test_split_file = specs["TestSplit"]
-    scene_per_batch = specs["ScenesPerBatch"]
-    num_data_loader_threads = get_spec_with_default(specs, "DataLoaderThreads", 1)
+    data_source = specs.get("DataSource")
+    train_split_file = specs.get("TrainSplit")
+    test_split_file = specs.get("TestSplit")
+    scene_per_batch = specs.get("ScenesPerBatch")
+    num_data_loader_threads = specs.get("DataLoaderThreads")
 
-    logging.info("batch_size: {}".format(scene_per_batch))
-    logging.info("dataLoader threads: {}".format(num_data_loader_threads))
+    logger.info("batch_size: {}".format(scene_per_batch))
+    logger.info("dataLoader threads: {}".format(num_data_loader_threads))
 
     with open(train_split_file, "r") as f:
         train_split = json.load(f)
@@ -64,8 +67,8 @@ def get_dataloader(specs):
     train_dataset = utils.data.IntersectDataset(data_source, train_split)
     test_dataset = utils.data.IntersectDataset(data_source, test_split)
 
-    logging.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
-    logging.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
+    logger.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
+    logger.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader
     train_loader = data_utils.DataLoader(
@@ -82,34 +85,34 @@ def get_dataloader(specs):
         num_workers=num_data_loader_threads,
         drop_last=False,
     )
-    logging.info("length of sdf_train_loader: {}".format(train_loader.__len__()))
-    logging.info("length of sdf_test_loader: {}".format(test_loader.__len__()))
+    logger.info("length of sdf_train_loader: {}".format(train_loader.__len__()))
+    logger.info("length of sdf_test_loader: {}".format(test_loader.__len__()))
 
     return train_loader, test_loader
 
 
 def get_network(specs):
-    device = specs["Device"]
+    device = specs.get("Device")
+    points_num = specs.get("PcdPointNum")
 
-    net = IBPCDCNet()
+    net = IBPCDCNet(points_num)
 
     if torch.cuda.is_available():
         net = net.to(device)
     return net
 
 
-def get_optimizer(specs, IBS_Net):
+def get_optimizer(specs, network):
     lr_schedules = get_learning_rate_schedules(specs)
-    optimizer = torch.optim.Adam(IBS_Net.parameters(), lr_schedules.get_learning_rate(0))
+    optimizer = torch.optim.Adam(network.parameters(), lr_schedules.get_learning_rate(0))
 
     return lr_schedules, optimizer
 
 
-def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
-    device = specs["Device"]
-    train_split_file = specs["TrainSplit"]
+def get_tensorboard_writer(specs, network):
+    device = specs.get("Device")
 
-    writer_path = os.path.join(log_path, "{}_{}".format(os.path.basename(train_split_file).split('.')[-2], TIMESTAMP))
+    writer_path = os.path.join(specs.get("TensorboardLogDir"), specs.get("TAG"))
     if os.path.isdir(writer_path):
         os.mkdir(writer_path)
 
@@ -127,28 +130,21 @@ def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
     return tensorboard_writer
 
 
-def get_spec_with_default(specs, key, default):
-    try:
-        return specs[key]
-    except KeyError:
-        return default
-
-
 def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tensorboard_writer, TIMESTAMP):
     def adjust_learning_rate(lr_schedules, optimizer, epoch):
         optimizer.param_groups[0]["lr"] = lr_schedules.get_learning_rate(epoch)
 
-    para_save_dir = specs["ParaSaveDir"]
-    train_split_file = specs["TrainSplit"]
-    device = specs["Device"]
+    para_save_dir = specs.get("ParaSaveDir")
+    train_split_file = specs.get("TrainSplit")
+    device = specs.get("Device")
 
     loss_emd = networks.loss.emdModule()
     loss_cd = networks.loss.cdModule()
 
     network.train()
     adjust_learning_rate(lr_schedules, optimizer, epoch)
-    logging.info("")
-    logging.info('epoch: {}, learning rate: {}'.format(epoch, lr_schedules.get_learning_rate(epoch)))
+    logger.info("")
+    logger.info('epoch: {}, learning rate: {}'.format(epoch, lr_schedules.get_learning_rate(epoch)))
 
     train_total_loss_emd = 0
     train_total_loss_cd = 0
@@ -181,15 +177,15 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
     train_avrg_loss_emd = train_total_loss_emd / sdf_train_loader.__len__()
     tensorboard_writer.add_scalar("train_loss_emd", train_avrg_loss_emd, epoch)
-    logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_emd))
+    logger.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_emd))
+
     train_avrg_loss_cd = train_total_loss_cd / sdf_train_loader.__len__()
     tensorboard_writer.add_scalar("train_loss_cd", train_avrg_loss_cd, epoch)
-    logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_cd))
+    logger.info('train_avrg_loss_cd: {}'.format(train_avrg_loss_cd))
 
     # 保存模型
     if epoch % 5 == 0:
-        para_save_path = os.path.join(para_save_dir,
-                                      "{}_{}".format(os.path.basename(train_split_file).split('.')[-2], TIMESTAMP))
+        para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
         if not os.path.isdir(para_save_path):
             os.mkdir(para_save_path)
         model_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
@@ -197,7 +193,7 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
 
 def test(network, test_dataloader, epoch, specs, tensorboard_writer):
-    device = specs["Device"]
+    device = specs.get("Device")
 
     loss_emd = networks.loss.emdModule()
     loss_cd = networks.loss.cdModule()
@@ -211,7 +207,6 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
             pcd1_gt.requires_grad = False
             pcd2_gt.requires_grad = False
 
-            IBS = IBS.to(device)
             pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
             pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
@@ -231,53 +226,50 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
         test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
         tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_emd, epoch)
-        logging.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
+        logger.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
+
         test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
         tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
-        logging.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
+        logger.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
 
 
-def main_function(experiment_config_file):
-    specs = ws.load_experiment_specifications(experiment_config_file)
+def main_function(specs):
     epoch_num = specs["NumEpochs"]
     TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
 
-    logging.info("current experiment config file: {}".format(experiment_config_file))
-    logging.info("current time: {}".format(TIMESTAMP))
-    logging.info("There are {} epochs in total".format(epoch_num))
+    logger.info("current network TAG: {}".format(specs.get("TAG")))
+    logger.info("current time: {}".format(TIMESTAMP))
+    logger.info("There are {} epochs in total".format(epoch_num))
 
     train_loader, test_loader = get_dataloader(specs)
-    IBS_Net = get_network(specs)
-    lr_schedules, optimizer = get_optimizer(specs, IBS_Net)
-    tensorboard_writer = get_tensorboard_writer(specs, './tensorboard_logs', IBS_Net, TIMESTAMP)
+    network = get_network(specs)
+    lr_schedules, optimizer = get_optimizer(specs, network)
+    tensorboard_writer = get_tensorboard_writer(specs, network)
 
-    for epoch in range(epoch_num):
-        train(IBS_Net, train_loader, lr_schedules, optimizer, epoch, specs, tensorboard_writer, TIMESTAMP)
-        test(IBS_Net, test_loader, epoch, specs, tensorboard_writer)
+    for epoch in range(epoch_num + 1):
+        train(network, train_loader, lr_schedules, optimizer, epoch, specs, tensorboard_writer, TIMESTAMP)
+        test(network, test_loader, epoch, specs, tensorboard_writer)
 
     tensorboard_writer.close()
 
 
 if __name__ == '__main__':
-    import argparse
-    from utils.cmd_utils import add_common_args
-    from utils.logging import configure_logging
-
-    arg_parser = argparse.ArgumentParser(description="Train a IBS Net")
+    arg_parser = argparse.ArgumentParser(description="Train IBPCDC")
     arg_parser.add_argument(
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train.json",
+        default="configs/specs/specs_train_PCN_TopNet_2obj_ibs.json",
         required=False,
         help="The experiment config file."
     )
 
-    # 添加日志参数
-    add_common_args(arg_parser)
-
     args = arg_parser.parse_args()
 
-    configure_logging(args)
+    specs = path_utils.read_config(args.experiment_config_file)
 
-    main_function(args.experiment_config_file)
+    logger = log_utils.get_train_logger(specs)
+
+    logger.info("specs file path: {}".format(args.experiment_config_file))
+
+    main_function(specs)

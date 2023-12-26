@@ -21,3 +21,21 @@ def get_logger(log_dir: str, scene: str):
     _logger.addHandler(stream_handler)
 
     return _logger, file_handler, stream_handler
+
+
+def get_train_logger(specs):
+    logger = logging.getLogger()
+    logger.setLevel("INFO")
+    formatter = logging.Formatter("IBPCDC - %(levelname)s - %(message)s")
+
+    file_handler = logging.FileHandler(os.path.join(specs.get("LogDir"), specs.get("TAG")), mode="w")
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(level=logging.INFO)
+    logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    stream_handler.setLevel(level=logging.INFO)
+    logger.addHandler(stream_handler)
+
+    return logger

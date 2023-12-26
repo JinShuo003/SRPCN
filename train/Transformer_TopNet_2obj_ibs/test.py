@@ -1,17 +1,15 @@
 import sys
+
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
-import logging
 import os.path
 
 import torch.utils.data as data_utils
-from torch.utils.tensorboard import SummaryWriter
 import json
 import open3d as o3d
-import numpy as np
 import re
 
 import networks.loss
-from networks.model_transformer_TopNet_2obj_no_ibs import *
+from networks.model_transformer_TopNet_2obj_ibs import *
 
 import utils.data
 import utils.workspace as ws
@@ -44,7 +42,7 @@ def get_dataloader(specs):
 
     # get dataset
     test_dataset = utils.data.IntersectDataset(data_source, test_split)
-    
+
     # get dataloader
     test_dataloader = data_utils.DataLoader(
         test_dataset,
@@ -74,7 +72,7 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
         save_path = os.path.join(save_dir, category)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
-        
+
         # append the extend info to the filename
         if extend_info is not None:
             filename_relative += "_{}".format(extend_info)
@@ -105,14 +103,16 @@ def test(IBPCDCNet, test_dataloader, specs, model):
         test_total_loss_emd = 0
         test_total_loss_cd = 0
         for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
+            IBS.requires_grad = False
             pcd1_partial.requires_grad = False
             pcd2_partial.requires_grad = False
             pcd1_gt.requires_grad = False
             pcd2_gt.requires_grad = False
 
+            IBS = IBS.to(device)
             pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
-            pcd1_out, pcd2_out = IBPCDCNet(pcd1_partial, pcd2_partial)
+            pcd1_out, pcd2_out = IBPCDCNet(pcd1_partial, pcd2_partial, IBS)
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)
@@ -169,12 +169,13 @@ if __name__ == '__main__':
     print("-------------------begin test-----------------")
 
     import argparse
+
     arg_parser = argparse.ArgumentParser(description="Train a IBS Net")
     arg_parser.add_argument(
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test.json",
+        default="configs/specs/specs_test_Transformer_TopNet_2obj_ibs.json",
         required=False,
         help="The experiment config file."
     )
@@ -182,7 +183,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/train_2023-12-23_18-19-46/epoch_195.pth",
+        default="trained_models/Transformer_TopNet_2obj_ibs/epoch_100.pth",
         required=False,
         help="The network para"
     )

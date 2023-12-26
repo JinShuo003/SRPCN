@@ -40,11 +40,14 @@ class App:
 
         gui.Application.instance.initialize()
 
+        self.scene_pcd_complete_str = "complete"
+        self.scene_pcd_partial_str = "partial"
+        self.scene_pcd_pred1_str = specs.get("sub_window_3_name")
+        self.scene_pcd_pred2_str = specs.get("sub_window_4_name")
+
         self.sub_window_width = specs.get("window_size_options").get("sub_window_width")
         self.sub_window_height = specs.get("window_size_options").get("sub_window_height")
         self.tool_bar_width = specs.get("window_size_options").get("tool_bar_width")
-        self.window_name_label_width = specs.get("window_size_options").get("window_name_label_width")
-        self.window_name_label_height = specs.get("window_size_options").get("window_name_label_height")
         self.window = gui.Application.instance.create_window("layout", self.sub_window_width * 2 + self.tool_bar_width,
                                                              self.sub_window_height * 2)
         self.window.set_on_layout(self.on_layout)
@@ -65,12 +68,12 @@ class App:
         # 补全结果1窗口
         self.scene_pcd_pred1 = gui.SceneWidget()
         self.scene_pcd_pred1.scene = rendering.Open3DScene(self.window.renderer)
-        self.scene_pcd_pred1_text = gui.Label("pred1")
+        self.scene_pcd_pred1_text = gui.Label(self.specs.get("sub_window_3_name"))
 
         # 补全结果2窗口
         self.scene_pcd_pred2 = gui.SceneWidget()
         self.scene_pcd_pred2.scene = rendering.Open3DScene(self.window.renderer)
-        self.scene_pcd_pred2_text = gui.Label("pred2")
+        self.scene_pcd_pred2_text = gui.Label(self.specs.get("sub_window_4_name"))
 
         # 窗口是否显示的标记
         self.flag_pcd_pred1_window_show = False
@@ -133,6 +136,9 @@ class App:
         self.btn_next_view = None
 
         # 可见性
+        self.show_pcd1_checked = False
+        self.show_pcd2_checked = False
+        self.show_ibs_checked = False
         self.visible_control_layout = None
         self.visible_text = None
         self.visible_control_checkbox_layout = None
@@ -403,6 +409,8 @@ class App:
         self.on_load_btn_clicked()
 
     def on_show_pcd1_checked(self, is_checked):
+        print("show pcd1 checked: ", is_checked)
+        self.show_pcd1_checked = is_checked
         if is_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_PCD1, self.pcd_complete_1)
             self.add_object(self.scene_pcd_partial, self.TAG_PCD1, self.pcd_partial_1)
@@ -417,6 +425,8 @@ class App:
             self.remove_object(self.scene_pcd_pred2, self.TAG_PCD1)
 
     def on_show_pcd2_checked(self, is_checked):
+        print("show pcd2checked: ", is_checked)
+        self.show_pcd2_checked = is_checked
         if is_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_PCD2, self.pcd_complete_2)
             self.add_object(self.scene_pcd_partial, self.TAG_PCD2, self.pcd_partial_2)
@@ -431,6 +441,8 @@ class App:
             self.remove_object(self.scene_pcd_pred2, self.TAG_PCD2)
 
     def on_show_ibs_checked(self, is_checked):
+        print("show ibs checked: ", is_checked)
+        self.show_ibs_checked = is_checked
         if is_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_IBS, self.IBS)
             self.add_object(self.scene_pcd_partial, self.TAG_IBS, self.IBS)
@@ -508,45 +520,61 @@ class App:
         if self.scene_pcd_complete:
             self.scene_pcd_complete.frame = gui.Rect(r.x, r.y, self.sub_window_width, self.sub_window_height)
             self.scene_pcd_complete_text.frame = gui.Rect(r.x, r.y,
-                                                          self.window_name_label_width, self.window_name_label_height)
+                                                          len(self.scene_pcd_complete_str)*8, 0)
         if self.scene_pcd_partial:
             self.scene_pcd_partial.frame = gui.Rect(r.x + self.sub_window_width, r.y, self.sub_window_width,
                                                     self.sub_window_height)
             self.scene_pcd_partial_text.frame = gui.Rect(r.x + self.sub_window_width, r.y,
-                                                         self.window_name_label_width, self.window_name_label_height)
+                                                         len(self.scene_pcd_partial_str)*8, 0)
         if self.scene_pcd_pred1:
             self.scene_pcd_pred1.frame = gui.Rect(r.x, r.y + self.sub_window_height, self.sub_window_width,
                                                   self.sub_window_height)
             self.scene_pcd_pred1_text.frame = gui.Rect(r.x, r.y + self.sub_window_height,
-                                                       self.window_name_label_width, self.window_name_label_height)
+                                                       len(self.scene_pcd_pred1_str)*8, 0)
         if self.scene_pcd_pred2:
             self.scene_pcd_pred2.frame = gui.Rect(r.x + self.sub_window_width, r.y + self.sub_window_height,
                                                   self.sub_window_width, self.sub_window_height)
             self.scene_pcd_pred2_text.frame = gui.Rect(r.x + self.sub_window_width, r.y + self.sub_window_height,
-                                                       self.window_name_label_width, self.window_name_label_height)
+                                                       len(self.scene_pcd_pred2_str)*8, 0)
 
         self.tool_bar_layout.frame = gui.Rect(r.x + self.sub_window_width * 2, r.y, self.tool_bar_width, r.height)
 
     def on_key(self, key_event):
         if key_event.type == o3d.visualization.gui.KeyEvent.Type.UP:
             return
-        if key_event.key == o3d.visualization.gui.KeyName.RIGHT:
-            self.on_next_view_btn_clicked()
+        # 切换类别
+        if key_event.key == o3d.visualization.gui.KeyName.Q:
+            self.on_pre_category_btn_clicked()
             return
-        if key_event.key == o3d.visualization.gui.KeyName.LEFT:
-            self.on_pre_view_btn_clicked()
+        if key_event.key == o3d.visualization.gui.KeyName.E:
+            self.on_next_category_btn_clicked()
             return
+
+        # 切换场景
         if key_event.key == o3d.visualization.gui.KeyName.UP:
             self.on_pre_scene_btn_clicked()
             return
         if key_event.key == o3d.visualization.gui.KeyName.DOWN:
             self.on_next_scene_btn_clicked()
             return
-        if key_event.key == o3d.visualization.gui.KeyName.Q:
-            self.on_pre_category_btn_clicked()
+
+        # 切换视角
+        if key_event.key == o3d.visualization.gui.KeyName.RIGHT:
+            self.on_next_view_btn_clicked()
             return
-        if key_event.key == o3d.visualization.gui.KeyName.E:
-            self.on_next_category_btn_clicked()
+        if key_event.key == o3d.visualization.gui.KeyName.LEFT:
+            self.on_pre_view_btn_clicked()
+            return
+
+        # 可见性
+        if key_event.key == o3d.visualization.gui.KeyName.A:
+            self.on_show_pcd1_checked(not self.show_pcd1_checked)
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.S:
+            self.on_show_pcd2_checked(not self.show_pcd2_checked)
+            return
+        if key_event.key == o3d.visualization.gui.KeyName.D:
+            self.on_show_ibs_checked(not self.show_ibs_checked)
             return
 
     def on_dialog_ok(self):
@@ -666,8 +694,10 @@ class App:
         self.show_ibs_checkbox_text = gui.Label("ibs")
         self.show_pcd1_checkbox = gui.Checkbox("")
         self.show_pcd1_checkbox.checked = True
+        self.show_pcd1_checked = True
         self.show_pcd2_checkbox = gui.Checkbox("")
         self.show_pcd2_checkbox.checked = True
+        self.show_pcd2_checked = True
         self.show_ibs_checkbox = gui.Checkbox("")
         self.show_pcd1_checkbox.set_on_checked(self.on_show_pcd1_checked)
         self.show_pcd2_checkbox.set_on_checked(self.on_show_pcd2_checked)

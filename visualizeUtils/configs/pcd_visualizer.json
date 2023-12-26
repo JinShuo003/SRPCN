@@ -19,8 +19,8 @@
   "window_size_options": {
     "sub_window_width": 800,
     "sub_window_height": 500,
-    "tool_bar_width": 300,
-    "window_name_label_width": 80,
-    "window_name_label_height": 10
-  }
+    "tool_bar_width": 300
+  },
+  "sub_window_3_name": "Transformer_TopNet_ibs",
+  "sub_window_4_name": "Transformer_TopNet_no_ibs"
 }

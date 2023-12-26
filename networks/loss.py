@@ -1,14 +1,12 @@
 import sys
+sys.path.append("/home/data/jinshuo/IBPCDC/ChamferDistancePytorch")
 
+from chamfer3D import dist_chamfer_3D
 import torch
 import torch.nn as nn
 from torch.autograd import Function
 
 import emd
-
-sys.path.append("/ChamferDistancePytorch")
-
-from chamfer3D import dist_chamfer_3D
 
 
 class cdModule(nn.Module):

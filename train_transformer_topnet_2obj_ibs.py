@@ -115,12 +115,12 @@ def get_tensorboard_writer(specs, log_path, network, TIMESTAMP):
 
     input_pcd1_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
     input_pcd2_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
-
+    input_ibs_shape = torch.randn(1, specs.get("IBSPointNum"), 3)
     if torch.cuda.is_available():
         input_pcd1_shape = input_pcd1_shape.to(device)
         input_pcd2_shape = input_pcd2_shape.to(device)
-
-    tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape))
+        input_ibs_shape = input_ibs_shape.to(device)
+    tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape, input_ibs_shape))
 
     return tensorboard_writer
 
@@ -207,6 +207,7 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
         test_total_loss_emd = 0
         test_total_loss_cd = 0
         for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
+            IBS.requires_grad = False
             pcd1_partial.requires_grad = False
             pcd2_partial.requires_grad = False
             pcd1_gt.requires_grad = False
@@ -215,7 +216,7 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
             IBS = IBS.to(device)
             pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
-            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
+            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)

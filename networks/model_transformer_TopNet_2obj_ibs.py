@@ -142,7 +142,7 @@ class IBPCDCNet(nn.Module):
         # (B, n, 3) -> (B, 3, n)
         pcd1_partial = pcd1_partial.permute(0, 2, 1)
         pcd2_partial = pcd2_partial.permute(0, 2, 1)
-        IBS = pcd2_partial.IBS(0, 2, 1)
+        IBS = IBS.permute(0, 2, 1)
 
         # 特征提取，(B, 3, n) -> (B, feature_dim, 1)
         feature_pcd1 = self.encoder_pcd1(pcd1_partial)

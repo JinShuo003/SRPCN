@@ -1,9 +1,12 @@
 {
-    "Description" : "Compute two SDF fields",
+    "TAG": "Transformer_TopNet_2obj_ibs",
+    "Description" : "encoder: Transformer, decoder: TopNet, with ibs",
     "DataSource" : "data",
     "TrainSplit" : "configs/train_scan_2048/train.json",
     "TestSplit" : "configs/test_scan_2048/test.json",
     "ParaSaveDir" : "trained_models",
+    "TensorboardLogDir" : "tensorboard_logs",
+    "LogDir" : "logs",
     "Device" : 0,
     "LearningRateSchedule" : {
 	    "Type" : "Step",

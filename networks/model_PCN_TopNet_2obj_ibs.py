@@ -1,6 +1,5 @@
-from torch import nn
-import torch
 import torch.nn.functional as F
+
 from networks.pn2_utils import *
 
 
@@ -50,7 +49,8 @@ class Feature_transfrom(nn.Module):
         x = F.relu(self.conv3(x))
         global_feature = self.conv4(x)
         return global_feature
-    
+
+
 # -------------------------------------Decoder-----------------------------------
 class mlp(nn.Module):
     def __init__(self, in_num, out_num):
@@ -138,15 +138,15 @@ class IBPCDCNet(nn.Module):
         pcd2_partial = pcd2_partial.permute(0, 2, 1)
         IBS = IBS.permute(0, 2, 1)
 
-        # 先各自进行特征提取，(B, 3, n) -> (B, feature_dim, 1)
+        # 特征提取，(B, 3, n) -> (B, feature_dim, 1)
         feature_pcd1 = self.encoder_pcd1(pcd1_partial)
         feature_pcd2 = self.encoder_pcd2(pcd2_partial)
         feature_IBS = self.encoder_IBS(IBS)
 
-        # 获取总体特征，(B, 3*feature_dim, 1) -> (B, feature_dim, 1)
+        # 总体特征，(B, 3*feature_dim, 1) -> (B, feature_dim, 1)
         feature = torch.cat([feature_pcd1, feature_pcd2, feature_IBS], 1)
         feature = self.feature_transform(feature)
-        
+
         feature_pcd1 = torch.cat([feature_pcd1, feature], 1)
         feature_pcd2 = torch.cat([feature_pcd2, feature], 1)
 

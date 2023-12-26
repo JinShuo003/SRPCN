@@ -1,11 +1,10 @@
-from torch import nn
-import torch
 import torch.nn.functional as F
+
 from networks.pn2_utils import *
 
 
 # -------------------------------------Encoder-----------------------------------
-class PN2_Transformer_Encoder(nn.Module):
+class Transformer_Encoder(nn.Module):
     def __init__(self, out_dim=512):
         """Encoder that encodes information of partial point cloud"""
         super().__init__()
@@ -33,6 +32,29 @@ class PN2_Transformer_Encoder(nn.Module):
         l3_xyz, l3_points = self.sa_module_3(l2_xyz, l2_points)  # (B, 3, 1), (B, out_dim, 1)
 
         return l3_points
+
+
+class Feature_transfrom(nn.Module):
+    def __init__(self):
+        super(Feature_transfrom, self).__init__()
+        self.conv1 = torch.nn.Conv1d(1024, 1024, 1)  # [in_channels, out_channels, kernel_size]
+        self.conv2 = torch.nn.Conv1d(1024, 1024, 1)
+        self.conv3 = torch.nn.Conv1d(2048, 1024, 1)
+        self.conv4 = torch.nn.Conv1d(1024, 512, 1)
+
+    def forward(self, feature):
+        """
+         input feature is a batch of feature whose shapes are
+          [batch_size, dim_input, 1]
+         after the network, the shapes are
+          [batch, dim_output, 1]
+        """
+        x = F.relu(self.conv1(feature))
+        x = F.relu(self.conv2(x))
+        x = torch.cat([x, feature], dim=1)
+        x = F.relu(self.conv3(x))
+        global_feature = self.conv4(x)
+        return global_feature
 
 
 # -------------------------------------Decoder-----------------------------------
@@ -107,8 +129,11 @@ class TopNet_decoder(nn.Module):
 class IBPCDCNet(nn.Module):
     def __init__(self):
         super().__init__()
-        self.encoder_pcd1 = PN2_Transformer_Encoder()
-        self.encoder_pcd2 = PN2_Transformer_Encoder()
+        self.encoder_pcd1 = Transformer_Encoder()
+        self.encoder_pcd2 = Transformer_Encoder()
+
+        self.feature_transform = Feature_transfrom()
+
         self.decoder_pcd1 = TopNet_decoder()
         self.decoder_pcd2 = TopNet_decoder()
 
@@ -123,9 +148,13 @@ class IBPCDCNet(nn.Module):
 
         # 获取总体特征，(B, 3*feature_dim, 1) -> (B, feature_dim, 1)
         feature = torch.cat([feature_pcd1, feature_pcd2], 1)
+        feature = self.feature_transform(feature)
+
+        feature_pcd1 = torch.cat([feature_pcd1, feature], 1)
+        feature_pcd2 = torch.cat([feature_pcd2, feature], 1)
 
         # (B, feature_dim, 1) -> (B, points_num, 3)
-        pcd1_out = self.decoder_pcd1(feature).permute(0, 2, 1)
-        pcd2_out = self.decoder_pcd2(feature).permute(0, 2, 1)
+        pcd1_out = self.decoder_pcd1(feature_pcd1).permute(0, 2, 1)
+        pcd2_out = self.decoder_pcd2(feature_pcd2).permute(0, 2, 1)
 
         return pcd1_out, pcd2_out

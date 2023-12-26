@@ -118,16 +118,16 @@ def test(IBPCDCNet, test_dataloader, specs, model):
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)
-            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_gt, pcd1_out)[0])
-            loss_emd_pcd2 = torch.mean(loss_emd(pcd2_gt, pcd2_out)[0])
-            # loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
-            # loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
+            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
+            loss_emd_pcd2 = torch.mean(loss_emd(pcd1_out, pcd2_gt)[0])
+            loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
+            loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
 
             batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
-            # batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
+            batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
 
             test_total_loss_emd += batch_loss_emd.item()
-            # test_total_loss_cd += batch_loss_cd.item()
+            test_total_loss_cd += batch_loss_cd.item()
 
             if save:
                 save_result(test_dataloader, pcd1_out, idx, specs, "{}".format("0"))
@@ -137,8 +137,8 @@ def test(IBPCDCNet, test_dataloader, specs, model):
 
         test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
         print(' test_avrg_loss_emd: {}\n'.format(test_avrg_loss_emd))
-        # test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
-        # print(' test_avrg_loss_cd: {}\n'.format(test_avrg_loss_cd))
+        test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
+        print(' test_avrg_loss_cd: {}\n'.format(test_avrg_loss_cd))
 
         # 写入测试结果
         test_split_ = test_split.replace("/", "-").replace("\\", "-")
@@ -148,7 +148,7 @@ def test(IBPCDCNet, test_dataloader, specs, model):
             f.write("test_split: {}\n".format(test_split))
             f.write("model: {}\n".format(model))
             f.write("avrg_loss_emd: {}\n".format(test_avrg_loss_emd))
-            # f.write("avrg_loss_cd: {}\n".format(test_avrg_loss_cd))
+            f.write("avrg_loss_cd: {}\n".format(test_avrg_loss_cd))
 
 
 def main_function(experiment_config_file, model_path):

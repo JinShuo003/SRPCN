@@ -5,9 +5,9 @@
     "TestResult" : "test_result",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
     "Device" : 0,
-    "ScenesPerBatch" : 32,
+    "ScenesPerBatch" : 320,
     "DataLoaderThreads" : 4,
     "Visualize": false,
     "Save": true,
-    "SaveDir": "test_result/pcd_partial_2048/PCN_TopNet_2obj_no_ibs"
+    "SaveDir": "test_result/pcd_partial_2048/Transformer_TopNet_2obj_no_ibs"
 }

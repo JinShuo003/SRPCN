@@ -1,3 +1,5 @@
+import sys
+sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import logging
 import os.path
 
@@ -166,26 +168,25 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
         pcd2_gt = pcd2_gt.to(device)
         loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
         loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
-        # loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
-        # loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
+        loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
+        loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
 
         batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
-        # batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
+        batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
 
         train_total_loss_emd += batch_loss_emd.item()
-        # train_total_loss_cd += batch_loss_cd.item()
+        train_total_loss_cd += batch_loss_cd.item()
 
         optimizer.zero_grad()
-        # batch_loss_cd.backward()
         batch_loss_emd.backward()
         optimizer.step()
 
     train_avrg_loss_emd = train_total_loss_emd / sdf_train_loader.__len__()
     tensorboard_writer.add_scalar("train_loss_emd", train_avrg_loss_emd, epoch)
     logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_emd))
-    # train_avrg_loss_cd = train_total_loss_cd / sdf_train_loader.__len__()
-    # tensorboard_writer.add_scalar("train_loss_cd", train_avrg_loss_cd, epoch)
-    # logging.info('train_avrg_loss_emd: {}'.format(train_avrg_loss_cd))
+    train_avrg_loss_cd = train_total_loss_cd / sdf_train_loader.__len__()
+    tensorboard_writer.add_scalar("train_loss_cd", train_avrg_loss_cd, epoch)
+    logging.info('train_avrg_loss_cd: {}'.format(train_avrg_loss_cd))
 
     # 保存模型
     if epoch % 5 == 0:
@@ -222,21 +223,21 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
             pcd2_gt = pcd2_gt.to(device)
             loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
             loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
-            # loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
-            # loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
+            loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
+            loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
 
             batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
-            # batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
+            batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
 
             test_total_loss_emd += batch_loss_emd.item()
-            # test_total_loss_cd += batch_loss_cd.item()
+            test_total_loss_cd += batch_loss_cd.item()
 
         test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
         tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_emd, epoch)
         logging.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
-        # test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
-        # tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
-        # logging.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
+        test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
+        tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
+        logging.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
 
 
 def main_function(experiment_config_file):

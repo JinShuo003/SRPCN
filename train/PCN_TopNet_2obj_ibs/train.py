@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import argparse
 
 import networks.loss
-from networks.model_PCN_TopNet_2obj_no_ibs import *
+from networks.model_PCN_TopNet_2obj_ibs import *
 
 import utils.data
 from utils.learning_rate import get_learning_rate_schedules
@@ -94,8 +94,9 @@ def get_dataloader(specs):
 def get_network(specs):
     device = specs.get("Device")
     points_num = specs.get("PcdPointNum")
+    ibs_points_num = specs.get("IBSPointNum")
 
-    net = IBPCDCNet(points_num)
+    net = IBPCDCNet(points_num, ibs_points_num)
 
     if torch.cuda.is_available():
         net = net.to(device)
@@ -113,19 +114,21 @@ def get_tensorboard_writer(specs, network):
     device = specs.get("Device")
 
     writer_path = os.path.join(specs.get("TensorboardLogDir"), specs.get("TAG"))
-    if os.path.isdir(writer_path):
-        os.mkdir(writer_path)
+    if not os.path.isdir(writer_path):
+        os.makedirs(writer_path)
 
     tensorboard_writer = SummaryWriter(writer_path)
 
     input_pcd1_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
     input_pcd2_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
+    input_IBS_shape = torch.randn(1, specs.get("IBSPointNum"), 3)
 
     if torch.cuda.is_available():
         input_pcd1_shape = input_pcd1_shape.to(device)
         input_pcd2_shape = input_pcd2_shape.to(device)
+        input_IBS_shape = input_IBS_shape.to(device)
 
-    tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape))
+    # tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape, input_IBS_shape))
 
     return tensorboard_writer
 
@@ -135,7 +138,6 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
         optimizer.param_groups[0]["lr"] = lr_schedules.get_learning_rate(epoch)
 
     para_save_dir = specs.get("ParaSaveDir")
-    train_split_file = specs.get("TrainSplit")
     device = specs.get("Device")
 
     loss_emd = networks.loss.emdModule()
@@ -149,6 +151,7 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     train_total_loss_emd = 0
     train_total_loss_cd = 0
     for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in sdf_train_loader:
+        IBS.requires_grad = False
         pcd1_partial.requires_grad = False
         pcd2_partial.requires_grad = False
         pcd1_gt.requires_grad = False
@@ -156,7 +159,8 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
         pcd1_partial = pcd1_partial.to(device)
         pcd2_partial = pcd2_partial.to(device)
-        pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
+        IBS = IBS.to(device)
+        pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
 
         pcd1_gt = pcd1_gt.to(device)
         pcd2_gt = pcd2_gt.to(device)
@@ -202,6 +206,7 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
         test_total_loss_emd = 0
         test_total_loss_cd = 0
         for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
+            IBS.requires_grad = False
             pcd1_partial.requires_grad = False
             pcd2_partial.requires_grad = False
             pcd1_gt.requires_grad = False
@@ -209,7 +214,8 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
             pcd1_partial = pcd1_partial.to(device)
             pcd2_partial = pcd2_partial.to(device)
-            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial)
+            IBS = IBS.to(device)
+            pcd1_out, pcd2_out = network(pcd1_partial, pcd2_partial, IBS)
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)

@@ -1,6 +1,6 @@
 {
     "TAG": "PCN_TopNet_2obj_ibs",
-    "Description" : "Compute two SDF fields",
+    "Description" : "encoder: PCN, decoder: TopNet, with ibs",
     "DataSource" : "data",
     "TrainSplit" : "configs/train_scan_2048/train.json",
     "TestSplit" : "configs/test_scan_2048/test.json",
@@ -18,6 +18,6 @@
     "PcdPointNum": 2048,
     "IBSPointNum": 2048,
 
-    "ScenesPerBatch" : 400,
+    "ScenesPerBatch" : 16,
     "DataLoaderThreads" : 8
 }

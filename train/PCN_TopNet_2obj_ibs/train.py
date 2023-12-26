@@ -10,7 +10,7 @@ import open3d as o3d
 from datetime import datetime, timedelta
 import argparse
 
-import networks.loss
+from networks.loss import chamfer_distance, earth_move_distance
 from networks.model_PCN_TopNet_2obj_ibs import *
 
 import utils.data
@@ -140,9 +140,6 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
     para_save_dir = specs.get("ParaSaveDir")
     device = specs.get("Device")
 
-    loss_emd = networks.loss.emdModule()
-    loss_cd = networks.loss.cdModule()
-
     network.train()
     adjust_learning_rate(lr_schedules, optimizer, epoch)
     logger.info("")
@@ -164,10 +161,10 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
         pcd1_gt = pcd1_gt.to(device)
         pcd2_gt = pcd2_gt.to(device)
-        loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
-        loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
-        loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
-        loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
+        loss_emd_pcd1 = earth_move_distance(pcd1_out, pcd1_gt)
+        loss_emd_pcd2 = earth_move_distance(pcd2_out, pcd2_gt)
+        loss_cd_pcd1 = chamfer_distance(pcd1_out, pcd1_gt)
+        loss_cd_pcd2 = chamfer_distance(pcd2_out, pcd2_gt)
 
         batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
         batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
@@ -199,9 +196,6 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 def test(network, test_dataloader, epoch, specs, tensorboard_writer):
     device = specs.get("Device")
 
-    loss_emd = networks.loss.emdModule()
-    loss_cd = networks.loss.cdModule()
-
     with torch.no_grad():
         test_total_loss_emd = 0
         test_total_loss_cd = 0
@@ -219,10 +213,10 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)
-            loss_emd_pcd1 = torch.mean(loss_emd(pcd1_out, pcd1_gt)[0])
-            loss_emd_pcd2 = torch.mean(loss_emd(pcd2_out, pcd2_gt)[0])
-            loss_cd_pcd1 = loss_cd(pcd1_out, pcd1_gt)
-            loss_cd_pcd2 = loss_cd(pcd2_out, pcd2_gt)
+            loss_emd_pcd1 = earth_move_distance(pcd1_out, pcd1_gt)
+            loss_emd_pcd2 = earth_move_distance(pcd2_out, pcd2_gt)
+            loss_cd_pcd1 = chamfer_distance(pcd1_out, pcd1_gt)
+            loss_cd_pcd2 = chamfer_distance(pcd2_out, pcd2_gt)
 
             batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
             batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2

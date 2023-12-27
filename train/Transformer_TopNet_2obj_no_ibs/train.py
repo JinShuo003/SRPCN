@@ -53,8 +53,8 @@ def get_dataloader(specs):
     data_source = specs.get("DataSource")
     train_split_file = specs.get("TrainSplit")
     test_split_file = specs.get("TestSplit")
-    batch_size = specs.get("BatchSize")
-    num_data_loader_threads = specs.get("DataLoaderThreads")
+    batch_size = specs.get("TrainOptions").get("BatchSize")
+    num_data_loader_threads = specs.get("TrainOptions").get("DataLoaderThreads")
 
     logger.info("batch_size: {}".format(batch_size))
     logger.info("dataLoader threads: {}".format(num_data_loader_threads))
@@ -227,7 +227,7 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
 
 def main_function(specs):
-    epoch_num = specs["NumEpochs"]
+    epoch_num = specs.get("TrainOptions").get("NumEpochs")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
     continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
 

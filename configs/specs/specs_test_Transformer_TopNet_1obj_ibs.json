@@ -1,0 +1,11 @@
+{
+    "TAG": "Transformer_TopNet_1obj_ibs",
+    "DataSource" : "data",
+    "TestSplit" : "configs/test_scan_2048_normalize/test.json",
+    "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
+    "LogDir" : "logs/test",
+    "ResultSaveDir": "test_result/Transformer_TopNet_1obj_ibs",
+    "Device" : 0,
+    "BatchSize" : 64,
+    "DataLoaderThreads" : 8
+}

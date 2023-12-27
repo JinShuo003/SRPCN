@@ -1,3 +1,5 @@
+import copy
+
 import open3d as o3d
 import numpy as np
 import trimesh
@@ -64,8 +66,8 @@ def get_pcd_normalize_para(pcd):
     """
     pcd_o3d = pcd
     if isinstance(pcd, np.ndarray):
-        pcd_o3d = open3d.geometry.PointCloud()
-        pcd_o3d.points = open3d.utility.Vector3dVector(pcd)
+        pcd_o3d = o3d.geometry.PointCloud()
+        pcd_o3d.points = o3d.utility.Vector3dVector(pcd)
     pcd_np = np.asarray(pcd_o3d.points)
     axis_aligned_bounding_box = pcd_o3d.get_axis_aligned_bounding_box()
     centroid = np.asarray(axis_aligned_bounding_box.get_center())
@@ -83,9 +85,10 @@ def geometry_transform(geometry, centroid, scale):
     Returns:
         归一化后的open3d.geometry，几何中心位于(0, 0, 0)，所有几何元素位于单位球内
     """
-    geometry.translate(-centroid)
-    geometry.scale(1 / scale, np.array([0, 0, 0]))
-    return geometry
+    geometry_copy = copy.deepcopy(geometry)
+    geometry_copy.translate(-centroid)
+    geometry_copy.scale(1 / scale, np.array([0, 0, 0]))
+    return geometry_copy
 
 
 def get_sphere_mesh(radius=1.0):

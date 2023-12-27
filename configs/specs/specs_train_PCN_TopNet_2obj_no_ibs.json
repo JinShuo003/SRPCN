@@ -18,6 +18,6 @@
     "PcdPointNum": 2048,
     "IBSPointNum": 2048,
 
-    "BatchSize" : 400,
+    "BatchSize" : 64,
     "DataLoaderThreads" : 8
 }

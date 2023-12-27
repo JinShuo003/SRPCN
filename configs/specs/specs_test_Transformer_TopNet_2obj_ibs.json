@@ -3,8 +3,8 @@
     "DataSource" : "data",
     "TestSplit" : "configs/test_scan_2048/test.json",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d*",
-    "LogDir" : "logs/train",
-    "ResultSaveDir": "test_result/Transformer_TopNet_2obj_ibs",
+    "LogDir" : "logs/test",
+    "ResultSaveDir": "test_result/Transformer_TopNet_2obj_ibs_epoch10",
     "Device" : 0,
     "BatchSize" : 64,
     "DataLoaderThreads" : 8

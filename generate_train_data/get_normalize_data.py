@@ -85,8 +85,8 @@ class TrainDataGenerator:
     def get_normalize_para_save_path(self, data_name, tag):
         normalize_para_save_dir = self.specs.get("path_options").get("normalize_para_save_dir")
 
-        category_re = self.sspecs.get("path_options").get("format_info").get("category_re")
-        scene_re = self.sspecs.get("path_options").get("format_info").get("scene_re")
+        category_re = self.specs.get("path_options").get("format_info").get("category_re")
+        scene_re = self.specs.get("path_options").get("format_info").get("scene_re")
 
         category = re.match(category_re, data_name).group()
         scene = re.match(scene_re, data_name).group()

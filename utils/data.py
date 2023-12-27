@@ -60,7 +60,7 @@ def get_pcd_data(pcd_filename):
     return xyz_load
 
 
-class IntersectDataset(torch.utils.data.Dataset):
+class InteractionDataset(torch.utils.data.Dataset):
     def __init__(
             self,
             data_source,

@@ -19,6 +19,6 @@
     "normalize_para_save_dir": "D:\\dataset\\IBPCDC\\normalizePara",
     "log_dir": "logs/get_normalize_data"
   },
-  "use_process_pool": true,
+  "use_process_pool": false,
   "process_num": 10
 }

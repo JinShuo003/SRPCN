@@ -14,9 +14,8 @@ import time
 from networks.loss import chamfer_distance, earth_move_distance
 from networks.model_Transformer_TopNet_1obj_ibs import *
 
-import utils
 from utils.learning_rate import get_learning_rate_schedules
-from utils import path_utils, log_utils
+from utils import path_utils, log_utils, data_normalize
 
 logger = None
 
@@ -65,8 +64,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = utils.data_normalization.InteractionDataset(data_source, train_split)
-    test_dataset = utils.data_normalization.InteractionDataset(data_source, test_split)
+    train_dataset = data_normalize.InteractionDataset(data_source, train_split)
+    test_dataset = data_normalize.InteractionDataset(data_source, test_split)
 
     logger.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
@@ -258,7 +257,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_Transformer_TopNet_2obj_ibs.json",
+        default="configs/specs/specs_train_Transformer_TopNet_1obj_ibs.json",
         required=False,
         help="The experiment config file."
     )

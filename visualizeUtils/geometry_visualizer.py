@@ -1,5 +1,5 @@
 """
-可视化工具，配置好./config/visualization.json后可以可视化mesh模型、点云、位于模型表面和IBS表面的sdf点、各自和总体的aabb框、交互区域gt
+可视化工具
 """
 import json
 import os
@@ -8,13 +8,6 @@ import re
 import open3d as o3d
 
 from utils import geometry_utils, path_utils
-
-
-def parseConfig(config_filepath: str = './visualization.json'):
-    with open(config_filepath, 'r') as configfile:
-        specs = json.load(configfile)
-
-    return specs
 
 
 def getGeometryPath(specs, filename):
@@ -30,7 +23,6 @@ def getGeometryPath(specs, filename):
     mesh_dir = specs.get("path_options").get("geometries_dir").get("mesh_dir")
     ibs_mesh_gt_dir = specs.get("path_options").get("geometries_dir").get("ibs_mesh_gt_dir")
     ibs_pcd_gt_dir = specs.get("path_options").get("geometries_dir").get("ibs_pcd_gt_dir")
-    ibs_pcd_pred_dir = specs.get("path_options").get("geometries_dir").get("ibs_pcd_pred_dir")
     pcd_gt_dir = specs.get("path_options").get("geometries_dir").get("pcd_gt_dir")
     pcd_scan_dir = specs.get("path_options").get("geometries_dir").get("pcd_scan_dir")
     pcd_pred_dir = specs.get("path_options").get("geometries_dir").get("pcd_pred_dir")
@@ -38,8 +30,8 @@ def getGeometryPath(specs, filename):
     mesh1_filename = '{}_{}.obj'.format(scene, 0)
     mesh2_filename = '{}_{}.obj'.format(scene, 1)
     ibs_mesh_gt_filename = '{}.obj'.format(scene)
-    ibs_pcd_gt_filename = '{}.ply'.format(scene)
-    ibs_pcd_pred_filename = '{}.ply'.format(filename)
+    ibs1_pcd_gt_filename = '{}_{}.ply'.format(scene, 0)
+    ibs2_pcd_gt_filename = '{}_{}.ply'.format(scene, 1)
     pcd1_gt_filename = '{}_{}.ply'.format(scene, 0)
     pcd2_gt_filename = '{}_{}.ply'.format(scene, 1)
     pcd1_scan_filename = '{}_{}.ply'.format(filename, 0)
@@ -50,8 +42,8 @@ def getGeometryPath(specs, filename):
     geometry_path['mesh1'] = os.path.join(mesh_dir, category, mesh1_filename)
     geometry_path['mesh2'] = os.path.join(mesh_dir, category, mesh2_filename)
     geometry_path['ibs_mesh_gt'] = os.path.join(ibs_mesh_gt_dir, category, ibs_mesh_gt_filename)
-    geometry_path['ibs_pcd_gt'] = os.path.join(ibs_pcd_gt_dir, category, ibs_pcd_gt_filename)
-    geometry_path['ibs_pcd_pred'] = os.path.join(ibs_pcd_pred_dir, category, ibs_pcd_pred_filename)
+    geometry_path['ibs1_pcd_gt'] = os.path.join(ibs_pcd_gt_dir, category, ibs1_pcd_gt_filename)
+    geometry_path['ibs2_pcd_gt'] = os.path.join(ibs_pcd_gt_dir, category, ibs2_pcd_gt_filename)
     geometry_path['pcd1_gt'] = os.path.join(pcd_gt_dir, category, pcd1_gt_filename)
     geometry_path['pcd2_gt'] = os.path.join(pcd_gt_dir, category, pcd2_gt_filename)
     geometry_path['pcd1_scan'] = os.path.join(pcd_scan_dir, category, pcd1_scan_filename)
@@ -134,8 +126,8 @@ def visualize(specs, filename):
     mesh1 = meshGetter().get(geometry_path["mesh1"], geometry_color["mesh1"], geometry_option["mesh1"])
     mesh2 = meshGetter().get(geometry_path["mesh2"], geometry_color["mesh2"], geometry_option["mesh2"])
     ibs_mesh_gt = meshGetter().get(geometry_path["ibs_mesh_gt"], geometry_color["ibs_mesh_gt"], geometry_option["ibs_mesh_gt"])
-    ibs_pcd_gt = pcdGetter().get(geometry_path["ibs_pcd_gt"], geometry_color["ibs_pcd_gt"], geometry_option["ibs_pcd_gt"])
-    ibs_pcd_pred = pcdGetter().get(geometry_path["ibs_pcd_pred"], geometry_color["ibs_pcd_pred"], geometry_option["ibs_pcd_pred"])
+    ibs1_pcd_gt = pcdGetter().get(geometry_path["ibs1_pcd_gt"], geometry_color["ibs1_pcd_gt"], geometry_option["ibs1_pcd_gt"])
+    ibs2_pcd_gt = pcdGetter().get(geometry_path["ibs2_pcd_gt"], geometry_color["ibs2_pcd_gt"], geometry_option["ibs2_pcd_gt"])
     pcd1_gt = pcdGetter().get(geometry_path['pcd1_gt'], geometry_color['pcd1_gt'], geometry_option["pcd1_gt"])
     pcd2_gt = pcdGetter().get(geometry_path['pcd2_gt'], geometry_color['pcd2_gt'], geometry_option["pcd2_gt"])
     pcd1_scan = pcdGetter().get(geometry_path['pcd1_scan'], geometry_color['pcd1_scan'], geometry_option["pcd1_scan"])
@@ -149,8 +141,8 @@ def visualize(specs, filename):
     container['mesh1'] = mesh1
     container['mesh2'] = mesh2
     container['ibs_mesh_gt'] = ibs_mesh_gt
-    container['ibs_pcd_gt'] = ibs_pcd_gt
-    container['ibs_pcd_pred'] = ibs_pcd_pred
+    container['ibs1_pcd_gt'] = ibs1_pcd_gt
+    container['ibs2_pcd_gt'] = ibs2_pcd_gt
     container['pcd1_gt'] = pcd1_gt
     container['pcd2_gt'] = pcd2_gt
     container['pcd1_scan'] = pcd1_scan
@@ -170,7 +162,7 @@ def visualize(specs, filename):
 if __name__ == '__main__':
     # 获取配置参数
     config_filepath = 'configs/geometry_visualizer.json'
-    specs = parseConfig(config_filepath)
+    specs = path_utils.read_config(config_filepath)
     filename_tree_dir = specs.get("path_options").get("filename_tree_dir")
     filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get(filename_tree_dir))
 
@@ -181,5 +173,5 @@ if __name__ == '__main__':
                 print('current file: ', filename)
                 try:
                     visualize(specs, filename)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(e)

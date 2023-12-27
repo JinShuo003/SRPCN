@@ -53,8 +53,8 @@ def get_dataloader(specs):
     data_source = specs.get("DataSource")
     train_split_file = specs.get("TrainSplit")
     test_split_file = specs.get("TestSplit")
-    batch_size = specs.get("BatchSize")
-    num_data_loader_threads = specs.get("DataLoaderThreads")
+    batch_size = specs.get("TrainOptions").get("BatchSize")
+    num_data_loader_threads = specs.get("TrainOptions").get("DataLoaderThreads")
 
     logger.info("batch_size: {}".format(batch_size))
     logger.info("dataLoader threads: {}".format(num_data_loader_threads))
@@ -94,13 +94,20 @@ def get_dataloader(specs):
 
 def get_network(specs):
     device = specs.get("Device")
-    points_num = specs.get("PcdPointNum")
-
-    net = IBPCDCNet(points_num)
+    continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    if continue_train:
+        continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+        para_save_dir = specs.get("ParaSaveDir")
+        para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
+        model_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
+        logger.info("load model from {}".format(model_path))
+        network = torch.load(model_path, map_location="cuda:{}".format(device))
+    else:
+        network = IBPCDCNet()
 
     if torch.cuda.is_available():
-        net = net.to(device)
-    return net
+        network = network.to(device)
+    return network
 
 
 def get_optimizer(specs, network):
@@ -220,7 +227,10 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
 
 def main_function(specs):
-    epoch_num = specs["NumEpochs"]
+    epoch_num = specs.get("TrainOptions").get("NumEpochs")
+    continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+
     TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
 
     logger.info("current network TAG: {}".format(specs.get("TAG")))
@@ -232,7 +242,11 @@ def main_function(specs):
     lr_schedules, optimizer = get_optimizer(specs, network)
     tensorboard_writer = get_tensorboard_writer(specs, network)
 
-    for epoch in range(epoch_num + 1):
+    epoch_begin = 0
+    if continue_train:
+        epoch_begin = continue_from_epoch+1
+        logger.info("continue train from epoch {}".format(epoch_begin))
+    for epoch in range(epoch_begin, epoch_num + 1):
         time_begin_train = time.time()
         train(network, train_loader, lr_schedules, optimizer, epoch, specs, tensorboard_writer, TIMESTAMP)
         time_end_train = time.time()

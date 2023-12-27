@@ -46,7 +46,7 @@ def get_dataloader(specs):
 
 
 def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
-    save_dir = specs.get("SaveDir")
+    save_dir = specs.get("ResultSaveDir")
     filename_patten = specs.get("FileNamePatten")
     # 将udf数据拆分开，并且转移到cpu
     pcd_np = pcd.cpu().detach().numpy()

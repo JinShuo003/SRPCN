@@ -6,6 +6,6 @@
     "LogDir" : "logs/train",
     "ResultSaveDir": "test_result/Transformer_TopNet_2obj_ibs",
     "Device" : 0,
-    "BatchSize" : 320,
+    "BatchSize" : 64,
     "DataLoaderThreads" : 8
 }

@@ -187,7 +187,8 @@ class App:
 
     def on_data_dir_comfirm_btn_clicked(self):
         # 根据用户填写的文件路径构建目录树
-        dir = self.pcd_pred1_dir_editor.text_value
+        filename_tree_dir = self.specs.get("path_options").get("filename_tree_dir")
+        dir = self.specs.get("path_options").get("geometries_dir").get(filename_tree_dir)
         if not os.path.exists(dir):
             self.show_message_dialog("warning", "The directory not exist")
             return

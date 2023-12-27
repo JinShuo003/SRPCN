@@ -65,8 +65,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = utils.data.IntersectDataset(data_source, train_split)
-    test_dataset = utils.data.IntersectDataset(data_source, test_split)
+    train_dataset = utils.data.InteractionDataset(data_source, train_split)
+    test_dataset = utils.data.InteractionDataset(data_source, test_split)
 
     logger.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
@@ -86,7 +86,7 @@ def get_dataloader(specs):
         num_workers=num_data_loader_threads,
         drop_last=False,
     )
-    logger.info("length of sdf_train_loader: {}".format(train_loader.__len__()))
+    logger.info("length of train_dataloader: {}".format(train_loader.__len__()))
     logger.info("length of sdf_test_loader: {}".format(test_loader.__len__()))
 
     return train_loader, test_loader

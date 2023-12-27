@@ -31,7 +31,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = utils.data.IntersectDataset(data_source, test_split)
+    test_dataset = utils.data.InteractionDataset(data_source, test_split)
 
     # get dataloader
     test_dataloader = data_utils.DataLoader(

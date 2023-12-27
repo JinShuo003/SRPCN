@@ -3,8 +3,8 @@
     "geometries_dir": {
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\pcd_partial_2048",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\pcd_partial_2048",
-      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\pcd_partial_2048\\Transformer_TopNet_2obj_ibs",
-      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\pcd_partial_2048\\Transformer_TopNet_2obj_no_ibs",
+      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PCN_TopNet_2obj_ibs\\pcd_partial_2048",
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\Transformer_TopNet_2obj_ibs_epoch100\\pcd_partial_2048",
       "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
     },
     "format_info": {
@@ -21,6 +21,6 @@
     "sub_window_height": 500,
     "tool_bar_width": 300
   },
-  "sub_window_3_name": "Transformer_TopNet_ibs",
-  "sub_window_4_name": "Transformer_TopNet_no_ibs"
+  "sub_window_3_name": "PCN_TopNet_2obj_ibs",
+  "sub_window_4_name": "Transformer_TopNet_2obj_ibs_epoch100"
 }

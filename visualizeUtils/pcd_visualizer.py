@@ -288,7 +288,7 @@ class App:
             return
         geometry.paint_uniform_color(color)
 
-    def on_load_btn_clicked(self):
+    def load_data(self):
         if self.category_selector.selected_index < 0:
             self.show_message_dialog("warning", "Please select a category first")
             return
@@ -329,17 +329,17 @@ class App:
         self.paint_color(self.IBS, (0.2, 0.2, 0.7))
 
         self.clear_all_window()
-        if self.show_pcd1_checkbox.checked:
+        if self.show_pcd1_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_PCD1, self.pcd_complete_1)
             self.add_object(self.scene_pcd_partial, self.TAG_PCD1, self.pcd_partial_1)
             self.add_object(self.scene_pcd_pred1, self.TAG_PCD1, self.pcd_pred1_1)
             self.add_object(self.scene_pcd_pred2, self.TAG_PCD1, self.pcd_pred2_1)
-        if self.show_pcd2_checkbox.checked:
+        if self.show_pcd2_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_PCD2, self.pcd_complete_2)
             self.add_object(self.scene_pcd_partial, self.TAG_PCD2, self.pcd_partial_2)
             self.add_object(self.scene_pcd_pred1, self.TAG_PCD2, self.pcd_pred1_2)
             self.add_object(self.scene_pcd_pred2, self.TAG_PCD2, self.pcd_pred2_2)
-        if self.show_ibs_checkbox.checked:
+        if self.show_ibs_checked:
             self.add_object(self.scene_pcd_complete, self.TAG_IBS, self.IBS)
             self.add_object(self.scene_pcd_partial, self.TAG_IBS, self.IBS)
             if self.flag_pcd_pred1_window_show:
@@ -347,12 +347,10 @@ class App:
             if self.flag_pcd_pred2_window_show:
                 self.add_object(self.scene_pcd_pred2, self.TAG_IBS, self.IBS)
 
-        self.update_camera(self.scene_pcd_complete, self.pcd_complete_1, self.pcd_complete_2)
-        self.update_camera(self.scene_pcd_partial, self.pcd_partial_1, self.pcd_partial_2)
-        self.update_camera(self.scene_pcd_pred1, self.pcd_pred1_1, self.pcd_pred1_2)
-        self.update_camera(self.scene_pcd_pred2, self.pcd_pred2_1, self.pcd_pred2_2)
-
+    def on_load_btn_clicked(self):
+        self.load_data()
         self.update_info_area()
+        self.update_camera_all_scene()
 
     def get_view_info(self):
         view = self.view_selector.get_item(self.selected_view)
@@ -375,38 +373,48 @@ class App:
             return
         self.on_category_selection_changed(self.category_selector.get_item(self.selected_category - 1),
                                            self.selected_category - 1)
-        self.on_load_btn_clicked()
+        self.load_data()
+        self.update_info_area()
+        self.update_camera_all_scene()
 
     def on_next_category_btn_clicked(self):
         if self.selected_category >= self.category_selector.number_of_items - 1:
             return
         self.on_category_selection_changed(self.category_selector.get_item(self.selected_category + 1),
                                            self.selected_category + 1)
-        self.on_load_btn_clicked()
+        self.load_data()
+        self.update_info_area()
+        self.update_camera_all_scene()
 
     def on_pre_scene_btn_clicked(self):
         if self.selected_scene <= 0:
             return
         self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene - 1), self.selected_scene - 1)
-        self.on_load_btn_clicked()
+        self.load_data()
+        self.update_info_area()
+        self.update_camera_all_scene()
 
     def on_next_scene_btn_clicked(self):
         if self.selected_scene >= self.scene_selector.number_of_items - 1:
             return
         self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene + 1), self.selected_scene + 1)
-        self.on_load_btn_clicked()
+        self.load_data()
+        self.update_info_area()
+        self.update_camera_all_scene()
 
     def on_pre_view_btn_clicked(self):
         if self.selected_view <= 0:
             return
         self.on_view_selection_changed(self.view_selector.get_item(self.selected_view - 1), self.selected_view - 1)
-        self.on_load_btn_clicked()
+        self.load_data()
+        self.update_info_area()
 
     def on_next_view_btn_clicked(self):
         if self.selected_view >= self.view_selector.number_of_items - 1:
             return
         self.on_view_selection_changed(self.view_selector.get_item(self.selected_view + 1), self.selected_view + 1)
-        self.on_load_btn_clicked()
+        self.load_data()
+        self.update_info_area()
 
     def on_show_pcd1_checked(self, is_checked):
         print("show pcd1 checked: ", is_checked)
@@ -493,6 +501,12 @@ class App:
         if scene.scene.has_geometry(name):
             scene.scene.remove_geometry(name)
         scene.scene.add_geometry(name, geometry, self.material.get("obj"))
+
+    def update_camera_all_scene(self):
+        self.update_camera(self.scene_pcd_complete, self.pcd_complete_1, self.pcd_complete_2)
+        self.update_camera(self.scene_pcd_partial, self.pcd_partial_1, self.pcd_partial_2)
+        self.update_camera(self.scene_pcd_pred1, self.pcd_pred1_1, self.pcd_pred1_2)
+        self.update_camera(self.scene_pcd_pred2, self.pcd_pred2_1, self.pcd_pred2_2)
 
     def update_camera(self, scene, geometry1, geometry2):
         bounds1 = None

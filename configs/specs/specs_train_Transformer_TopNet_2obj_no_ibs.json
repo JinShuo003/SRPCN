@@ -8,16 +8,19 @@
     "TensorboardLogDir" : "tensorboard_logs",
     "LogDir" : "logs/train",
     "Device" : 0,
+    "PcdPointNum": 2048,
+    "IBSPointNum": 2048,
     "LearningRateSchedule" : {
 	    "Type" : "Step",
 	    "Initial" : 0.001,
 	    "Interval" : 10,
 	    "Factor" : 0.5
     },
-    "NumEpochs" : 100,
-    "PcdPointNum": 2048,
-    "IBSPointNum": 2048,
-
-    "BatchSize" : 64,
-    "DataLoaderThreads" : 8
+    "TrainOptions": {
+        "NumEpochs" : 100,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8,
+        "ContinueTrain": true,
+        "ContinueFromEpoch": 35
+    }
 }

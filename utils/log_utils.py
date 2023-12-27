@@ -31,7 +31,13 @@ def get_train_logger(specs):
     log_file_path = os.path.join(specs.get("LogDir"), specs.get("TAG"))
     if not os.path.isdir(log_file_path):
         os.makedirs(log_file_path)
-    file_handler = logging.FileHandler(os.path.join(log_file_path, "logs.log"), mode="w")
+
+    continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    file_handler = None
+    if continue_train:
+        file_handler = logging.FileHandler(os.path.join(log_file_path, "logs.log"), mode="a")
+    else:
+        file_handler = logging.FileHandler(os.path.join(log_file_path, "logs.log"), mode="w")
     file_handler.setFormatter(formatter)
     file_handler.setLevel(level=logging.INFO)
     logger.addHandler(file_handler)

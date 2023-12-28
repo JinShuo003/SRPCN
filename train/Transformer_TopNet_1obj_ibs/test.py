@@ -6,6 +6,7 @@ import os.path
 import torch.utils.data as data_utils
 import json
 import open3d as o3d
+import numpy as np
 import re
 import argparse
 import time
@@ -16,7 +17,7 @@ from networks.loss import chamfer_distance, earth_move_distance
 
 import utils.data
 from utils.geometry_utils import get_pcd_from_np
-from utils import log_utils, path_utils
+from utils import log_utils, path_utils, geometry_utils
 
 logger = None
 
@@ -45,8 +46,19 @@ def get_dataloader(specs):
     return test_dataloader
 
 
+def get_normalize_para(file_path):
+    with open(file_path, "r") as file:
+        content = file.read()
+        data = list(map(int, content.split(",")))
+        translate = data[0:3]
+        scale = data[-1]
+    return translate, scale
+
+
 def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
     save_dir = specs.get("ResultSaveDir")
+    normalize_para_dir = specs.get("NormalizeParaDir")
+
     filename_patten = specs.get("FileNamePatten")
     # 将udf数据拆分开，并且转移到cpu
     pcd_np = pcd.cpu().detach().numpy()
@@ -58,6 +70,11 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
         filename_relative = re.match(filename_patten, filename_info[-1]).group()  # scene1.1001_view0
         category = filename_info[-2]
 
+        # normalize parameters
+        normalize_para_filename = "{}_{}.txt".format(filename_relative, extend_info)
+        normalize_para_path = os.path.join(normalize_para_dir, category, normalize_para_filename)
+        translate, scale = get_normalize_para(normalize_para_path)
+
         # the real directory is save_dir/category
         save_path = os.path.join(save_dir, category)
         if not os.path.isdir(save_path):
@@ -68,8 +85,13 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
             filename_relative += "_{}".format(extend_info)
         filename_final = "{}.ply".format(filename_relative)
         absolute_dir = os.path.join(save_path, filename_final)
+        pcd = get_pcd_from_np(pcd_np[index])
 
-        o3d.io.write_point_cloud(absolute_dir, get_pcd_from_np(pcd_np[index]))
+        # transform to origin coordinate
+        pcd.scale(scale, np.array([0, 0, 0]))
+        pcd.translate(translate)
+
+        o3d.io.write_point_cloud(absolute_dir, pcd)
 
 
 def test(IBPCDCNet, test_dataloader, specs):

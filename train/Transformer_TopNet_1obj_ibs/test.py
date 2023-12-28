@@ -11,13 +11,11 @@ import re
 import argparse
 import time
 
-import networks.loss
 from networks.model_Transformer_TopNet_1obj_ibs import *
 from networks.loss import chamfer_distance, earth_move_distance
 
-import utils.data
 from utils.geometry_utils import get_pcd_from_np
-from utils import log_utils, path_utils, geometry_utils
+from utils import log_utils, path_utils, data_normalize
 
 logger = None
 
@@ -32,7 +30,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = utils.data.InteractionDataset(data_source, test_split)
+    test_dataset = data_normalize.InteractionDataset(data_source, test_split)
 
     # get dataloader
     test_dataloader = data_utils.DataLoader(
@@ -49,41 +47,42 @@ def get_dataloader(specs):
 def get_normalize_para(file_path):
     with open(file_path, "r") as file:
         content = file.read()
-        data = list(map(int, content.split(",")))
+        data = list(map(float, content.split(",")))
         translate = data[0:3]
         scale = data[-1]
     return translate, scale
 
 
-def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
+def save_result(test_dataloader, pcd, indices, specs):
     save_dir = specs.get("ResultSaveDir")
     normalize_para_dir = specs.get("NormalizeParaDir")
 
     filename_patten = specs.get("FileNamePatten")
+    scene_patten = specs.get("ScenePatten")
+
     # 将udf数据拆分开，并且转移到cpu
     pcd_np = pcd.cpu().detach().numpy()
 
-    filename_list = [test_dataloader.dataset.pcd1files[index] for index in indices]
+    filename_list = [test_dataloader.dataset.pcd_partial_filenames[index] for index in indices]
     for index, filename_abs in enumerate(filename_list):
-        filename_info = os.path.split(filename_abs)
-        # get the pure filename and the category of the data
-        filename_relative = re.match(filename_patten, filename_info[-1]).group()  # scene1.1001_view0
-        category = filename_info[-2]
+        # [pcd_partial_2048, scene1, scene1.1000_view0_0]
+        filename_info = filename_abs.split('/')
+        filename = re.match(filename_patten, filename_info[2]).group()
+        scene = re.match(scene_patten, filename_info[2]).group()
+        category = filename_info[1]
 
         # normalize parameters
-        normalize_para_filename = "{}_{}.txt".format(filename_relative, extend_info)
+        normalize_para_filename = "{}_{}.txt".format(scene, re.findall(r'\d+', filename)[-1])
         normalize_para_path = os.path.join(normalize_para_dir, category, normalize_para_filename)
         translate, scale = get_normalize_para(normalize_para_path)
 
         # the real directory is save_dir/category
-        save_path = os.path.join(save_dir, category)
+        save_path = os.path.join(save_dir, filename_info[0], category)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 
         # append the extend info to the filename
-        if extend_info is not None:
-            filename_relative += "_{}".format(extend_info)
-        filename_final = "{}.ply".format(filename_relative)
+        filename_final = "{}.ply".format(filename)
         absolute_dir = os.path.join(save_path, filename_final)
         pcd = get_pcd_from_np(pcd_np[index])
 
@@ -97,33 +96,25 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
 def test(IBPCDCNet, test_dataloader, specs):
     device = specs.get("Device")
 
-    loss_emd = networks.loss.emdModule()
-    loss_cd = networks.loss.cdModule()
-
     with torch.no_grad():
         test_total_loss_emd = 0
         test_total_loss_cd = 0
-        for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
+        for IBS, pcd_partial, pcd_gt, idx in test_dataloader:
             IBS = IBS.to(device)
-            pcd1_partial = pcd1_partial.to(device)
-            pcd2_partial = pcd2_partial.to(device)
-            pcd1_out, pcd2_out = IBPCDCNet(pcd1_partial, pcd2_partial, IBS)
+            pcd_partial = pcd_partial.to(device)
+            pcd_out = IBPCDCNet(pcd_partial, IBS)
 
-            pcd1_gt = pcd1_gt.to(device)
-            pcd2_gt = pcd2_gt.to(device)
-            loss_emd_pcd1 = earth_move_distance(pcd1_out, pcd1_gt)
-            loss_emd_pcd2 = earth_move_distance(pcd2_out, pcd2_gt)
-            loss_cd_pcd1 = chamfer_distance(pcd1_out, pcd1_gt)
-            loss_cd_pcd2 = chamfer_distance(pcd2_out, pcd2_gt)
+            pcd_gt = pcd_gt.to(device)
+            loss_emd_pcd = earth_move_distance(pcd_out, pcd_gt)
+            loss_cd_pcd = chamfer_distance(pcd_out, pcd_gt)
 
-            batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
-            batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
+            batch_loss_emd = loss_emd_pcd
+            batch_loss_cd = loss_cd_pcd
 
             test_total_loss_emd += batch_loss_emd.item()
             test_total_loss_cd += batch_loss_cd.item()
 
-            save_result(test_dataloader, pcd1_out, idx, specs, "{}".format("0"))
-            save_result(test_dataloader, pcd2_out, idx, specs, "{}".format("1"))
+            save_result(test_dataloader, pcd_out, idx, specs)
 
         test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
         logger.info("test_avrg_loss_emd: {}".format(test_avrg_loss_emd))
@@ -154,7 +145,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_Transformer_TopNet_2obj_ibs.json",
+        default="configs/specs/specs_test_Transformer_TopNet_1obj_ibs.json",
         required=False,
         help="The experiment config file."
     )
@@ -162,7 +153,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/Transformer_TopNet_2obj_ibs/epoch_100.pth",
+        default="trained_models/Transformer_TopNet_1obj_ibs/epoch_10.pth",
         required=False,
         help="The network para"
     )
@@ -171,7 +162,7 @@ if __name__ == '__main__':
 
     specs = path_utils.read_config(args.experiment_config_file)
 
-    logger = log_utils.get_train_logger(specs)
+    logger = log_utils.get_test_logger(specs)
 
     logger.info("test split: {}".format(specs.get("TestSplit")))
     logger.info("specs file: {}".format(args.experiment_config_file))

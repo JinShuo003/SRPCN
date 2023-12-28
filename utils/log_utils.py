@@ -48,3 +48,25 @@ def get_train_logger(specs):
     logger.addHandler(stream_handler)
 
     return logger
+
+
+def get_test_logger(specs):
+    logger = logging.getLogger()
+    logger.setLevel("INFO")
+    formatter = logging.Formatter("IBPCDC - %(levelname)s - %(message)s")
+
+    log_file_path = os.path.join(specs.get("LogDir"), specs.get("TAG"))
+    if not os.path.isdir(log_file_path):
+        os.makedirs(log_file_path)
+
+    file_handler = logging.FileHandler(os.path.join(log_file_path, "logs.log"), mode="w")
+    file_handler.setFormatter(formatter)
+    file_handler.setLevel(level=logging.INFO)
+    logger.addHandler(file_handler)
+
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    stream_handler.setLevel(level=logging.INFO)
+    logger.addHandler(stream_handler)
+
+    return logger

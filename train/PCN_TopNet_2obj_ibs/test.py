@@ -140,7 +140,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN_TopNet_2obj_ibs/epoch_100.pth",
+        default="trained_models/PCN_TopNet_2obj_ibs/epoch_85.pth",
         required=False,
         help="The network para"
     )
@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     specs = path_utils.read_config(args.experiment_config_file)
 
-    logger = log_utils.get_train_logger(specs)
+    logger = log_utils.get_test_logger(specs)
 
     logger.info("test split: {}".format(specs.get("TestSplit")))
     logger.info("specs file: {}".format(args.experiment_config_file))

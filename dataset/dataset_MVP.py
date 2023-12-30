@@ -10,7 +10,6 @@ import utils.workspace as ws
 
 
 def get_instance_filenames(data_source, split):
-    IBS_filenames = []
     pcd_partial_filenames = []
     pcd_gt_filenames = []
     for dataset in split:
@@ -20,7 +19,7 @@ def get_instance_filenames(data_source, split):
                 pcd_partial_filename = os.path.join(dataset, class_name, "{}.ply".format(instance_name))
                 pcd_gt_filename = os.path.join(dataset, class_name, "{}.ply".format(scene_name))
 
-                if not os.path.isfile(os.path.join(data_source, ws.IBS_gt_subdir, pcd_partial_filename)):
+                if not os.path.isfile(os.path.join(data_source, ws.pcd_partial_subdir, pcd_partial_filename)):
                     logging.warning("Requested non-existent file '{}'".format(pcd_partial_filename))
 
                 pcd_partial_filenames.append(pcd_partial_filename)
@@ -41,7 +40,7 @@ class PcdDataset(torch.utils.data.Dataset):
         self.pcd_partial_filenames, self.pcd_gt_filenames = get_instance_filenames(data_source, split)
 
     def __len__(self):
-        return len(self.IBS_filenames)
+        return len(self.pcd_partial_filenames)
 
     def __getitem__(self, idx):
         pcd_partial_filename = os.path.join(self.data_source, ws.pcd_partial_subdir, self.pcd_partial_filenames[idx])

@@ -18,7 +18,7 @@
     },
     "TrainOptions": {
         "NumEpochs" : 200,
-        "BatchSize" : 400,
+        "BatchSize" : 512,
         "DataLoaderThreads" : 8,
         "ContinueTrain": false,
         "ContinueFromEpoch": 0

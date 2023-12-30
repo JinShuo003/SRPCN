@@ -12,10 +12,11 @@ import argparse
 import time
 
 from networks.loss import chamfer_distance, earth_move_distance
-from networks.model_Transformer_TopNet_1obj_ibs import *
+from networks.model_Transformer_TopNet_MVP import *
 
 from utils.learning_rate import get_learning_rate_schedules
-from utils import path_utils, log_utils, dataset_MVP
+from utils import path_utils, log_utils
+from dataset import dataset_MVP
 
 logger = None
 
@@ -151,10 +152,9 @@ def train(network, train_dataloader, lr_schedules, optimizer, epoch, specs, tens
 
     train_total_loss_emd = 0
     train_total_loss_cd = 0
-    for IBS, pcd_partial, pcd_gt, idx in train_dataloader:
+    for pcd_partial, pcd_gt, idx in train_dataloader:
         pcd_partial = pcd_partial.to(device)
-        IBS = IBS.to(device)
-        pcd_out = network(pcd_partial, IBS)
+        pcd_out = network(pcd_partial)
 
         pcd_gt = pcd_gt.to(device)
         loss_emd_pcd = earth_move_distance(pcd_out, pcd_gt)
@@ -193,10 +193,9 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
     with torch.no_grad():
         test_total_loss_emd = 0
         test_total_loss_cd = 0
-        for IBS, pcd_partial, pcd_gt, idx in test_dataloader:
+        for pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
-            IBS = IBS.to(device)
-            pcd_out = network(pcd_partial, IBS)
+            pcd_out = network(pcd_partial)
 
             pcd_gt = pcd_gt.to(device)
             loss_emd_pcd = earth_move_distance(pcd_out, pcd_gt)

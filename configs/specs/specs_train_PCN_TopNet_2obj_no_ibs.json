@@ -20,7 +20,7 @@
         "NumEpochs" : 100,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "ContinueTrain": true,
+        "ContinueTrain": false,
         "ContinueFromEpoch": 35
     }
 }

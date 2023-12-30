@@ -103,7 +103,9 @@ def get_network(specs):
         logger.info("load model from {}".format(model_path))
         network = torch.load(model_path, map_location="cuda:{}".format(device))
     else:
-        network = IBPCDCNet()
+        points_num = specs.get("PcdPointNum")
+        ibs_points_num = specs.get("IBSPointNum")
+        network = IBPCDCNet(points_num, ibs_points_num)
 
     if torch.cuda.is_available():
         network = network.to(device)

@@ -9,8 +9,8 @@
     "LogDir" : "logs/train",
     "Device" : 0,
     "PcdPointNum": 2048,
-        "IBSPointNum": 2048,
-        "LearningRateSchedule" : {
+    "IBSPointNum": 2048,
+    "LearningRateSchedule" : {
 	    "Type" : "Step",
 	    "Initial" : 0.001,
 	    "Interval" : 10,

@@ -813,7 +813,7 @@ class App:
 
 if __name__ == "__main__":
     # 获取配置参数
-    config_filepath = 'configs/pcd_visualizer.json'
+    config_filepath = 'configs/Interaction_visualizer.json'
     specs = path_utils.read_config(config_filepath)
 
     app = App(specs)

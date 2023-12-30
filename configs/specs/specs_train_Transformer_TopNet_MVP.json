@@ -17,7 +17,7 @@
 	    "Factor" : 0.5
     },
     "TrainOptions": {
-        "NumEpochs" : 100,
+        "NumEpochs" : 200,
         "BatchSize" : 400,
         "DataLoaderThreads" : 8,
         "ContinueTrain": false,

@@ -15,7 +15,7 @@ from networks.model_Transformer_TopNet_1obj_ibs import *
 from networks.loss import chamfer_distance, earth_move_distance
 
 from utils.geometry_utils import get_pcd_from_np
-from utils import log_utils, path_utils, data_normalize
+from utils import log_utils, path_utils, dataset_MVP
 
 logger = None
 
@@ -30,7 +30,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = data_normalize.InteractionDataset(data_source, test_split)
+    test_dataset = dataset_MVP.PcdDataset(data_source, test_split)
 
     # get dataloader
     test_dataloader = data_utils.DataLoader(
@@ -145,7 +145,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_Transformer_TopNet_1obj_ibs.json",
+        default="configs/specs/specs_test_Transformer_TopNet_MVP.json",
         required=False,
         help="The experiment config file."
     )

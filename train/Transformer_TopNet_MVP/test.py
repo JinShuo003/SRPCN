@@ -15,7 +15,8 @@ from networks.model_Transformer_TopNet_1obj_ibs import *
 from networks.loss import chamfer_distance, earth_move_distance
 
 from utils.geometry_utils import get_pcd_from_np
-from utils import log_utils, path_utils, dataset_MVP
+from utils import log_utils, path_utils
+from dataset import dataset_MVP
 
 logger = None
 
@@ -55,10 +56,8 @@ def get_normalize_para(file_path):
 
 def save_result(test_dataloader, pcd, indices, specs):
     save_dir = specs.get("ResultSaveDir")
-    normalize_para_dir = specs.get("NormalizeParaDir")
 
     filename_patten = specs.get("FileNamePatten")
-    scene_patten = specs.get("ScenePatten")
 
     # 将udf数据拆分开，并且转移到cpu
     pcd_np = pcd.cpu().detach().numpy()
@@ -68,13 +67,7 @@ def save_result(test_dataloader, pcd, indices, specs):
         # [pcd_partial_2048, scene1, scene1.1000_view0_0]
         filename_info = filename_abs.split('/')
         filename = re.match(filename_patten, filename_info[2]).group()
-        scene = re.match(scene_patten, filename_info[2]).group()
         category = filename_info[1]
-
-        # normalize parameters
-        normalize_para_filename = "{}_{}.txt".format(scene, re.findall(r'\d+', filename)[-1])
-        normalize_para_path = os.path.join(normalize_para_dir, category, normalize_para_filename)
-        translate, scale = get_normalize_para(normalize_para_path)
 
         # the real directory is save_dir/category
         save_path = os.path.join(save_dir, filename_info[0], category)
@@ -86,10 +79,6 @@ def save_result(test_dataloader, pcd, indices, specs):
         absolute_dir = os.path.join(save_path, filename_final)
         pcd = get_pcd_from_np(pcd_np[index])
 
-        # transform to origin coordinate
-        pcd.scale(scale, np.array([0, 0, 0]))
-        pcd.translate(translate)
-
         o3d.io.write_point_cloud(absolute_dir, pcd)
 
 
@@ -99,10 +88,9 @@ def test(IBPCDCNet, test_dataloader, specs):
     with torch.no_grad():
         test_total_loss_emd = 0
         test_total_loss_cd = 0
-        for IBS, pcd_partial, pcd_gt, idx in test_dataloader:
-            IBS = IBS.to(device)
+        for pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
-            pcd_out = IBPCDCNet(pcd_partial, IBS)
+            pcd_out = IBPCDCNet(pcd_partial)
 
             pcd_gt = pcd_gt.to(device)
             loss_emd_pcd = earth_move_distance(pcd_out, pcd_gt)
@@ -153,7 +141,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/Transformer_TopNet_1obj_ibs/epoch_10.pth",
+        default="trained_models/Transformer_TopNet_MVP/epoch_45.pth",
         required=False,
         help="The network para"
     )

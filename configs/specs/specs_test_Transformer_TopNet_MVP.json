@@ -1,0 +1,11 @@
+{
+    "TAG": "Transformer_TopNet_MVP",
+    "DataSource" : "data",
+    "TestSplit" : "configs/test_MVP/test.json",
+    "ScenePatten": "scene\\d.\\d{4}",
+    "LogDir" : "logs/test",
+    "ResultSaveDir": "test_result/Transformer_TopNet_MVP",
+    "Device" : 0,
+    "BatchSize" : 64,
+    "DataLoaderThreads" : 8
+}

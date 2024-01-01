@@ -230,11 +230,13 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
         if test_avrg_loss_cd_l1 < best_cd_l1:
             best_epoch = epoch
             best_cd_l1 = test_avrg_loss_cd_l1
+            logger.info('newest best epoch: {}'.format(best_epoch))
+            logger.info('newest best cd l1: {}'.format(best_cd_l1))
             para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
             if not os.path.isdir(para_save_path):
                 os.mkdir(para_save_path)
             model_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
-            torch.save(network, model_filename)
+            torch.save(network.state_dict(), model_filename)
 
         return best_cd_l1, best_epoch
 

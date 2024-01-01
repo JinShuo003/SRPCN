@@ -11,11 +11,11 @@ import re
 import argparse
 import time
 
-from networks.model_Transformer_TopNet_1obj_ibs import *
-from networks.loss import chamfer_distance, earth_move_distance
+from networks.loss import *
 
 from utils.geometry_utils import get_pcd_from_np
-from utils import log_utils, path_utils, data_normalize
+from utils import log_utils, path_utils
+from dataset import data_normalize
 
 logger = None
 
@@ -105,8 +105,8 @@ def test(IBPCDCNet, test_dataloader, specs):
             pcd_out = IBPCDCNet(pcd_partial, IBS)
 
             pcd_gt = pcd_gt.to(device)
-            loss_emd_pcd = earth_move_distance(pcd_out, pcd_gt)
-            loss_cd_pcd = chamfer_distance(pcd_out, pcd_gt)
+            loss_emd_pcd = emd_loss(pcd_out, pcd_gt)
+            loss_cd_pcd = cd_loss_L1(pcd_out, pcd_gt)
 
             batch_loss_emd = loss_emd_pcd
             batch_loss_cd = loss_cd_pcd

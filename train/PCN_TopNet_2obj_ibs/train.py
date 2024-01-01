@@ -11,12 +11,12 @@ from datetime import datetime, timedelta
 import argparse
 import time
 
-from networks.loss import chamfer_distance, earth_move_distance
+from networks.loss import *
 from networks.model_PCN_TopNet_2obj_ibs import *
 
-import utils.data
 from utils.learning_rate import get_learning_rate_schedules
 from utils import path_utils, log_utils
+from dataset import data_interaction
 
 logger = None
 
@@ -65,8 +65,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = utils.data.InteractionDataset(data_source, train_split)
-    test_dataset = utils.data.InteractionDataset(data_source, test_split)
+    train_dataset = data_interaction.InteractionDataset(data_source, train_split)
+    test_dataset = data_interaction.InteractionDataset(data_source, test_split)
 
     logger.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
@@ -164,10 +164,10 @@ def train(network, sdf_train_loader, lr_schedules, optimizer, epoch, specs, tens
 
         pcd1_gt = pcd1_gt.to(device)
         pcd2_gt = pcd2_gt.to(device)
-        loss_emd_pcd1 = earth_move_distance(pcd1_out, pcd1_gt)
-        loss_emd_pcd2 = earth_move_distance(pcd2_out, pcd2_gt)
-        loss_cd_pcd1 = chamfer_distance(pcd1_out, pcd1_gt)
-        loss_cd_pcd2 = chamfer_distance(pcd2_out, pcd2_gt)
+        loss_emd_pcd1 = emd_loss(pcd1_out, pcd1_gt)
+        loss_emd_pcd2 = emd_loss(pcd2_out, pcd2_gt)
+        loss_cd_pcd1 = cd_loss_L1(pcd1_out, pcd1_gt)
+        loss_cd_pcd2 = cd_loss_L1(pcd2_out, pcd2_gt)
 
         batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
         batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
@@ -210,10 +210,10 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
 
             pcd1_gt = pcd1_gt.to(device)
             pcd2_gt = pcd2_gt.to(device)
-            loss_emd_pcd1 = earth_move_distance(pcd1_out, pcd1_gt)
-            loss_emd_pcd2 = earth_move_distance(pcd2_out, pcd2_gt)
-            loss_cd_pcd1 = chamfer_distance(pcd1_out, pcd1_gt)
-            loss_cd_pcd2 = chamfer_distance(pcd2_out, pcd2_gt)
+            loss_emd_pcd1 = emd_loss(pcd1_out, pcd1_gt)
+            loss_emd_pcd2 = emd_loss(pcd2_out, pcd2_gt)
+            loss_cd_pcd1 = cd_loss_L1(pcd1_out, pcd1_gt)
+            loss_cd_pcd2 = cd_loss_L1(pcd2_out, pcd2_gt)
 
             batch_loss_emd = (loss_emd_pcd1 + loss_emd_pcd2)
             batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2

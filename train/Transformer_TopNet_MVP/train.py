@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import argparse
 import time
 
-from networks.loss import chamfer_distance, earth_move_distance
+from networks.loss import *
 from networks.model_Transformer_TopNet_MVP import *
 
 from utils.learning_rate import get_learning_rate_schedules
@@ -157,8 +157,8 @@ def train(network, train_dataloader, lr_schedules, optimizer, epoch, specs, tens
         pcd_out = network(pcd_partial)
 
         pcd_gt = pcd_gt.to(device)
-        loss_emd_pcd = earth_move_distance(pcd_out, pcd_gt)
-        loss_cd_pcd = chamfer_distance(pcd_out, pcd_gt)
+        loss_emd_pcd = emd_loss(pcd_out, pcd_gt)
+        loss_cd_pcd = cd_loss_L1(pcd_out, pcd_gt)
 
         batch_loss_emd = loss_emd_pcd
         batch_loss_cd = loss_cd_pcd
@@ -198,8 +198,8 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer):
             pcd_out = network(pcd_partial)
 
             pcd_gt = pcd_gt.to(device)
-            loss_emd_pcd = earth_move_distance(pcd_out, pcd_gt)
-            loss_cd_pcd = chamfer_distance(pcd_out, pcd_gt)
+            loss_emd_pcd = emd_loss(pcd_out, pcd_gt)
+            loss_cd_pcd = cd_loss_L1(pcd_out, pcd_gt)
 
             batch_loss_emd = loss_emd_pcd
             batch_loss_cd = loss_cd_pcd

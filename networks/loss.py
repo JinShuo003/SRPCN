@@ -9,12 +9,39 @@ from torch.autograd import Function
 import emd
 
 
-class cdModule(nn.Module):
-    def __init__(self):
-        super(cdModule, self).__init__()
+def cd_loss_L1(pcd1, pcd2):
+    """
+    L1 Chamfer Distance.
 
-    def forward(self, array1, array2):
-        return chamfer_distance(array1, array2)
+    Args:
+        pcs1 (torch.tensor): (B, N, 3)
+        pcs2 (torch.tensor): (B, M, 3)
+    """
+    cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    dist1, dist2, _, _ = cham_loss(pcd1, pcd2)
+    dist1 = torch.sqrt(dist1)
+    dist2 = torch.sqrt(dist2)
+    return (torch.mean(dist1) + torch.mean(dist2)) / 2.0
+
+
+def cd_loss_L2(pcd1, pcd2):
+    """
+    L2 Chamfer Distance.
+
+    Args:
+        pcs1 (torch.tensor): (B, N, 3)
+        pcs2 (torch.tensor): (B, M, 3)
+    """
+    cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    dist1, dist2, _, _ = cham_loss(pcd1, pcd2)
+    return torch.mean(dist1) + torch.mean(dist2)
+
+
+def emd_loss(output, gt):
+    emd_loss = emdModule()
+    dists = emd_loss(output, gt)[0]
+    return torch.mean(dists)
+
 
 
 class emdFunction(Function):
@@ -67,17 +94,3 @@ class emdModule(nn.Module):
 
     def forward(self, input1, input2, eps=0.005, iters=50):
         return emdFunction.apply(input1, input2, eps, iters)
-
-
-def chamfer_distance(output, gt):
-    cham_loss = dist_chamfer_3D.chamfer_3DDist()
-    dist1, dist2, _, _ = cham_loss(gt, output)
-    cd_t = (dist1.mean(1) + dist2.mean(1))
-    cd_t = cd_t.mean()
-    return cd_t
-
-
-def earth_move_distance(output, gt):
-    emd_loss = emdModule()
-    emd = torch.mean(emd_loss(output, gt)[0])
-    return emd

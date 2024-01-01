@@ -128,13 +128,11 @@ def get_tensorboard_writer(specs, network):
     tensorboard_writer = SummaryWriter(writer_path)
 
     input_pcd_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
-    input_IBS_shape = torch.randn(1, specs.get("IBSPointNum"), 3)
 
     if torch.cuda.is_available():
         input_pcd_shape = input_pcd_shape.to(device)
-        input_IBS_shape = input_IBS_shape.to(device)
 
-    # tensorboard_writer.add_graph(network, (input_pcd1_shape, input_pcd2_shape, input_IBS_shape))
+    tensorboard_writer.add_graph(network, input_pcd_shape)
 
     return tensorboard_writer
 

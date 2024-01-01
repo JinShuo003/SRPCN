@@ -291,7 +291,7 @@ if __name__ == '__main__':
     specs = path_utils.read_config(args.experiment_config_file)
 
     logger = log_utils.get_train_logger(specs)
-
     logger.info("specs file path: {}".format(args.experiment_config_file))
+    logger.info("specs file: {}".format(specs))
 
     main_function(specs)

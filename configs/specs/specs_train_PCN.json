@@ -14,7 +14,7 @@
         "NumEpochs" : 200,
         "BatchSize" : 256,
         "DataLoaderThreads" : 8,
-        "LearningRate": 0.001,
+        "LearningRate": 0.0001,
         "CoarseLoss": "cd",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0

@@ -11,7 +11,7 @@ import argparse
 import time
 
 from networks.model_PCN_TopNet_2obj_ibs import *
-from networks.loss import *
+from utils.loss import *
 
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils

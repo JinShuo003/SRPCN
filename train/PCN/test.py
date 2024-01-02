@@ -9,6 +9,7 @@ import re
 import argparse
 import time
 import numpy as np
+import shutil
 
 from networks.model_PCN import *
 from utils.loss import *
@@ -67,6 +68,14 @@ def save_result(test_dataloader, pcd, indices, specs):
         o3d.io.write_point_cloud(pcd_save_absolute_path, get_pcd_from_np(pcd_np[index]))
 
 
+def create_zip(dataset="MVP"):
+    save_dir = specs.get("ResultSaveDir")
+
+    output_archive = os.path.join(save_dir, dataset)
+
+    shutil.make_archive(output_archive, 'zip', save_dir)
+
+
 def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
     assert dist.shape[0] == indices.shape[0]
     assert tag in dist_dict_total.keys()
@@ -90,6 +99,7 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
     num = 0
     for i in range(1, 17):
         category = "scene{}".format(i)
+        dist_dict[category]["avrg_dist"] = dist_dict[category]["dist_total"] / dist_dict[category]["num"]
         dist_total += dist_dict[category]["dist_total"]
         num += dist_dict[category]["num"]
     dist_dict["avrg_dist"] = dist_total/num
@@ -131,6 +141,8 @@ def test(network, test_dataloader, specs):
         cal_avrg_dist(dist_dict, "fscore")
 
         logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
+
+        
 
 def main_function(specs, model_path):
     device = specs.get("Device")

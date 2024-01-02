@@ -96,7 +96,7 @@ def get_network(specs):
     device = specs.get("Device")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
 
-    network = PCN(num_dense=2048)
+    network = PCN(num_dense=2048).to(device)
 
     if continue_train:
         continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
@@ -184,6 +184,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
         loss.backward()
         optimizer.step()
+        
     lr_schedule.step()
 
     train_avrg_loss_coarse = train_total_loss_coarse / train_dataloader.__len__()

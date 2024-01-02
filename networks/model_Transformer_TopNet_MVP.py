@@ -103,7 +103,7 @@ class TopNet_decoder(nn.Module):
 
 
 # -------------------------------------Completion Net-----------------------------------
-class IBPCDCNet(nn.Module):
+class PCDCNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.encoder_pcd = Transformer_Encoder()

@@ -4,7 +4,7 @@
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\MVP",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\MVP",
       "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\Transformer_TopNet_MVP\\MVP",
-      "pcd_pred2_dir": ""
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PCN\\MVP"
     },
     "format_info": {
       "category_re": "scene\\d+",
@@ -22,5 +22,5 @@
     "tool_bar_width": 300
   },
   "sub_window_3_name": "Transformer_TopNet",
-  "sub_window_4_name": ""
+  "sub_window_4_name": "PCN"
 }

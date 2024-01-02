@@ -344,7 +344,6 @@ class App:
         self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene - 1), self.selected_scene - 1)
         self.load_data()
         self.update_info_area()
-        self.update_camera_all_scene()
 
     def on_next_scene_btn_clicked(self):
         if self.selected_scene >= self.scene_selector.number_of_items - 1:
@@ -352,7 +351,6 @@ class App:
         self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene + 1), self.selected_scene + 1)
         self.load_data()
         self.update_info_area()
-        self.update_camera_all_scene()
 
     def on_pre_view_btn_clicked(self):
         if self.selected_view <= 0:
@@ -457,6 +455,9 @@ class App:
         if key_event.key == o3d.visualization.gui.KeyName.LEFT:
             self.on_pre_view_btn_clicked()
             return
+
+        # 原始视角
+
 
     def on_dialog_ok(self):
         self.window.close_dialog()

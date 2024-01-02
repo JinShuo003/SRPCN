@@ -12,7 +12,8 @@ def chamfer_distance(pcd1, pcd2):
         pcd1 (torch.tensor): (B, N, 3)
         pcd2 (torch.tensor): (B, M, 3)
     """
-    return ChamferDistance(pcd1, pcd2)
+    dist1, dist2 = ChamferDistance(pcd1, pcd2)
+    return dist1, dist2
 
 
 def earth_movers_distance(pcd1, pcd2):
@@ -23,7 +24,8 @@ def earth_movers_distance(pcd1, pcd2):
         pcd1 (torch.tensor): (B, N, 3)
         pcd2 (torch.tensor): (B, N, 3)
     """
-    return EarthMoverDistance(pcd1, pcd2)
+    dists = EarthMoverDistance(pcd1, pcd2)
+    return dists
 
 
 def f_score(pred, gt, th=0.01):
@@ -44,4 +46,17 @@ def f_score(pred, gt, th=0.01):
     recall = float(sum(d < th for d in dist2)) / float(len(dist2))
     precision = float(sum(d < th for d in dist1)) / float(len(dist1))
     return 2 * recall * precision / (recall + precision) if recall + precision else 0
+
+
+def symmetry_cd_l1(pcd1, pcd2):
+    dist1, dist2 = chamfer_distance(pcd1, pcd2)
+    dist1 = torch.sqrt(dist1)
+    dist2 = torch.sqrt(dist2)
+    return (dist1 + dist2) / 2.0
+
+
+def symmetry_cd_l2(pcd1, pcd2):
+    dist1, dist2 = chamfer_distance(pcd1, pcd2)
+    return (dist1 + dist2) / 2.0
+
 

@@ -141,7 +141,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_PCN_TopNet_2obj_ibs.json",
+        default="configs/specs/specs_test_PCN.json",
         required=False,
         help="The experiment config file."
     )

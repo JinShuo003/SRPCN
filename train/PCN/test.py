@@ -56,9 +56,9 @@ def save_result(test_dataloader, pcd, indices, specs):
     filename_list = [test_dataloader.dataset.pcd_partial_filenames[index] for index in indices]
     for index, filename_abs in enumerate(filename_list):
         # [dataset, category, filename], example:[MVP, scene1, scene1.1000_view0_0.ply]
-        _, category, filename = filename_abs.split('/')
+        dataset, category, filename = filename_abs.split('/')
 
-        save_path = os.path.join(save_dir, category)
+        save_path = os.path.join(save_dir, dataset, category)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 

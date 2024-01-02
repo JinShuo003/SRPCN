@@ -73,7 +73,34 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
 
 def test(network, test_dataloader, specs):
     device = specs.get("Device")
-    
+
+    loss_dict = {
+        "cd_l1": {},
+        "cd_l2": {},
+        "wcd": {},
+        "emd": {},
+        "f-score": {}
+    }
+    with torch.no_grad():
+        test_total_cd_l1 = 0
+        test_total_emd = 0
+        for pcd_partial, pcd_gt, idx in test_dataloader:
+            pcd_partial = pcd_partial.to(device)
+            pcd_gt = pcd_gt.to(device)
+
+            coarse_pred, dense_pred = network(pcd_partial)
+            loss_cd_l1 = cd_loss_L1(dense_pred, pcd_gt)
+            loss_emd = emd_loss(dense_pred, pcd_gt)
+
+            test_total_cd_l1 += loss_cd_l1.item()
+            test_total_emd += loss_emd.item()
+
+        test_avrg_loss_cd_l1 = test_total_cd_l1 / test_dataloader.__len__() * 1e3
+        logger.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd_l1))
+
+        test_avrg_loss_emd = test_total_emd / test_dataloader.__len__() * 1e2
+        logger.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
+
     with torch.no_grad():
         test_total_loss_emd = 0
         test_total_loss_cd = 0

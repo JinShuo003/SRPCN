@@ -5,13 +5,13 @@ import os.path
 
 import torch.utils.data as data_utils
 import json
-import open3d as o3d
 import re
 import argparse
 import time
 
-from networks.model_PCN_TopNet_2obj_ibs import *
+from networks.model_PCN import *
 from utils.loss import *
+from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils
@@ -71,65 +71,49 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
         o3d.io.write_point_cloud(absolute_dir, get_pcd_from_np(pcd_np[index]))
 
 
+def update_loss_dict(loss_dict_total: dict, loss, test_dataloader, indices, tag: str):
+    assert loss.shape[0] == len(indices)
+    assert tag in loss_dict_total.keys()
+
+    loss_dict = loss_dict_total.get(tag)
+    filename_list = [test_dataloader.dataset.pcd_gt_filenames[index] for index in indices]
+    for idx, filename in enumerate(filename_list):
+        category = "scene{}".format(re.findall(r'\d+', filename)[0] + 1)
+        if category not in loss_dict:
+            loss_dict[category] = {
+                "total_loss": 0,
+                "num": 0
+            }
+        loss_dict[category]["total_loss"] += loss[idx]
+        loss_dict[category]["num"] += 1
+
+
 def test(network, test_dataloader, specs):
     device = specs.get("Device")
 
     loss_dict = {
         "cd_l1": {},
         "cd_l2": {},
-        "wcd": {},
         "emd": {},
-        "f-score": {}
+        "fscore": {}
     }
+    network.eval()
     with torch.no_grad():
-        test_total_cd_l1 = 0
-        test_total_emd = 0
         for pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
             coarse_pred, dense_pred = network(pcd_partial)
-            loss_cd_l1 = cd_loss_L1(dense_pred, pcd_gt)
-            loss_emd = emd_loss(dense_pred, pcd_gt)
 
-            test_total_cd_l1 += loss_cd_l1.item()
-            test_total_emd += loss_emd.item()
+            cd_l1 = symmetry_cd_l1(dense_pred, pcd_gt)
+            cd_l2 = symmetry_cd_l2(dense_pred, pcd_gt)
+            emd = earth_movers_distance(dense_pred, pcd_gt)
+            fscore = f_score(dense_pred, pcd_gt)
 
-        test_avrg_loss_cd_l1 = test_total_cd_l1 / test_dataloader.__len__() * 1e3
-        logger.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd_l1))
-
-        test_avrg_loss_emd = test_total_emd / test_dataloader.__len__() * 1e2
-        logger.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
-
-    with torch.no_grad():
-        test_total_loss_emd = 0
-        test_total_loss_cd = 0
-        for IBS, pcd1_partial, pcd2_partial, pcd1_gt, pcd2_gt, idx in test_dataloader:
-            IBS = IBS.to(device)
-            pcd1_partial = pcd1_partial.to(device)
-            pcd2_partial = pcd2_partial.to(device)
-            pcd1_out, pcd2_out = IBPCDCNet(pcd1_partial, pcd2_partial, IBS)
-
-            pcd1_gt = pcd1_gt.to(device)
-            pcd2_gt = pcd2_gt.to(device)
-            loss_emd_pcd1 = emd_loss(pcd1_out, pcd1_gt)
-            loss_emd_pcd2 = emd_loss(pcd2_out, pcd2_gt)
-            loss_cd_pcd1 = cd_loss_L1(pcd1_out, pcd1_gt)
-            loss_cd_pcd2 = cd_loss_L1(pcd2_out, pcd2_gt)
-
-            batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
-            batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2
-
-            test_total_loss_emd += batch_loss_emd.item()
-            test_total_loss_cd += batch_loss_cd.item()
-
-            save_result(test_dataloader, pcd1_out, idx, specs, "{}".format("0"))
-            save_result(test_dataloader, pcd2_out, idx, specs, "{}".format("1"))
-
-        test_avrg_loss_emd = test_total_loss_emd / test_dataloader.__len__()
-        logger.info("test_avrg_loss_emd: {}".format(test_avrg_loss_emd))
-        test_avrg_loss_cd = test_total_loss_cd / test_dataloader.__len__()
-        logger.info("test_avrg_loss_cd: {}".format(test_avrg_loss_cd))
+            update_loss_dict(loss_dict, cd_l1, test_dataloader, idx, "cd_l1")
+            update_loss_dict(loss_dict, cd_l2, test_dataloader, idx, "cd_l2")
+            update_loss_dict(loss_dict, emd, test_dataloader, idx, "emd")
+            update_loss_dict(loss_dict, fscore, test_dataloader, idx, "fscore")
 
 
 def main_function(specs, model_path):
@@ -140,11 +124,13 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    IBPCDCNet = torch.load(model_path, map_location="cuda:{}".format(device))
+    model = PCN(num_dense=2048)
+    state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
+    model.load_state_dict(state_dict)
     logger.info("load trained model succeed")
 
     time_begin_test = time.time()
-    test(IBPCDCNet, test_dataloader, specs)
+    test(model, test_dataloader, specs)
     time_end_test = time.time()
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
@@ -155,7 +141,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_PCN_TopNet_2obj_ibs.json",
+        default="configs/specs/specs_test_PCN.json",
         required=False,
         help="The experiment config file."
     )

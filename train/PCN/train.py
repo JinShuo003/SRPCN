@@ -12,10 +12,10 @@ import open3d as o3d
 import argparse
 import time
 
-from networks.loss import *
 from networks.model_PCN import *
 
 from utils import path_utils, log_utils
+from utils.loss import *
 from dataset import dataset_MVP
 
 logger = None

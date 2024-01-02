@@ -95,15 +95,17 @@ def get_dataloader(specs):
 def get_network(specs):
     device = specs.get("Device")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
+
+    network = PCN(num_dense=2048)
+
     if continue_train:
         continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
         para_save_dir = specs.get("ParaSaveDir")
         para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
         model_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
         logger.info("load model from {}".format(model_path))
-        network = torch.load(model_path, map_location="cuda:{}".format(device))
-    else:
-        network = PCN(num_dense=2048)
+        state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
+        network.load_state_dict(state_dict)
 
     if torch.cuda.is_available():
         network = network.to(device)

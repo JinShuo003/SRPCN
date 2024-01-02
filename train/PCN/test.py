@@ -10,13 +10,12 @@ import re
 import argparse
 import time
 
-import networks.loss
 from networks.model_PCN_TopNet_2obj_ibs import *
-from networks.loss import chamfer_distance, emd_loss
+from networks.loss import *
 
-import utils.data
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils
+from dataset import dataset_MVP
 
 logger = None
 
@@ -31,7 +30,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = utils.data.InteractionDataset(data_source, test_split)
+    test_dataset = dataset_MVP.InteractionDataset(data_source, test_split)
 
     # get dataloader
     test_dataloader = data_utils.DataLoader(
@@ -72,12 +71,9 @@ def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
         o3d.io.write_point_cloud(absolute_dir, get_pcd_from_np(pcd_np[index]))
 
 
-def test(IBPCDCNet, test_dataloader, specs):
+def test(network, test_dataloader, specs):
     device = specs.get("Device")
-
-    loss_emd = networks.loss.emdModule()
-    loss_cd = networks.loss.cdModule()
-
+    
     with torch.no_grad():
         test_total_loss_emd = 0
         test_total_loss_cd = 0
@@ -91,8 +87,8 @@ def test(IBPCDCNet, test_dataloader, specs):
             pcd2_gt = pcd2_gt.to(device)
             loss_emd_pcd1 = emd_loss(pcd1_out, pcd1_gt)
             loss_emd_pcd2 = emd_loss(pcd2_out, pcd2_gt)
-            loss_cd_pcd1 = chamfer_distance(pcd1_out, pcd1_gt)
-            loss_cd_pcd2 = chamfer_distance(pcd2_out, pcd2_gt)
+            loss_cd_pcd1 = cd_loss_L1(pcd1_out, pcd1_gt)
+            loss_cd_pcd2 = cd_loss_L1(pcd2_out, pcd2_gt)
 
             batch_loss_emd = loss_emd_pcd1 + loss_emd_pcd2
             batch_loss_cd = loss_cd_pcd1 + loss_cd_pcd2

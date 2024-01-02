@@ -68,8 +68,8 @@ def get_dataloader(specs):
     train_dataset = dataset_MVP.PcdDataset(data_source, train_split)
     test_dataset = dataset_MVP.PcdDataset(data_source, test_split)
 
-    logger.info("length of sdf_train_dataset: {}".format(train_dataset.__len__()))
-    logger.info("length of sdf_test_dataset: {}".format(test_dataset.__len__()))
+    logger.info("length of train_dataset: {}".format(train_dataset.__len__()))
+    logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader
     train_loader = data_utils.DataLoader(
@@ -87,7 +87,7 @@ def get_dataloader(specs):
         drop_last=False,
     )
     logger.info("length of train_dataloader: {}".format(train_loader.__len__()))
-    logger.info("length of sdf_test_loader: {}".format(test_loader.__len__()))
+    logger.info("length of test_dataloader: {}".format(test_loader.__len__()))
 
     return train_loader, test_loader
 

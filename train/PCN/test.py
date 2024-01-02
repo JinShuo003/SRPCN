@@ -8,6 +8,7 @@ import json
 import re
 import argparse
 import time
+import numpy as np
 
 from networks.model_PCN import *
 from utils.loss import *
@@ -30,7 +31,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = dataset_MVP.InteractionDataset(data_source, test_split)
+    test_dataset = dataset_MVP.PcdDataset(data_source, test_split)
+    logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader
     test_dataloader = data_utils.DataLoader(
@@ -40,58 +42,63 @@ def get_dataloader(specs):
         num_workers=num_data_loader_threads,
         drop_last=False,
     )
+    logger.info("length of test_dataloader: {}".format(test_dataloader.__len__()))
 
     return test_dataloader
 
 
-def save_result(test_dataloader, pcd, indices, specs, extend_info=None):
+def save_result(test_dataloader, pcd, indices, specs):
     save_dir = specs.get("ResultSaveDir")
-    filename_patten = specs.get("FileNamePatten")
+
     # 将udf数据拆分开，并且转移到cpu
     pcd_np = pcd.cpu().detach().numpy()
 
-    filename_list = [test_dataloader.dataset.pcd1files[index] for index in indices]
+    filename_list = [test_dataloader.dataset.pcd_partial_filenames[index] for index in indices]
     for index, filename_abs in enumerate(filename_list):
-        filename_info = os.path.split(filename_abs)
-        # get the pure filename and the category of the data
-        filename_relative = re.match(filename_patten, filename_info[-1]).group()  # scene1.1001_view0
-        category = filename_info[-2]
+        # [dataset, category, filename], example:[MVP, scene1, scene1.1000_view0_0.ply]
+        _, category, filename = filename_abs.split('/')
 
-        # the real directory is save_dir/category
         save_path = os.path.join(save_dir, category)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 
-        # append the extend info to the filename
-        if extend_info is not None:
-            filename_relative += "_{}".format(extend_info)
-        filename_final = "{}.ply".format(filename_relative)
-        absolute_dir = os.path.join(save_path, filename_final)
+        pcd_save_absolute_path = os.path.join(save_path, filename)
 
-        o3d.io.write_point_cloud(absolute_dir, get_pcd_from_np(pcd_np[index]))
+        o3d.io.write_point_cloud(pcd_save_absolute_path, get_pcd_from_np(pcd_np[index]))
 
 
-def update_loss_dict(loss_dict_total: dict, loss, test_dataloader, indices, tag: str):
-    assert loss.shape[0] == len(indices)
-    assert tag in loss_dict_total.keys()
+def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
+    assert dist.shape[0] == indices.shape[0]
+    assert tag in dist_dict_total.keys()
 
-    loss_dict = loss_dict_total.get(tag)
+    dist_dict = dist_dict_total.get(tag)
     filename_list = [test_dataloader.dataset.pcd_gt_filenames[index] for index in indices]
     for idx, filename in enumerate(filename_list):
-        category = "scene{}".format(re.findall(r'\d+', filename)[0] + 1)
-        if category not in loss_dict:
-            loss_dict[category] = {
-                "total_loss": 0,
+        category = "scene{}".format(str(int(re.findall(r'\d+', filename)[0])))
+        if category not in dist_dict:
+            dist_dict[category] = {
+                "dist_total": 0,
                 "num": 0
             }
-        loss_dict[category]["total_loss"] += loss[idx]
-        loss_dict[category]["num"] += 1
+        dist_dict[category]["dist_total"] += dist[idx]
+        dist_dict[category]["num"] += 1
+
+
+def cal_avrg_dist(dist_dict_total: dict, tag: str):
+    dist_dict = dist_dict_total.get(tag)
+    dist_total = 0
+    num = 0
+    for i in range(1, 17):
+        category = "scene{}".format(i)
+        dist_total += dist_dict[category]["dist_total"]
+        num += dist_dict[category]["num"]
+    dist_dict["avrg_dist"] = dist_total/num
 
 
 def test(network, test_dataloader, specs):
     device = specs.get("Device")
 
-    loss_dict = {
+    dist_dict = {
         "cd_l1": {},
         "cd_l2": {},
         "emd": {},
@@ -105,16 +112,25 @@ def test(network, test_dataloader, specs):
 
             coarse_pred, dense_pred = network(pcd_partial)
 
-            cd_l1 = symmetry_cd_l1(dense_pred, pcd_gt)
-            cd_l2 = symmetry_cd_l2(dense_pred, pcd_gt)
-            emd = earth_movers_distance(dense_pred, pcd_gt)
+            cd_l1 = l1_cd(dense_pred, pcd_gt)
+            cd_l2 = l2_cd(dense_pred, pcd_gt)
+            emd_ = emd(dense_pred, pcd_gt)
             fscore = f_score(dense_pred, pcd_gt)
 
-            update_loss_dict(loss_dict, cd_l1, test_dataloader, idx, "cd_l1")
-            update_loss_dict(loss_dict, cd_l2, test_dataloader, idx, "cd_l2")
-            update_loss_dict(loss_dict, emd, test_dataloader, idx, "emd")
-            update_loss_dict(loss_dict, fscore, test_dataloader, idx, "fscore")
+            update_loss_dict(dist_dict, cd_l1.detach().cpu().numpy(), test_dataloader, idx, "cd_l1")
+            update_loss_dict(dist_dict, cd_l2.detach().cpu().numpy(), test_dataloader, idx, "cd_l2")
+            update_loss_dict(dist_dict, emd_.detach().cpu().numpy(), test_dataloader, idx, "emd")
+            update_loss_dict(dist_dict, fscore.detach().cpu().numpy(), test_dataloader, idx, "fscore")
 
+            save_result(test_dataloader, dense_pred, idx, specs)
+            logger.info("saved {} pcds".format(idx.shape[0]))
+
+        cal_avrg_dist(dist_dict, "cd_l1")
+        cal_avrg_dist(dist_dict, "cd_l2")
+        cal_avrg_dist(dist_dict, "emd")
+        cal_avrg_dist(dist_dict, "fscore")
+
+        logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
 
 def main_function(specs, model_path):
     device = specs.get("Device")
@@ -124,7 +140,7 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    model = PCN(num_dense=2048)
+    model = PCN(num_dense=2048).to(device)
     state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
     model.load_state_dict(state_dict)
     logger.info("load trained model succeed")
@@ -149,7 +165,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN_TopNet_2obj_ibs/epoch_85.pth",
+        default="trained_models/PCN/epoch_197.pth",
         required=False,
         help="The network para"
     )
@@ -162,6 +178,7 @@ if __name__ == '__main__':
 
     logger.info("test split: {}".format(specs.get("TestSplit")))
     logger.info("specs file: {}".format(args.experiment_config_file))
+    logger.info("specs file: \n{}".format(json.dumps(specs, sort_keys=False, indent=4)))
     logger.info("model: {}".format(args.model))
 
     main_function(specs, args.model)

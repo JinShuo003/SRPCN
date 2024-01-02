@@ -1,7 +1,7 @@
 import sys
 sys.path.append("/home/data/jinshuo/IBPCDC/ChamferDistancePytorch")
 
-from chamfer3D import dist_chamfer_3D
+from ChamferDistancePytorch.chamfer3D import dist_chamfer_3D
 import torch
 import torch.nn as nn
 from torch.autograd import Function

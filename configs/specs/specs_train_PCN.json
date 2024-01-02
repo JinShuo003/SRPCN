@@ -11,7 +11,7 @@
     "PcdPointNum": 2048,
     "IBSPointNum": 2048,
     "TrainOptions": {
-        "NumEpochs" : 200,
+        "NumEpochs" : 400,
         "BatchSize" : 256,
         "DataLoaderThreads" : 8,
         "LearningRate": 0.0001,

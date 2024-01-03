@@ -119,7 +119,7 @@ def get_sphere_pcd(center=(0, 0, 0), radius=1, points_num=256):
     return sphere_pcd
 
 
-def get_unit_coordinate(size=1):
+def get_coordinate(size=1):
     """
     获取尺度为size的标准坐标轴
     Args:
@@ -164,3 +164,7 @@ def pyvista2o3d(pyvista_polydata):
 
 def o3d2pyvista(o3d_mesh):
     return trimesh2pyvista(o3d2trimesh(o3d_mesh))
+
+
+def visualize_geometries(geometries: list):
+    o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True, mesh_show_back_face=True)

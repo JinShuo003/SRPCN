@@ -2,6 +2,7 @@
 归一化Mesh
 """
 import copy
+import logging
 import multiprocessing
 import os
 import re
@@ -9,7 +10,7 @@ import re
 import numpy as np
 import open3d as o3d
 
-from utils import path_utils, geometry_utils
+from utils import geometry_utils, path_utils, log_utils
 
 
 def getGeometriesPath(specs, scene):
@@ -37,7 +38,6 @@ def getGeometriesPath(specs, scene):
 def save_mesh(specs, scene, mesh1, mesh2):
     mesh_dir = specs.get("path_options").get("mesh_normalize_save_dir")
     category = re.match(specs.get("path_options").get("format_info").get("category_re"), scene).group()
-    # 若pcd_dir+category不存在则创建目录
     if not os.path.isdir(os.path.join(mesh_dir, category)):
         os.makedirs(os.path.join(mesh_dir, category))
 
@@ -50,69 +50,10 @@ def save_mesh(specs, scene, mesh1, mesh2):
     o3d.io.write_triangle_mesh(mesh2_path, mesh2)
 
 
-def save_IOU(specs, scene, aabb_IOU):
-    IOU_dir = specs.get("path_options").get("IOUgt_dir_normalize_save_dir")
-    category = re.match(specs.get("path_options").get("format_info").get("category_re"), scene).group()
-    if not os.path.isdir(os.path.join(IOU_dir, category)):
-        os.makedirs(os.path.join(IOU_dir, category))
-
-    aabb_IOU_obj_filename = '{}.obj'.format(scene)
-    aabb_IOU_txt_filename = '{}.npy'.format(scene)
-    aabb_IOU_obj_path = os.path.join(IOU_dir, category, aabb_IOU_obj_filename)
-    aabb_IOU_txt_path = os.path.join(IOU_dir, category, aabb_IOU_txt_filename)
-
-    # 保存aabb_mesh
-    aabb_mesh = aabb2mesh(aabb_IOU)
-    o3d.io.write_triangle_mesh(aabb_IOU_obj_path, aabb_mesh)
-
-    # 保存aabb_txt
-    min_bound = aabb_IOU.get_min_bound()
-    max_bound = aabb_IOU.get_max_bound()
-    np.save(aabb_IOU_txt_path, np.array([min_bound, max_bound]))
-
-
-def aabb2mesh(aabb):
-    min_bound = aabb.get_min_bound()
-    max_bound = aabb.get_max_bound()
-
-    # 定义AABB框的八个顶点坐标
-    aabb_vertices = np.array([
-        [min_bound[0], min_bound[1], min_bound[2]],  # 顶点1
-        [min_bound[0], min_bound[1], max_bound[2]],  # 顶点2
-        [min_bound[0], max_bound[1], min_bound[2]],  # 顶点3
-        [min_bound[0], max_bound[1], max_bound[2]],  # 顶点4
-        [max_bound[0], min_bound[1], min_bound[2]],  # 顶点5
-        [max_bound[0], min_bound[1], max_bound[2]],  # 顶点6
-        [max_bound[0], max_bound[1], min_bound[2]],  # 顶点7
-        [max_bound[0], max_bound[1], max_bound[2]]  # 顶点8
-    ])
-
-    # 定义AABB框的面索引
-    aabb_faces = np.array([
-        [0, 1, 3],
-        [0, 3, 2],
-        [4, 6, 7],
-        [4, 7, 5],
-        [0, 4, 5],
-        [0, 5, 1],
-        [2, 3, 7],
-        [2, 7, 6],
-        [0, 2, 6],
-        [0, 6, 4],
-        [1, 5, 7],
-        [1, 7, 3]
-    ])
-
-    # 创建Mesh对象
-    mesh = o3d.geometry.TriangleMesh()
-    mesh.vertices = o3d.utility.Vector3dVector(aabb_vertices)
-    mesh.triangles = o3d.utility.Vector3iVector(aabb_faces)
-    return mesh
-
-
 class TrainDataGenerator:
-    def __init__(self, specs):
+    def __init__(self, specs, logger):
         self.specs = specs
+        self.logger = logger
         self.geometries_path = None
 
     def combine_meshes(self, mesh1, mesh2):
@@ -162,7 +103,7 @@ class TrainDataGenerator:
 
     def handle_scene(self, scene):
         """读取mesh，组合后求取归一化参数，然后分别归一化到单位球内，保存结果"""
-        # self.geometries_path = getGeometriesPath(self.specs, scene)
+        normalize_radius = self.specs.get("normalize_radius")
         self.geometries_path = path_utils.get_geometries_path(self.specs, scene)
 
         mesh1 = o3d.io.read_triangle_mesh(self.geometries_path["mesh1"])
@@ -172,24 +113,28 @@ class TrainDataGenerator:
         print(centroid)
         print(scale)
 
-        geometry_utils.geometry_transform(mesh1, centroid, scale)
-        geometry_utils.geometry_transform(mesh2, centroid, scale)
+        mesh1 = geometry_utils.geometry_transform(mesh1, centroid, scale)
+        mesh2 = geometry_utils.geometry_transform(mesh2, centroid, scale)
+        mesh1.scale(normalize_radius, np.array([0, 0, 0]))
+        mesh2.scale(normalize_radius, np.array([0, 0, 0]))
 
         save_mesh(self.specs, scene, mesh1, mesh2)
 
 
 def my_process(scene, specs):
-    # 获取当前进程信息
+    _logger, file_handler, stream_handler = log_utils.get_logger(specs.get("path_options").get("log_dir"), scene)
     process_name = multiprocessing.current_process().name
-    # 执行任务函数的逻辑
-    print(f"Running task in process: {process_name}, scene: {scene}")
-    # 其他任务操作
-    trainDataGenerator = TrainDataGenerator(specs)
+    _logger.info(f"Running task in process: {process_name}, scene: {scene}")
+    trainDataGenerator = TrainDataGenerator(specs, _logger)
+
     try:
         trainDataGenerator.handle_scene(scene)
-        print(f"scene: {scene} succeed")
+        _logger.info("scene: {} succeed".format(scene))
     except Exception as e:
-        print(f"scene: {scene} failed, info: {e}")
+        _logger.error("scene: {} failed, exception message: {}".format(scene, e.message))
+    finally:
+        _logger.removeHandler(file_handler)
+        _logger.removeHandler(stream_handler)
 
 
 if __name__ == '__main__':
@@ -198,21 +143,35 @@ if __name__ == '__main__':
     filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("mesh_dir"))
     path_utils.generate_path(specs.get("path_options").get("mesh_normalize_save_dir"))
 
-    pool = multiprocessing.Pool(processes=3)
+    logger = logging.getLogger("get_IBS")
+    logger.setLevel("INFO")
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(level=logging.INFO)
+    logger.addHandler(stream_handler)
 
-    scene_list = []
+    # 参数
+    view_list = []
     for category in filename_tree:
         for scene in filename_tree[category]:
-            scene_list.append(scene)
+            for filename in filename_tree[category][scene]:
+                view_list.append(filename)
 
-    # 使用进程池执行任务，返回结果列表
-    for scene in scene_list:
-        pool.apply_async(my_process, (scene, specs,))
+    if specs.get("use_process_pool"):
+        pool = multiprocessing.Pool(processes=specs.get("process_num"))
 
-    # 关闭进程池
-    pool.close()
-    pool.join()
+        for filename in view_list:
+            logger.info("current scene: {}".format(filename))
+            pool.apply_async(my_process, (filename, specs))
 
-    # trainDataGenerator = TrainDataGenerator(specs)
-    # for scene in scene_list:
-    #     trainDataGenerator.handle_scene(scene)
+        pool.close()
+        pool.join()
+    else:
+        for filename in view_list:
+            logger.info("current scene: {}".format(filename))
+            _logger, file_handler, stream_handler = log_utils.get_logger(specs.get("path_options").get("log_dir"), filename)
+
+            trainDataGenerator = TrainDataGenerator(specs, _logger)
+            trainDataGenerator.handle_scene(filename)
+
+            _logger.removeHandler(file_handler)
+            _logger.removeHandler(stream_handler)

@@ -30,11 +30,12 @@ class Log:
 
 class IBS:
     def __init__(self, trimesh_obj1, trimesh_obj2, subdevide_max_edge=0.05, sample_num=2048,
-                 sample_method="poisson_disk", clip_border_ratio=2, max_iterate_time=10, show_iterate_result=False,
+                 sample_method="poisson_disk", clip_border_options=None, max_iterate_time=10, show_iterate_result=False,
                  logger=None):
 
         self.sample_num = sample_num
         self.sample_method = sample_method
+        self.clip_border_options = clip_border_options
         self.max_iterate_time = max_iterate_time
         self.show_iterate_result = show_iterate_result
         self.logger = logger
@@ -54,7 +55,6 @@ class IBS:
 
         with Log(self.logger, "get clip border"):
             self.border_sphere_center, self.border_sphere_radius = self._get_clip_border()
-            self.border_sphere_radius *= clip_border_ratio
 
         self.ibs = None
         with Log(self.logger, "create ibs"):
@@ -69,15 +69,28 @@ class IBS:
         self.logger.info(msg)
 
     def _get_clip_border(self):
+        if self.clip_border_options is None or self.clip_border_options.get("clip_border_type") == "total":
+            points = np.concatenate((self.points1, self.points2), axis=0)
+            pcd = get_pcd_from_np(points)
+            center, radius = geometry_utils.get_pcd_normalize_para(pcd)
+            return center, radius * self.clip_border_options.get("clip_border_ratio")
+
+        if self.clip_border_options.get("clip_border_type") == "sphere":
+            center = np.array([0, 0, 0])
+            radius = self.clip_border_options.get("clip_sphere_radius")
+            return center, radius * self.clip_border_options.get("clip_border_ratio")
+
         pcd1 = get_pcd_from_np(self.points1)
         pcd2 = get_pcd_from_np(self.points2)
         center1, radius1 = geometry_utils.get_pcd_normalize_para(pcd1)
         center2, radius2 = geometry_utils.get_pcd_normalize_para(pcd2)
-
-        center = center1 if radius1 < radius2 else center2
-        radius = radius1 if radius1 < radius2 else radius2
-
-        return center, radius
+        if self.clip_border_options.get("clip_border_type") == "min_obj":
+            center = center1 if radius1 < radius2 else center2
+            radius = radius1 if radius1 < radius2 else radius2
+        if self.clip_border_options.get("clip_border_type") == "max_obj":
+            center = center1 if radius1 > radius2 else center2
+            radius = radius1 if radius1 > radius2 else radius2
+        return center, radius * self.clip_border_options.get("clip_border_ratio")
 
     def _subdevide_mesh(self, trimesh_obj, max_edge):
         """

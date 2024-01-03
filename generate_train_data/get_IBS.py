@@ -5,8 +5,6 @@ import logging
 import multiprocessing
 import os
 import re
-import pyibs
-import numpy as np
 
 import open3d as o3d
 
@@ -34,7 +32,7 @@ class TrainDataGenerator:
         subdevide_max_edge = self.specs.get("caculate_options").get("subdevide_max_edge")
         sample_num = self.specs.get("caculate_options").get("sample_num")
         sample_method = self.specs.get("caculate_options").get("sample_method")
-        clip_border_ratio = self.specs.get("caculate_options").get("clip_border_ratio")
+        clip_border_options = self.specs.get("caculate_options").get("clip_border_options")
         max_iterate_time = self.specs.get("caculate_options").get("max_iterate_time")
         show_iterate_result = self.specs.get("caculate_options").get("show_iterate_result")
 
@@ -46,7 +44,7 @@ class TrainDataGenerator:
                             subdevide_max_edge=subdevide_max_edge,
                             sample_num=sample_num,
                             sample_method=sample_method,
-                            clip_border_ratio=clip_border_ratio,
+                            clip_border_options=clip_border_options,
                             max_iterate_time=max_iterate_time,
                             show_iterate_result=show_iterate_result,
                             logger=self.logger)
@@ -57,7 +55,6 @@ class TrainDataGenerator:
     def handle_scene(self, scene):
         geometries_path = path_utils.get_geometries_path(self.specs, scene)
         ibs_mesh_o3d = self.get_ibs_mesh_o3d(geometries_path)
-
         save_ibs_mesh(self.specs, scene, ibs_mesh_o3d)
 
 

@@ -14,7 +14,7 @@ class PCN(nn.Module):
         num_coarse: 1024
     """
 
-    def __init__(self, num_dense=16384, latent_dim=1024, grid_size=4):
+    def __init__(self, num_dense=16384, latent_dim=1024, grid_size=4, device=0):
         super().__init__()
 
         self.num_dense = num_dense
@@ -32,11 +32,18 @@ class PCN(nn.Module):
             nn.Conv1d(128, 256, 1)
         )
 
-        self.second_conv = nn.Sequential(
-            nn.Conv1d(512, 512, 1),
-            nn.BatchNorm1d(512),
+        self.ibs_conv = nn.Sequential(
+            nn.Conv1d(3, 128, 1),
+            nn.BatchNorm1d(128),
             nn.ReLU(inplace=True),
-            nn.Conv1d(512, self.latent_dim, 1)
+            nn.Conv1d(128, 256, 1)
+        )
+
+        self.second_conv = nn.Sequential(
+            nn.Conv1d(768, 1024, 1),
+            nn.BatchNorm1d(1024),
+            nn.ReLU(inplace=True),
+            nn.Conv1d(1024, self.latent_dim, 1)
         )
 
         self.mlp = nn.Sequential(
@@ -61,17 +68,21 @@ class PCN(nn.Module):
         b = torch.linspace(-0.05, 0.05, steps=self.grid_size, dtype=torch.float).view(self.grid_size, 1).expand(
             self.grid_size, self.grid_size).reshape(1, -1)
 
-        self.folding_seed = torch.cat([a, b], dim=0).view(1, 2, self.grid_size ** 2).cuda()  # (1, 2, S)
+        self.folding_seed = torch.cat([a, b], dim=0).view(1, 2, self.grid_size ** 2).to(device)  # (1, 2, S)
 
-    def forward(self, xyz):
+    def forward(self, xyz, ibs):
         B, N, _ = xyz.shape
 
         # encoder
-        feature = self.first_conv(xyz.transpose(2, 1))  # (B,  256, N)
-        feature_global = torch.max(feature, dim=2, keepdim=True)[0]  # (B,  256, 1)
-        feature = torch.cat([feature_global.expand(-1, -1, N), feature], dim=1)  # (B,  512, N)
-        feature = self.second_conv(feature)  # (B, 1024, N)
-        feature_global = torch.max(feature, dim=2, keepdim=False)[0]  # (B, 1024)
+        feature_pcd = self.first_conv(xyz.transpose(2, 1))  # (B,  256, N)
+        feature_ibs = self.ibs_conv(ibs.transpose(2, 1))  # (B,  256, N)
+        feature_pcd_global = torch.max(feature_pcd, dim=2, keepdim=True)[0]  # (B,  256, 1)
+        feature_ibs_global = torch.max(feature_ibs, dim=2, keepdim=True)[0]  # (B,  256, 1)
+        feature_pcd = torch.cat([feature_pcd_global.expand(-1, -1, N), 
+                             feature_ibs_global.expand(-1, -1, N), 
+                             feature_pcd], dim=1)  # (B,  512, N)
+        feature_pcd = self.second_conv(feature_pcd)  # (B, 1024, N)
+        feature_global = torch.max(feature_pcd, dim=2, keepdim=False)[0]  # (B, 1024)
 
         # decoder
         coarse = self.mlp(feature_global).reshape(-1, self.num_coarse, 3)  # (B, num_coarse, 3), coarse point cloud

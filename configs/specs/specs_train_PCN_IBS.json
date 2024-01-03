@@ -1,0 +1,22 @@
+{
+    "TAG": "PCN_IBS",
+    "Description" : "encoder: PCN, decoder: PCN, dataset: INTE_NORM",
+    "DataSource" : "data",
+    "TrainSplit" : "configs/train_scan_2048_normalize/train.json",
+    "TestSplit" : "configs/test_scan_2048_normalize/train.json",
+    "ParaSaveDir" : "trained_models",
+    "TensorboardLogDir" : "tensorboard_logs",
+    "LogDir" : "logs/train",
+    "Device" : 1,
+    "PcdPointNum": 2048,
+    "IBSPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 256,
+        "DataLoaderThreads" : 8,
+        "LearningRate": 0.0001,
+        "CoarseLoss": "cd",
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0
+    }
+}

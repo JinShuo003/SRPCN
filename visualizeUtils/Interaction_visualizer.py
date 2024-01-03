@@ -1,3 +1,4 @@
+import math
 import os.path
 import re
 
@@ -74,6 +75,14 @@ class App:
         self.scene_pcd_pred2 = gui.SceneWidget()
         self.scene_pcd_pred2.scene = rendering.Open3DScene(self.window.renderer)
         self.scene_pcd_pred2_text = gui.Label(self.specs.get("sub_window_4_name"))
+
+        # 视点
+        self.default_view_point = np.array([0, 0, 1.5])
+        self.default_theta = 90
+        self.default_phi = 90
+        self.current_view_point = np.array([0, 0, 1.5])
+        self.current_theta = 90
+        self.current_phi = 90
 
         # 窗口是否显示的标记
         self.flag_pcd_pred1_window_show = False
@@ -351,7 +360,7 @@ class App:
     def on_load_btn_clicked(self):
         self.load_data()
         self.update_info_area()
-        self.update_camera_all_scene()
+        self.update_all_camera(np.array([0, 0, 1.5]))
 
     def get_view_info(self):
         view = self.view_selector.get_item(self.selected_view)
@@ -376,7 +385,7 @@ class App:
                                            self.selected_category - 1)
         self.load_data()
         self.update_info_area()
-        self.update_camera_all_scene()
+        self.update_all_camera(np.array([0, 0, 1.5]))
 
     def on_next_category_btn_clicked(self):
         if self.selected_category >= self.category_selector.number_of_items - 1:
@@ -385,7 +394,7 @@ class App:
                                            self.selected_category + 1)
         self.load_data()
         self.update_info_area()
-        self.update_camera_all_scene()
+        self.update_all_camera(np.array([0, 0, 1.5]))
 
     def on_pre_scene_btn_clicked(self):
         if self.selected_scene <= 0:
@@ -393,7 +402,6 @@ class App:
         self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene - 1), self.selected_scene - 1)
         self.load_data()
         self.update_info_area()
-        self.update_camera_all_scene()
 
     def on_next_scene_btn_clicked(self):
         if self.selected_scene >= self.scene_selector.number_of_items - 1:
@@ -401,7 +409,6 @@ class App:
         self.on_scene_selection_changed(self.scene_selector.get_item(self.selected_scene + 1), self.selected_scene + 1)
         self.load_data()
         self.update_info_area()
-        self.update_camera_all_scene()
 
     def on_pre_view_btn_clicked(self):
         if self.selected_view <= 0:
@@ -503,31 +510,26 @@ class App:
             scene.scene.remove_geometry(name)
         scene.scene.add_geometry(name, geometry, self.material.get("obj"))
 
-    def update_camera_all_scene(self):
-        self.update_camera(self.scene_pcd_complete, self.pcd_complete_1, self.pcd_complete_2)
-        self.update_camera(self.scene_pcd_partial, self.pcd_partial_1, self.pcd_partial_2)
-        self.update_camera(self.scene_pcd_pred1, self.pcd_pred1_1, self.pcd_pred1_2)
-        self.update_camera(self.scene_pcd_pred2, self.pcd_pred2_1, self.pcd_pred2_2)
+    def reset_all_camera(self):
+        self.current_theta = self.default_theta
+        self.current_phi = self.default_phi
+        self.current_view_point = self.default_view_point
+        self.update_all_camera(self.default_view_point)
 
-    def update_camera(self, scene, geometry1, geometry2):
-        bounds1 = None
-        bounds2 = None
-        if geometry1 is None and geometry2 is None:
-            return
-        if geometry1 is not None:
-            bounds1 = geometry1.get_axis_aligned_bounding_box()
-        if geometry2 is not None:
-            bounds2 = geometry2.get_axis_aligned_bounding_box()
-        if bounds1 is None:
-            scene.setup_camera(60, bounds2, bounds2.get_center())
-            return
-        if bounds2 is None:
-            scene.setup_camera(60, bounds1, bounds1.get_center())
-            return
-        bounds = [bounds1.get_max_bound(), bounds1.get_min_bound(), bounds2.get_max_bound(), bounds2.get_min_bound()]
-        bounds = o3d.utility.Vector3dVector(bounds)
-        bounds = o3d.geometry.AxisAlignedBoundingBox.create_from_points(bounds)
-        scene.setup_camera(60, bounds, bounds.get_center())
+    def update_all_camera(self, eye):
+        self.update_camera(self.scene_pcd_complete, eye)
+        self.update_camera(self.scene_pcd_partial, eye)
+        self.update_camera(self.scene_pcd_pred1, eye)
+        self.update_camera(self.scene_pcd_pred2, eye)
+
+    def update_camera(self, scene, eye):
+        scene.look_at(np.array([0, 0, 0]), eye, np.array([0, 1, 0]))
+
+    def update_view_point(self, theta, phi):
+        x = 1.5 * math.sin(math.radians(phi)) * math.cos(math.radians(theta))
+        z = 1.5 * math.sin(math.radians(phi)) * math.sin(math.radians(theta))
+        y = 1.5 * math.cos(math.radians(phi))
+        return np.array([x, y, z])
 
     def on_layout(self, layout_context):
         r = self.window.content_rect
@@ -535,22 +537,22 @@ class App:
         if self.scene_pcd_complete:
             self.scene_pcd_complete.frame = gui.Rect(r.x, r.y, self.sub_window_width, self.sub_window_height)
             self.scene_pcd_complete_text.frame = gui.Rect(r.x, r.y,
-                                                          len(self.scene_pcd_complete_str)*8, 0)
+                                                          len(self.scene_pcd_complete_str)*15, 0)
         if self.scene_pcd_partial:
             self.scene_pcd_partial.frame = gui.Rect(r.x + self.sub_window_width, r.y, self.sub_window_width,
                                                     self.sub_window_height)
             self.scene_pcd_partial_text.frame = gui.Rect(r.x + self.sub_window_width, r.y,
-                                                         len(self.scene_pcd_partial_str)*8, 0)
+                                                         len(self.scene_pcd_partial_str)*15, 0)
         if self.scene_pcd_pred1:
             self.scene_pcd_pred1.frame = gui.Rect(r.x, r.y + self.sub_window_height, self.sub_window_width,
                                                   self.sub_window_height)
             self.scene_pcd_pred1_text.frame = gui.Rect(r.x, r.y + self.sub_window_height,
-                                                       len(self.scene_pcd_pred1_str)*8, 0)
+                                                       len(self.scene_pcd_pred1_str)*15, 0)
         if self.scene_pcd_pred2:
             self.scene_pcd_pred2.frame = gui.Rect(r.x + self.sub_window_width, r.y + self.sub_window_height,
                                                   self.sub_window_width, self.sub_window_height)
             self.scene_pcd_pred2_text.frame = gui.Rect(r.x + self.sub_window_width, r.y + self.sub_window_height,
-                                                       len(self.scene_pcd_pred2_str)*8, 0)
+                                                       len(self.scene_pcd_pred2_str)*15, 0)
 
         self.tool_bar_layout.frame = gui.Rect(r.x + self.sub_window_width * 2, r.y, self.tool_bar_width, r.height)
 
@@ -560,37 +562,60 @@ class App:
         # 切换类别
         if key_event.key == o3d.visualization.gui.KeyName.Q:
             self.on_pre_category_btn_clicked()
-            return
         if key_event.key == o3d.visualization.gui.KeyName.E:
             self.on_next_category_btn_clicked()
-            return
 
         # 切换场景
         if key_event.key == o3d.visualization.gui.KeyName.UP:
             self.on_pre_scene_btn_clicked()
-            return
         if key_event.key == o3d.visualization.gui.KeyName.DOWN:
             self.on_next_scene_btn_clicked()
-            return
 
         # 切换视角
         if key_event.key == o3d.visualization.gui.KeyName.RIGHT:
             self.on_next_view_btn_clicked()
-            return
         if key_event.key == o3d.visualization.gui.KeyName.LEFT:
             self.on_pre_view_btn_clicked()
-            return
 
         # 可见性
-        if key_event.key == o3d.visualization.gui.KeyName.A:
+        if key_event.key == o3d.visualization.gui.KeyName.ONE:
             self.on_show_pcd1_checked(not self.show_pcd1_checked)
-            return
-        if key_event.key == o3d.visualization.gui.KeyName.S:
+        if key_event.key == o3d.visualization.gui.KeyName.TWO:
             self.on_show_pcd2_checked(not self.show_pcd2_checked)
-            return
-        if key_event.key == o3d.visualization.gui.KeyName.D:
+        if key_event.key == o3d.visualization.gui.KeyName.THREE:
             self.on_show_ibs_checked(not self.show_ibs_checked)
-            return
+
+        # 切换视角
+        if key_event.key == o3d.visualization.gui.KeyName.F1:
+            self.update_all_camera(np.array([0, 0, 1.5]))
+        if key_event.key == o3d.visualization.gui.KeyName.F2:
+            self.update_all_camera(np.array([0, 0, -1.5]))
+        if key_event.key == o3d.visualization.gui.KeyName.F3:
+            self.update_all_camera(np.array([1.5, 0, 0]))
+        if key_event.key == o3d.visualization.gui.KeyName.F4:
+            self.update_all_camera(np.array([-1.5, 0, 0]))
+
+        # 变换视角
+        if key_event.key == o3d.visualization.gui.KeyName.W:
+            self.current_phi = self.current_phi + 5
+            if self.current_phi >= 175:
+                self.current_phi = 175
+            self.current_view_point = self.update_view_point(self.current_theta, self.current_phi)
+            self.update_all_camera(self.current_view_point)
+        if key_event.key == o3d.visualization.gui.KeyName.S:
+            self.current_phi = self.current_phi - 5
+            if self.current_phi <= 5:
+                self.current_phi = 5
+            self.current_view_point = self.update_view_point(self.current_theta, self.current_phi)
+            self.update_all_camera(self.current_view_point)
+        if key_event.key == o3d.visualization.gui.KeyName.A:
+            self.current_theta = (self.current_theta - 5) % 360
+            self.current_view_point = self.update_view_point(self.current_theta, self.current_phi)
+            self.update_all_camera(self.current_view_point)
+        if key_event.key == o3d.visualization.gui.KeyName.D:
+            self.current_theta = (self.current_theta + 5) % 360
+            self.current_view_point = self.update_view_point(self.current_theta, self.current_phi)
+            self.update_all_camera(self.current_view_point)
 
     def on_dialog_ok(self):
         self.window.close_dialog()

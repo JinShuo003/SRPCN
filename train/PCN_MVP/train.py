@@ -139,6 +139,15 @@ def get_tensorboard_writer(specs, network):
     return tensorboard_writer
 
 
+def save_model(specs, model, epoch):
+    para_save_dir = specs.get("ParaSaveDir")
+    para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
+    if not os.path.isdir(para_save_path):
+        os.mkdir(para_save_path)
+    model_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
+    torch.save(model.state_dict(), model_filename)
+
+
 def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
     device = specs.get("Device")
     coarse_loss = specs.get("TrainOptions").get("CoarseLoss")
@@ -226,11 +235,9 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
             best_cd_l1 = test_avrg_loss_cd_l1
             logger.info('newest best epoch: {}'.format(best_epoch))
             logger.info('newest best cd l1: {}'.format(best_cd_l1))
-            para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
-            if not os.path.isdir(para_save_path):
-                os.mkdir(para_save_path)
-            model_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
-            torch.save(network.state_dict(), model_filename)
+            save_model(specs, network, epoch)
+        if epoch % 5 == 0:
+            save_model(specs, network, epoch)
 
         return best_cd_l1, best_epoch
 

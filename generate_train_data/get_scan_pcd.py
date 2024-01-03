@@ -551,7 +551,7 @@ class TrainDataGenerator:
         return scanPcdGenerator.generate_scan_pcd()
 
     def visualize_result(self, pcd1_partial_list, pcd2_partial_list, scan_view_list):
-        coor = geometry_utils.get_unit_coordinate()
+        coor = geometry_utils.get_coordinate()
         sphere = geometry_utils.get_sphere_pcd()
 
         for i in range(len(pcd1_partial_list)):

@@ -135,8 +135,8 @@ def visualize(specs, filename):
     pcd1_pred = pcdGetter().get(geometry_path['pcd1_pred'], geometry_color['pcd1_pred'], geometry_option["pcd1_pred"])
     pcd2_pred = pcdGetter().get(geometry_path['pcd2_pred'], geometry_color['pcd2_pred'], geometry_option["pcd2_pred"])
 
-    coord_frame = geometry_utils.get_unit_coordinate(size=1)
-    unit_sphere_pcd = geometry_utils.get_sphere_pcd(radius=1)
+    coord_frame = geometry_utils.get_coordinate(size=0.5)
+    unit_sphere_pcd = geometry_utils.get_sphere_pcd(radius=0.5)
 
     container['mesh1'] = mesh1
     container['mesh2'] = mesh2

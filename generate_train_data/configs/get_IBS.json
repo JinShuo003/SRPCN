@@ -12,7 +12,7 @@
       "scene_re": "scene\\d.\\d{4}",
       "filename_re": "scene\\d.\\d{4}",
       "handle_category": "scene\\d",
-      "handle_scene": "scene7.1017",
+      "handle_scene": "scene7.1020",
       "handle_filename": "scene\\d.\\d{4}"
     },
     "ibs_mesh_save_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
@@ -30,7 +30,7 @@
       "clip_border_ratio": 1
     },
     "max_iterate_time": 20,
-    "show_iterate_result": true
+    "show_iterate_result": false
   },
   "use_process_pool": false,
   "process_num": 8

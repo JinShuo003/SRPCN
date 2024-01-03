@@ -218,6 +218,8 @@ class ScanPcdGenerator:
         eye = [r * math.sin(theta_radian) * math.cos(phi_radian),
                r * math.cos(theta_radian),
                r * math.sin(theta_radian) * math.sin(phi_radian)]
+        if theta == 0 or theta == 180:
+            eye[0] = 1e-8
         return np.array(eye)
 
     def get_border_points(self, eye, rays):
@@ -349,19 +351,6 @@ class ScanPcdGenerator:
         """
         if points_obj1.shape[0] == 0 or points_obj2.shape[0] == 0:
             return False
-        # pcd1, pcd2 = self.get_cur_view_pcd(cast_result)
-        # if points_obj1.shape[0] < min_init_point_num:
-        #     logger.debug(f"points_obj1 not enough, points_num: {points_obj1.shape[0]}")
-        #     centroid, diameter = geometry_utils.get_pcd_normalize_para(pcd1)
-        #     if diameter / 2 < min_init_radius:
-        #         logger.debug(f"points_obj1 radius too small, radius: {diameter / 2}")
-        #         return False
-        # if points_obj2.shape[0] < min_init_point_num:
-        #     logger.debug(f"points_obj2 not enough, points_num: {points_obj2.shape[0]}")
-        #     centroid, diameter = geometry_utils.get_pcd_normalize_para(pcd2)
-        #     if diameter / 2 < min_init_radius:
-        #         logger.debug(f"points_obj2 radius too small, radius: {diameter / 2}")
-        #         return False
         return True
 
     def expand_points_in_rectangle(self, expand_points_num, width, height, plane: Plane, points):
@@ -453,6 +442,7 @@ class ScanPcdGenerator:
                                                             self.scan_plane,
                                                             projection_points)  # 扩充投影点，保证随机性
         rays = self.get_rays_from_projection_points(eye, projection_points)  # 射线
+        # self.visualizer.visualize_rays(eye, rays, [self.mesh1, self.mesh2, geometry_utils.get_sphere_pcd(radius=0.5)])
         cast_result = self.get_ray_cast_result(self.scene, rays)  # 射线求交结果
         points_obj1, points_obj2 = self.get_points_intersect(projection_points, cast_result)  # 与obj1、obj2相交的射线投影点
         self.logger.info("init rays num: {}, intersect with obj1: {}, intersect with obj2: {}"
@@ -510,17 +500,34 @@ class ScanPcdGenerator:
         scan_view_list = []
         # 球坐标，theta为天顶角，phi为方位角
         index = 0
+        # 俯视
+        self.logger.info("\n")
+        self.logger.info("begin generate theta: {}, phi: {}".format(0, 0))
+        pcd1_scan, pcd2_scan, success = self.get_current_view_scan_pcd(0, 0)
+        if success:
+            pcd1_partial_list.append(pcd1_scan)
+            pcd2_partial_list.append(pcd2_scan)
+            scan_view_list.append(index)
+            index += 1
+        # 仰视
+        self.logger.info("\n")
+        self.logger.info("begin generate theta: {}, phi: {}".format(180, 0))
+        pcd1_scan, pcd2_scan, success = self.get_current_view_scan_pcd(180, 0)
+        if success:
+            pcd1_partial_list.append(pcd1_scan)
+            pcd2_partial_list.append(pcd2_scan)
+            scan_view_list.append(index)
+            index += 1
         for theta in [45, 90, 135]:
             for phi in range(0, 360, 45):
                 self.logger.info("\n")
                 self.logger.info("begin generate theta: {}, phi: {}".format(theta, phi))
                 pcd1_scan, pcd2_scan, success = self.get_current_view_scan_pcd(theta, phi)
-                if not success:
-                    continue
-                pcd1_partial_list.append(pcd1_scan)
-                pcd2_partial_list.append(pcd2_scan)
-                scan_view_list.append(index)
-                index += 1
+                if success:
+                    pcd1_partial_list.append(pcd1_scan)
+                    pcd2_partial_list.append(pcd2_scan)
+                    scan_view_list.append(index)
+                    index += 1
 
         return pcd1_partial_list, pcd2_partial_list, scan_view_list
 

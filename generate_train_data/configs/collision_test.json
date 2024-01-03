@@ -22,5 +22,5 @@
   "collision_test_type": ["origin_mesh", "ibs"],
   "type": "ibs",
   "use_process_pool": true,
-  "process_num": 5
+  "process_num": 10
 }

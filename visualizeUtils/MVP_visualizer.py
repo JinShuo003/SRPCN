@@ -469,7 +469,6 @@ class App:
         if key_event.key == o3d.visualization.gui.KeyName.LEFT:
             self.on_pre_view_btn_clicked()
 
-
         # 切换视角
         if key_event.key == o3d.visualization.gui.KeyName.F1:
             self.update_all_camera(np.array([0, 0, self.view_point_radius]))

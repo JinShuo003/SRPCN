@@ -12,7 +12,7 @@
       "scene_re": "scene\\d.\\d{4}",
       "filename_re": "scene\\d.\\d{4}",
       "handle_category": "scene\\d",
-      "handle_scene": "scene8.1017",
+      "handle_scene": "scene8.1003",
       "handle_filename": "scene\\d.\\d{4}"
     },
     "mesh_normalize_save_dir": "D:\\dataset\\IBPCDC\\mesh_norm",

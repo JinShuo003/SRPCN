@@ -7,7 +7,7 @@
     },
     "geometries_dir": {
       "mesh_dir": "D:\\dataset\\IBPCDC\\mesh",
-      "ibs_dir": "D:\\dataset\\IBPCDC\\IBS_mesh_complete"
+      "ibs_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
     },
     "format_info": {
       "category_re": "scene\\d",

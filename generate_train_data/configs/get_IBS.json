@@ -12,7 +12,7 @@
       "scene_re": "scene\\d.\\d{4}",
       "filename_re": "scene\\d.\\d{4}",
       "handle_category": "scene\\d",
-      "handle_scene": "scene8.1017",
+      "handle_scene": "scene7.1017",
       "handle_filename": "scene\\d.\\d{4}"
     },
     "ibs_mesh_save_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
@@ -22,7 +22,7 @@
     "subdevide_max_edge": 0.01,
     "sample_num": 2048,
     "sample_method_options": ["poisson_disk", "dist_weight"],
-    "sample_method": "dist_weight",
+    "sample_method": "poisson_disk",
     "clip_border_options": {
       "sample_method_options": ["min_obj", "max_obj", "total", "sphere"],
       "clip_border_type": "sphere",

@@ -15,7 +15,7 @@ import time
 from networks.model_Transformer_TopNet_MVP import *
 
 from utils import path_utils, log_utils
-from utils.loss import *
+from utils.loss import cd_loss_L1, emd_loss
 from dataset import dataset_MVP
 
 logger = None
@@ -174,28 +174,20 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
     para_save_dir = specs.get("ParaSaveDir")
 
     network.eval()
-
     with torch.no_grad():
         test_total_cd_l1 = 0
-        test_total_emd = 0
         for pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
             pcd_pred = network(pcd_partial)
             loss_cd_l1 = cd_loss_L1(pcd_pred, pcd_gt)
-            loss_emd = emd_loss(pcd_pred, pcd_gt)
 
             test_total_cd_l1 += loss_cd_l1.item()
-            test_total_emd += loss_emd.item()
 
         test_avrg_loss_cd_l1 = test_total_cd_l1 / test_dataloader.__len__()
         tensorboard_writer.add_scalar("test_loss_cd_l1", test_avrg_loss_cd_l1, epoch)
         logger.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd_l1))
-
-        test_avrg_loss_emd = test_total_emd / test_dataloader.__len__()
-        tensorboard_writer.add_scalar("test_loss_emd", test_avrg_loss_emd, epoch)
-        logger.info('test_avrg_loss_emd: {}'.format(test_avrg_loss_emd))
 
         if test_avrg_loss_cd_l1 < best_cd_l1:
             best_epoch = epoch
@@ -217,8 +209,9 @@ def main_function(specs):
     continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
 
     TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
-    logger.info("begin time: {}".format(TIMESTAMP))
+
     logger.info("current network TAG: {}".format(specs.get("TAG")))
+    logger.info("current time: {}".format(TIMESTAMP))
     logger.info("There are {} epochs in total".format(epoch_num))
 
     train_loader, test_loader = get_dataloader(specs)
@@ -244,8 +237,6 @@ def main_function(specs):
         logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     tensorboard_writer.close()
-    TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
-    logger.info("end time: {}".format(TIMESTAMP))
 
 
 if __name__ == '__main__':
@@ -264,7 +255,6 @@ if __name__ == '__main__':
     specs = path_utils.read_config(args.experiment_config_file)
 
     logger = log_utils.get_train_logger(specs)
-    logger.info("begin time: {}".format(args.experiment_config_file))
     logger.info("specs file path: {}".format(args.experiment_config_file))
     logger.info("specs file: \n{}".format(json.dumps(specs, sort_keys=False, indent=4)))
 

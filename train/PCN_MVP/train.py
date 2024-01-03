@@ -12,7 +12,7 @@ import open3d as o3d
 import argparse
 import time
 
-from networks.model_PCN import *
+from networks.model_PCN_MVP import *
 
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, emd_loss
@@ -277,7 +277,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_PCN.json",
+        default="configs/specs/specs_train_PCN_MVP.json",
         required=False,
         help="The experiment config file."
     )

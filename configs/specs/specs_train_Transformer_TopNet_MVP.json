@@ -10,7 +10,7 @@
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
-        "NumEpochs" : 200,
+        "NumEpochs" : 400,
         "BatchSize" : 512,
         "DataLoaderThreads" : 8,
         "LearningRate": 0.001,

@@ -1,10 +1,10 @@
 {
-    "TAG": "PCN",
+    "TAG": "PCN_MVP",
     "DataSource" : "data",
     "TestSplit" : "configs/test_MVP/test.json",
     "ScenePatten": "scene\\d+.\\d+",
     "LogDir" : "logs/test",
-    "ResultSaveDir": "test_result/PCN",
+    "ResultSaveDir": "test_result/PCN_MVP",
     "Device" : 0,
     "BatchSize" : 256,
     "DataLoaderThreads" : 8

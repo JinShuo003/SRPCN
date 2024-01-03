@@ -9,6 +9,7 @@ import re
 import argparse
 import time
 import numpy as np
+import open3d as o3d
 import shutil
 
 from networks.model_PCN import *
@@ -162,6 +163,11 @@ def main_function(specs, model_path):
     time_end_test = time.time()
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
+    time_begin_zip = time.time()
+    create_zip()
+    time_end_zip = time.time()
+    logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
+
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser(description="")
@@ -177,7 +183,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN/epoch_197.pth",
+        default="trained_models/PCN/epoch_277.pth",
         required=False,
         help="The network para"
     )

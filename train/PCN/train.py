@@ -15,8 +15,7 @@ import time
 from networks.model_PCN import *
 
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1
-from utils.loss_PCN import emd_loss
+from utils.loss import cd_loss_L1, emd_loss
 from dataset import dataset_MVP
 
 logger = None

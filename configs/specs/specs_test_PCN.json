@@ -6,6 +6,6 @@
     "LogDir" : "logs/test",
     "ResultSaveDir": "test_result/PCN",
     "Device" : 0,
-    "BatchSize" : 512,
+    "BatchSize" : 256,
     "DataLoaderThreads" : 8
 }

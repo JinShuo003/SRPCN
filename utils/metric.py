@@ -1,8 +1,6 @@
 import torch
-import sys
-sys.path.append("/home/data/jinshuo/IBPCDC/ChamferDistancePytorch")
 
-from chamfer3D import dist_chamfer_3D
+from ChamferDistancePytorch.chamfer3D import dist_chamfer_3D
 from utils.loss import emdModule
 
 
@@ -25,7 +23,7 @@ def l2_cd(pcd1, pcd2):
 def emd(pcd1, pcd2):
     emd_loss = emdModule()
     dists = emd_loss(pcd1, pcd2)[0]
-    return dists
+    return torch.mean(dists, dim=1)
 
 
 def f_score(pcd1, pcd2, threshold=0.0001):

@@ -1,5 +1,23 @@
 {
+  "log_dir_options": [
+    "logs/get_IBS",
+    "logs/collision_test_ibs",
+    "logs/collision_test_obj",
+    "logs/get_scan_pcd"
+  ],
+  "patten_options": [
+    "create ibs failed",
+    "collision occured",
+    "collision occured",
+    "not enough init points"
+  ],
+  "analyze_result_filename_options": [
+    "log_analyzer_get_IBS.txt",
+    "log_analyzer_collision_test_ibs.txt",
+    "log_analyzer_collision_test_obj.txt",
+    "log_analyzer_get_scan_pcd.txt"
+  ],
   "log_dir": "logs/collision_test_ibs",
-  "patten": ".*occured.*",
+  "patten": ".*collision occured.*",
   "analyze_result_filename": "log_analyzer_collision_test_ibs.txt"
 }

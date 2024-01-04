@@ -77,10 +77,11 @@ class App:
         self.scene_pcd_pred2_text = gui.Label(self.specs.get("sub_window_4_name"))
 
         # 视点
-        self.default_view_point = np.array([0, 0, 1.5])
+        self.view_point_radius = 0.75
+        self.default_view_point = np.array([0, 0, self.view_point_radius])
         self.default_theta = 90
         self.default_phi = 90
-        self.current_view_point = np.array([0, 0, 1.5])
+        self.current_view_point = np.array([0, 0, self.view_point_radius])
         self.current_theta = 90
         self.current_phi = 90
 
@@ -360,7 +361,7 @@ class App:
     def on_load_btn_clicked(self):
         self.load_data()
         self.update_info_area()
-        self.update_all_camera(np.array([0, 0, 1.5]))
+        self.update_all_camera(np.array([0, 0, self.view_point_radius]))
 
     def get_view_info(self):
         view = self.view_selector.get_item(self.selected_view)
@@ -385,7 +386,7 @@ class App:
                                            self.selected_category - 1)
         self.load_data()
         self.update_info_area()
-        self.update_all_camera(np.array([0, 0, 1.5]))
+        self.update_all_camera(np.array([0, 0, self.view_point_radius]))
 
     def on_next_category_btn_clicked(self):
         if self.selected_category >= self.category_selector.number_of_items - 1:
@@ -394,7 +395,7 @@ class App:
                                            self.selected_category + 1)
         self.load_data()
         self.update_info_area()
-        self.update_all_camera(np.array([0, 0, 1.5]))
+        self.update_all_camera(np.array([0, 0, self.view_point_radius]))
 
     def on_pre_scene_btn_clicked(self):
         if self.selected_scene <= 0:
@@ -526,9 +527,9 @@ class App:
         scene.look_at(np.array([0, 0, 0]), eye, np.array([0, 1, 0]))
 
     def update_view_point(self, theta, phi):
-        x = 1.5 * math.sin(math.radians(phi)) * math.cos(math.radians(theta))
-        z = 1.5 * math.sin(math.radians(phi)) * math.sin(math.radians(theta))
-        y = 1.5 * math.cos(math.radians(phi))
+        x = self.view_point_radius * math.sin(math.radians(phi)) * math.cos(math.radians(theta))
+        z = self.view_point_radius * math.sin(math.radians(phi)) * math.sin(math.radians(theta))
+        y = self.view_point_radius * math.cos(math.radians(phi))
         return np.array([x, y, z])
 
     def on_layout(self, layout_context):
@@ -587,13 +588,13 @@ class App:
 
         # 切换视角
         if key_event.key == o3d.visualization.gui.KeyName.F1:
-            self.update_all_camera(np.array([0, 0, 1.5]))
+            self.update_all_camera(np.array([0, 0, self.view_point_radius]))
         if key_event.key == o3d.visualization.gui.KeyName.F2:
-            self.update_all_camera(np.array([0, 0, -1.5]))
+            self.update_all_camera(np.array([0, 0, -self.view_point_radius]))
         if key_event.key == o3d.visualization.gui.KeyName.F3:
-            self.update_all_camera(np.array([1.5, 0, 0]))
+            self.update_all_camera(np.array([self.view_point_radius, 0, 0]))
         if key_event.key == o3d.visualization.gui.KeyName.F4:
-            self.update_all_camera(np.array([-1.5, 0, 0]))
+            self.update_all_camera(np.array([-self.view_point_radius, 0, 0]))
 
         # 变换视角
         if key_event.key == o3d.visualization.gui.KeyName.W:

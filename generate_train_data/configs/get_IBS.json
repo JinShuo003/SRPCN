@@ -12,14 +12,14 @@
       "scene_re": "scene\\d.\\d{4}",
       "filename_re": "scene\\d.\\d{4}",
       "handle_category": "scene\\d",
-      "handle_scene": "scene7.1020",
+      "handle_scene": "scene7.1001",
       "handle_filename": "scene\\d.\\d{4}"
     },
     "ibs_mesh_save_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
     "log_dir": "logs/get_IBS"
   },
   "caculate_options": {
-    "subdevide_max_edge": 0.01,
+    "subdivide_max_edge": 0.05,
     "sample_num": 2048,
     "sample_method_options": ["poisson_disk", "dist_weight"],
     "sample_method": "poisson_disk",
@@ -27,11 +27,15 @@
       "sample_method_options": ["min_obj", "max_obj", "total", "sphere"],
       "clip_border_type": "sphere",
       "clip_sphere_radius": 1,
-      "clip_border_ratio": 1
+      "clip_border_magnification": 1
     },
-    "max_iterate_time": 20,
-    "show_iterate_result": false
+    "max_iterate_time": 40,
+    "show_iterate_result": false,
+    "max_resample_points": 25000,
+    "max_points_for_compute": 50000,
+    "simplify": true,
+    "max_triangle_num": 50000
   },
   "use_process_pool": false,
-  "process_num": 8
+  "process_num": 5
 }

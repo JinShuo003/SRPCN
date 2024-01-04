@@ -29,26 +29,39 @@ class TrainDataGenerator:
         self.logger = logger
 
     def get_ibs_mesh_o3d(self, geometries_path: dict):
-        subdevide_max_edge = self.specs.get("caculate_options").get("subdevide_max_edge")
+        subdivide_max_edge = self.specs.get("caculate_options").get("subdivide_max_edge")
         sample_num = self.specs.get("caculate_options").get("sample_num")
         sample_method = self.specs.get("caculate_options").get("sample_method")
-        clip_border_options = self.specs.get("caculate_options").get("clip_border_options")
+        clip_border_type = self.specs.get("caculate_options").get("clip_border_options").get("clip_border_type")
+        clip_sphere_radius = self.specs.get("caculate_options").get("clip_border_options").get("clip_sphere_radius")
+        clip_border_magnification = self.specs.get("caculate_options").get("clip_border_options").get("clip_border_magnification")
         max_iterate_time = self.specs.get("caculate_options").get("max_iterate_time")
         show_iterate_result = self.specs.get("caculate_options").get("show_iterate_result")
+        max_resample_points = self.specs.get("caculate_options").get("max_resample_points")
+        max_points_for_compute = self.specs.get("caculate_options").get("max_points_for_compute")
+        simplify = self.specs.get("caculate_options").get("simplify")
+        max_triangle_num = self.specs.get("caculate_options").get("max_triangle_num")
 
         mesh1 = geometry_utils.read_mesh(geometries_path["mesh1"])
         mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
 
         ibs = ibs_utils.IBS(geometry_utils.o3d2trimesh(mesh1),
                             geometry_utils.o3d2trimesh(mesh2),
-                            subdevide_max_edge=subdevide_max_edge,
-                            sample_num=sample_num,
+                            subdivide_max_edge=subdivide_max_edge,
                             sample_method=sample_method,
-                            clip_border_options=clip_border_options,
+                            sample_num=sample_num,
+                            clip_border_type=clip_border_type,
+                            clip_sphere_radius=clip_sphere_radius,
+                            clip_border_magnification=clip_border_magnification,
                             max_iterate_time=max_iterate_time,
                             show_iterate_result=show_iterate_result,
+                            max_resample_points=max_resample_points,
+                            max_points_for_compute=max_points_for_compute,
+                            simplify=simplify,
+                            max_triangle_num=max_triangle_num,
                             logger=self.logger)
-        ibs_o3d = geometry_utils.trimesh2o3d(ibs.ibs)
+        ibs.launch()
+        ibs_o3d = ibs.get_ibs_o3d()
 
         return ibs_o3d
 

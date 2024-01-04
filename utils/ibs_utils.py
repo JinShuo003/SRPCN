@@ -1,3 +1,4 @@
+import logging
 import random
 import time
 
@@ -29,83 +30,142 @@ class Log:
 
 
 class IBS:
-    def __init__(self, trimesh_obj1, trimesh_obj2, subdevide_max_edge=0.05, sample_num=2048,
-                 sample_method="poisson_disk", clip_border_options=None, max_iterate_time=10, show_iterate_result=False,
-                 logger=None):
-
-        self.sample_num = sample_num
+    def __init__(self, trimesh_obj1: trimesh.Trimesh, trimesh_obj2: trimesh.Trimesh,
+                 subdivide_max_edge: float = 0.05, sample_method: str = "poisson_disk", sample_num: int = 2048,
+                 clip_border_type: str = "sphere", clip_sphere_radius: float = 1, clip_border_magnification: float = 1,
+                 max_iterate_time: float = 10, show_iterate_result: bool = False, max_resample_points: int = 25000,
+                 max_points_for_compute: int = 50000, simplify: bool = False, max_triangle_num: int = 50000,
+                 logger: logging.Logger = None):
+        """
+        Args:
+            trimesh_obj1: object1: trimesh.Trimesh
+            trimesh_obj2: object2: trimesh.Trimesh
+            subdivide_max_edge: The max length of triangle edge after subdivide
+            sample_method: The method of sample points from mesh
+            sample_num: The number of sample points from mesh to compute Voronoi Diagram
+            clip_border_type: The type of border to clip ibs
+            clip_sphere_radius: Make sense when $clip_border_type$ is "sphere", the radius of sphere
+            clip_border_magnification: The magnification of clip border
+            max_iterate_time: Maximum number of iterations
+            show_iterate_result: If True, will show [mesh1, mesh2, ibs] after every iteration
+            max_resample_points: The maximum number of resample points
+            max_points_for_compute: The maximum number of points to compute Voronoi Diagram
+            simplify: If True, will simplify ibs mesh until the number of triangles less than $max_triangle_num$
+            max_triangle_num: Make sense when $simplify$ is True, the maximum number of triangles of ibs mesh
+            logger: The logger to trace log
+        """
+        self.trimesh_obj1 = trimesh_obj1
+        self.trimesh_obj2 = trimesh_obj2
+        self.subdivide_max_edge = subdivide_max_edge
         self.sample_method = sample_method
-        self.clip_border_options = clip_border_options
+        self.sample_num = sample_num
+        self.clip_border_type = clip_border_type
+        self.clip_sphere_radius = clip_sphere_radius
+        self.clip_border_magnification = clip_border_magnification
         self.max_iterate_time = max_iterate_time
         self.show_iterate_result = show_iterate_result
-        self.logger = logger
-
-        with Log(self.logger, "subdivide mesh1"):
-            self.trimesh_obj1 = self._subdevide_mesh(trimesh_obj1, subdevide_max_edge)
-
-        with Log(self.logger, "subdivide mesh2"):
-            self.trimesh_obj2 = self._subdevide_mesh(trimesh_obj2, subdevide_max_edge)
-
+        self.max_resample_points = max_resample_points
+        self.max_points_for_compute = max_points_for_compute
+        self.simplify = simplify
+        self.max_triangle_num = max_triangle_num
+        self.logger = logger if logger is not None else self.get_logger()
+        self.ibs = None
         self.o3d_obj1 = trimesh2o3d(self.trimesh_obj1)
         self.o3d_obj2 = trimesh2o3d(self.trimesh_obj2)
 
-        with Log(self.logger, "get init sample points"):
-            self.init_points1, self.init_points2 = self._sample_points(self.trimesh_obj1, self.trimesh_obj2, self.sample_num)
+        self.init_points1 = None  # init sample points from mesh1
+        self.init_points2 = None  # init sample points from mesh2
+        self.points1 = None  # points on mesh1 to compute Voronoi Diagram
+        self.points2 = None  # points on mesh2 to compute Voronoi Diagram
+        self.border_sphere_center = None  # The center of clip sphere
+        self.border_sphere_radius = None  # The radius of clip sphere
+
+    def launch(self):
+        with Log(self.logger, "subdivide mesh1"):
+            self.trimesh_obj1 = self._subdivide_mesh(self.trimesh_obj1, self.subdivide_max_edge)
+
+        with Log(self.logger, "subdivide mesh2"):
+            self.trimesh_obj2 = self._subdivide_mesh(self.trimesh_obj2, self.subdivide_max_edge)
+
+        with (Log(self.logger, "get init sample points")):
+            self.init_points1, self.init_points2 = \
+                self._sample_points(self.trimesh_obj1, self.trimesh_obj2, self.sample_num)
             self.points1, self.points2 = self.init_points1, self.init_points2
 
         with Log(self.logger, "get clip border"):
             self.border_sphere_center, self.border_sphere_radius = self._get_clip_border()
 
-        self.ibs = None
         with Log(self.logger, "create ibs"):
-            self._create_ibs_mesh()
+            self._compute_ibs()
 
         with Log(self.logger, "cluster triangles"):
             self._remove_disconnected_mesh()
 
-    def log_info(self, msg: str):
+    def get_ibs_trimesh(self):
+        return self.ibs
+
+    def get_ibs_o3d(self):
+        return geometry_utils.trimesh2o3d(self.ibs)
+
+    def _get_logger(self):
+        logger = logging.getLogger()
+        logger.setLevel("INFO")
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(level=logging.INFO)
+        logger.addHandler(stream_handler)
+        return logger
+
+    def _log_info(self, msg: str):
         if self.logger is None:
             return
         self.logger.info(msg)
 
     def _get_clip_border(self):
-        if self.clip_border_options is None or self.clip_border_options.get("clip_border_type") == "total":
+        """
+        Get clip sphere according to config info
+        """
+        if self.clip_border_type == "total":
             points = np.concatenate((self.points1, self.points2), axis=0)
             pcd = get_pcd_from_np(points)
             center, radius = geometry_utils.get_pcd_normalize_para(pcd)
-            return center, radius * self.clip_border_options.get("clip_border_ratio")
-
-        if self.clip_border_options.get("clip_border_type") == "sphere":
+        elif self.clip_border_type == "sphere":
             center = np.array([0, 0, 0])
-            radius = self.clip_border_options.get("clip_sphere_radius")
-            return center, radius * self.clip_border_options.get("clip_border_ratio")
-
-        pcd1 = get_pcd_from_np(self.points1)
-        pcd2 = get_pcd_from_np(self.points2)
-        center1, radius1 = geometry_utils.get_pcd_normalize_para(pcd1)
-        center2, radius2 = geometry_utils.get_pcd_normalize_para(pcd2)
-        if self.clip_border_options.get("clip_border_type") == "min_obj":
+            radius = self.clip_sphere_radius
+        elif self.clip_border_type == "min_obj":
+            pcd1 = get_pcd_from_np(self.points1)
+            pcd2 = get_pcd_from_np(self.points2)
+            center1, radius1 = geometry_utils.get_pcd_normalize_para(pcd1)
+            center2, radius2 = geometry_utils.get_pcd_normalize_para(pcd2)
             center = center1 if radius1 < radius2 else center2
             radius = radius1 if radius1 < radius2 else radius2
-        if self.clip_border_options.get("clip_border_type") == "max_obj":
+        elif self.clip_border_type == "max_obj":
+            pcd1 = get_pcd_from_np(self.points1)
+            pcd2 = get_pcd_from_np(self.points2)
+            center1, radius1 = geometry_utils.get_pcd_normalize_para(pcd1)
+            center2, radius2 = geometry_utils.get_pcd_normalize_para(pcd2)
             center = center1 if radius1 > radius2 else center2
             radius = radius1 if radius1 > radius2 else radius2
-        return center, radius * self.clip_border_options.get("clip_border_ratio")
+        else:
+            raise Exception("unsupported clip border type")
+        return center, radius * self.clip_border_magnification
 
-    def _subdevide_mesh(self, trimesh_obj, max_edge):
+    def _subdivide_mesh(self, trimesh_obj: trimesh.Trimesh, max_edge_length: int):
         """
-        将mesh进行细分，直到所有edge都小于max_edge
+        subdivide the input mesh, until all edges of triangles less than max_edge_length
+        Args:
+            trimesh_obj: The mesh you want to subdivide
+            max_edge_length: The maximum length of edges of triangles
         """
-        vertices, faces = trimesh.remesh.subdivide_to_size(trimesh_obj.vertices, trimesh_obj.faces, max_edge)
+        vertices, faces = trimesh.remesh.subdivide_to_size(trimesh_obj.vertices, trimesh_obj.faces, max_edge_length)
         return trimesh.Trimesh(vertices, faces, process=True)
 
-    def _get_current_ibs(self):
+    def _compute_ibs_once(self):
         """
-        计算ibs，求出两物体外接球中较小的那个，作为截断边界
+        Compute ibs according to self.points1 and self.points2
         """
         n0 = len(self.points1)
         n1 = len(self.points2)
-        self.log_info("{} points on obj1, {} points on obj2".format(n0, n1))
+        self._log_info("{} points on obj1, {} points on obj2".format(n0, n1))
 
         n2 = (n0 + n1) // 10
         shell = fibonacci_sphere(n2)
@@ -127,6 +187,13 @@ class IBS:
 
         self.ibs = trimesh.Trimesh(ibs.points, ibs.faces.reshape(-1, 4)[:, 1:], process=False)
         self.ibs.remove_unreferenced_vertices()
+        self.ibs.remove_degenerate_faces()
+
+        if self.simplify and np.asarray(self.ibs.triangles).shape[0] > self.max_triangle_num:
+            self._log_info("{} faces in ibs, need to be simplified".format(self.ibs.triangles.shape[0]))
+            ibs_simplified = geometry_utils.trimesh2o3d(self.ibs).simplify_quadric_decimation(self.max_triangle_num)
+            self.ibs = geometry_utils.o3d2trimesh(ibs_simplified)
+            self._log_info("{} faces in ibs after simplify".format(self.ibs.triangles.shape[0]))
 
         if self.show_iterate_result:
             ibs_o3d = trimesh2o3d(self.ibs)
@@ -135,65 +202,76 @@ class IBS:
             self.o3d_obj2.paint_uniform_color((0, 0, 1))
             self._visualize([ibs_o3d, self.o3d_obj1, self.o3d_obj2])
 
-    def _create_ibs_mesh(self):
+    def _compute_ibs(self):
+        """
+        Compute ibs, ensure no intersection
+        """
         collision_tester = trimesh.collision.CollisionManager()
         collision_tester.add_object('obj1', self.trimesh_obj1)
         collision_tester.add_object('obj2', self.trimesh_obj2)
-        in_collision = True
+        is_collide = True
 
-        iterate_time = 0
+        cur_iteration_num = 0
 
         contact_points_obj1 = []
         contact_points_obj2 = []
-        while in_collision and iterate_time < self.max_iterate_time:
-            self.log_info("\niterate {}".format(iterate_time))
+        while is_collide and cur_iteration_num < self.max_iterate_time:
+            self._log_info("\niterate {}".format(cur_iteration_num))
 
             contact_points_obj1 = []
             contact_points_obj2 = []
 
-            self._get_current_ibs()
+            self._compute_ibs_once()
 
-            in_collision, data = collision_tester.in_collision_single(self.ibs, return_data=True)
-            if not in_collision:
+            is_collide, collision_data = collision_tester.in_collision_single(self.ibs, return_data=True)
+            if not is_collide:
                 break
 
-            for i in range(len(data)):
-                if "obj1" in data[i].names:
-                    contact_points_obj1.append(data[i].point)
-                if "obj2" in data[i].names:
-                    contact_points_obj2.append(data[i].point)
+            # get contact points on mesh1 and mesh2
+            for i in range(len(collision_data)):
+                if "obj1" in collision_data[i].names:
+                    contact_points_obj1.append(collision_data[i].point)
+                if "obj2" in collision_data[i].names:
+                    contact_points_obj2.append(collision_data[i].point)
 
-            if len(contact_points_obj1) > 0 or len(contact_points_obj2) > 0:
-                iterate_time += 1
+            contact_points_obj1_num = len(contact_points_obj1)
+            contact_points_obj2_num = len(contact_points_obj2)
+            contact_points_obj1 = np.array(contact_points_obj1)
+            contact_points_obj2 = np.array(contact_points_obj2)
 
-            np_contact_points_obj1 = np.array(contact_points_obj1)
-            np_contact_points_obj2 = np.array(contact_points_obj2)
-
-            if len(contact_points_obj1) > 0:
-                self.log_info("collision occured in obj1, size: {}".format(len(contact_points_obj1)))
-                points = self._resample_points(self.trimesh_obj1, np_contact_points_obj1, np_contact_points_obj2)
+            # if collision occured, resample points near collision area and update points which are used to compute ibs
+            if contact_points_obj1_num > 0:
+                self._log_info("collision occured in obj1, size: {}".format(contact_points_obj1_num))
+                points = self._resample_points(self.trimesh_obj1, contact_points_obj1, contact_points_obj2)
                 self.points1 = np.concatenate((self.points1, points), axis=0)
-                if self.points1.shape[0] > 50000:
+                if self.points1.shape[0] > self.max_points_for_compute:
                     self.points1 = np.asarray(
-                        geometry_utils.get_pcd_from_np(self.points1).farthest_point_down_sample(50000).points)
+                        geometry_utils.get_pcd_from_np(self.points1).farthest_point_down_sample(
+                            self.max_points_for_compute).points)
                 self.points1 = np.concatenate((self.init_points1, self.points1), axis=0)
                 self.points1 = np.unique(self.points1, axis=0)
 
-            if len(contact_points_obj2) > 0:
-                self.log_info("collision occured in obj2, size: {}".format(len(contact_points_obj2)))
-                points = self._resample_points(self.trimesh_obj2, np_contact_points_obj2, np_contact_points_obj1)
+            if contact_points_obj2_num > 0:
+                self._log_info("collision occured in obj2, size: {}".format(contact_points_obj2_num))
+                points = self._resample_points(self.trimesh_obj2, contact_points_obj2, contact_points_obj1)
                 self.points2 = np.concatenate((self.points2, points), axis=0)
-                if self.points2.shape[0] > 50000:
+                if self.points2.shape[0] > self.max_points_for_compute:
                     self.points2 = np.asarray(
-                        geometry_utils.get_pcd_from_np(self.points2).farthest_point_down_sample(50000).points)
+                        geometry_utils.get_pcd_from_np(self.points2).farthest_point_down_sample(
+                            self.max_points_for_compute).points)
                 self.points2 = np.concatenate((self.init_points2, self.points2), axis=0)
                 self.points2 = np.unique(self.points2, axis=0)
 
-        if iterate_time == self.max_iterate_time:
-            self.log_info("create ibs failed after {} iterates, concat with obj1: {}, obj2: {}".
-                          format(self.max_iterate_time, len(contact_points_obj1), len(contact_points_obj2)))
+            cur_iteration_num += 1
+
+        if cur_iteration_num == self.max_iterate_time:
+            self._log_info("create ibs failed after {} iterates, concat with obj1: {}, obj2: {}".
+                           format(self.max_iterate_time, len(contact_points_obj1), len(contact_points_obj2)))
 
     def _remove_disconnected_mesh(self):
+        """
+        Remove disconnected mesh, remain the main ibs mesh
+        """
         ibs_o3d = trimesh2o3d(self.ibs)
         cluster_idx, triangle_num, area = ibs_o3d.cluster_connected_triangles()
         cluster_idx = np.asarray(cluster_idx)
@@ -207,63 +285,48 @@ class IBS:
 
         self.ibs = geometry_utils.o3d2trimesh(ibs_o3d)
 
-    def _resample_points(self, trimesh_obj1, contact_points_obj1, contact_points_obj2):
+    def _resample_points(self, mesh: trimesh.Trimesh, contact_points_obj1: np.ndarray, contact_points_obj2: np.ndarray):
         """
-        在obj1上进行再次散点
+        Resample points on mesh near collision area
         """
-        # 在截断mesh上散点
-        resample_points_clip_mesh = self._resample_points_on_clip_mesh(trimesh_obj1, contact_points_obj1)
-        # 将obj2的碰撞点投影到obj1的mesh上
-        resample_points_projection = self._resample_with_projection(trimesh_obj1, contact_points_obj2)
-        resample_points = np.concatenate((contact_points_obj1, resample_points_clip_mesh, resample_points_projection), axis=0)
-        if resample_points.shape[0] > 25000:
-            resample_points = np.asarray(geometry_utils.get_pcd_from_np(resample_points).farthest_point_down_sample(25000).points)
+        resample_points_clip_mesh = self._resample_points_on_clip_mesh(mesh, contact_points_obj1)
+        resample_points_projection = self._resample_with_projection(mesh, contact_points_obj2)
+        resample_points = np.concatenate((contact_points_obj1,
+                                          resample_points_clip_mesh,
+                                          resample_points_projection), axis=0)
+        if resample_points.shape[0] > self.max_resample_points:
+            resample_points = np.asarray(
+                geometry_utils.get_pcd_from_np(resample_points).farthest_point_down_sample(
+                    self.max_resample_points).points)
         return resample_points
 
-    def _resample_points_on_clip_mesh(self, trimesh_obj, contact_points_obj):
+    def _resample_points_on_clip_mesh(self, mesh: trimesh.Trimesh, contact_points_obj: np.ndarray):
         """
-        根据碰撞情况截取mesh，并在截取后的模型上散点
+        Clip mesh according to collision area and sample points on mesh clipped
         """
         pcd_contact_obj = get_pcd_from_np(np.array(contact_points_obj))
         centroid, radius = geometry_utils.get_pcd_normalize_para(pcd_contact_obj)
         sphere = pv.Sphere(radius, centroid)
-        pv_obj = geometry_utils.trimesh2pyvista(trimesh_obj)
+        pv_obj = geometry_utils.trimesh2pyvista(mesh)
         mesh_clip = geometry_utils.pyvista2o3d(pv_obj.clip_surface(sphere, invert=True))
         if np.asarray(mesh_clip.triangles).shape[0] == 0:
             return np.array([]).reshape(-1, 3)
         points = np.asarray(mesh_clip.sample_points_poisson_disk(128).points)
         return np.unique(points, axis=0)
 
-    def _resample_with_projection(self, trimesh_obj1, contact_points_obj2):
+    def _resample_with_projection(self, mesh: trimesh.Trimesh, contact_points_obj2: np.ndarray):
         """
-        将obj2的碰撞点投影到obj1
+        Project contact points to mesh
         """
         if contact_points_obj2.shape[0] == 0:
             return np.array([]).reshape(-1, 3)
-        (nearest_points, __, __) = trimesh_obj1.nearest.on_surface(contact_points_obj2)
+        (nearest_points, __, __) = mesh.nearest.on_surface(contact_points_obj2)
         return np.unique(nearest_points, axis=0)
 
-    def _sample_points_in_sphere(self, o3d_mesh, centroid, radius, points_num):
-        points = []
-        sphere = geometry_utils.get_sphere_pcd(centroid, radius)
-        sphere.paint_uniform_color((1, 0, 0))
-        while len(points) < points_num:
-            random_points = np.asarray(o3d_mesh.sample_points_uniformly(5 * points_num).points)
-            pcd = get_pcd_from_np(random_points)
-            pcd.paint_uniform_color((0, 1, 0))
-            self._visualize([pcd, sphere])
-            distances = np.linalg.norm(random_points - centroid, axis=1)
-            indices_inside = np.where(distances <= radius)[0]
-            points_inside = random_points[indices_inside]
-            pcd_inside = get_pcd_from_np(points_inside)
-            pcd_inside.paint_uniform_color((0, 1, 0))
-            self._visualize([pcd_inside, sphere])
-            points += points_inside.tolist()
-
-        points = np.array(random.sample(points, points_num))
-        return points
-
     def _sample_points(self, trimesh_obj1: trimesh.Trimesh, trimesh_obj2: trimesh.Trimesh, points_num: int):
+        """
+        Sample points on mesh1 and mesh2
+        """
         if self.sample_method == "poisson_disk":
             return (self._sample_points_poisson_disk(trimesh_obj1, points_num),
                     self._sample_points_poisson_disk(trimesh_obj2, points_num))
@@ -271,13 +334,17 @@ class IBS:
             return self._sample_points_with_dist_weight(trimesh_obj1, trimesh_obj2, points_num)
 
     def _sample_points_poisson_disk(self, trimesh_obj, points_num):
+        """
+        Sample points on mesh, method: poisson disk
+        """
         o3d_mesh = trimesh2o3d(trimesh_obj)
         pcd = o3d_mesh.sample_points_poisson_disk(points_num)
         return np.asarray(pcd.points)
 
     def _sample_points_with_dist_weight(self, trimesh_obj1: trimesh.Trimesh, trimesh_obj2: trimesh.Trimesh, points_num):
         """
-        从Mesh中进行带权的点云采样，距离另一个物体越近权重越大
+        Sample points on mesh, the weights of triangles are positively correlated with distance
+        between triangle with another mesh.
         """
         init_points_num = 2 * points_num
         o3d_obj1 = trimesh2o3d(trimesh_obj1)

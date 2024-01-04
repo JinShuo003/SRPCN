@@ -26,18 +26,6 @@ def save_obj_pcd(specs, scene, pcd: tuple):
     o3d.io.write_point_cloud(pcd2_path, pcd[1])
 
 
-def save_ibs_pcd(specs, scene, pcd):
-    pcd_save_dir = specs.get("path_options").get("pcd_save_dir")
-    category = re.match(specs.get("path_options").get("format_info").get("category_re"), scene).group()
-    if not os.path.isdir(os.path.join(pcd_save_dir, category)):
-        os.makedirs(os.path.join(pcd_save_dir, category))
-
-    ibs_filename = '{}.ply'.format(scene)
-    ibs_path = os.path.join(pcd_save_dir, category, ibs_filename)
-
-    o3d.io.write_point_cloud(ibs_path, pcd)
-
-
 class TrainDataGenerator:
     def __init__(self, specs, logger):
         self.specs = specs
@@ -59,27 +47,11 @@ class TrainDataGenerator:
         self.logger.info("get {} points from mesh1".format(np.asarray(pcd1.points).shape[0]))
         self.logger.info("get {} points from mesh2".format(np.asarray(pcd2.points).shape[0]))
 
-        save_obj_pcd(self.specs, scene, (pcd1, pcd2))
-
-    def get_ibs_pcd(self, scene):
-        geometries_path = path_utils.get_geometries_path(self.specs, scene)
-        sample_num = self.specs["sample_num"]
-
-        ibs = o3d.io.read_triangle_mesh(geometries_path["ibs"])
-        self.logger.info("ibs with {} vertices, {} triangles".
-                         format(np.asarray(ibs.vertices).shape[0], np.asarray(ibs.triangles).shape[0]))
-
-        pcd = ibs.sample_points_poisson_disk(sample_num)
-        self.logger.info("get {} points from ibs".format(np.asarray(pcd.points).shape[0]))
-
-        save_ibs_pcd(self.specs, scene, pcd)
+        return pcd1, pcd2
 
     def handle_scene(self, scene):
-        self.logger.info("current type: {}".format(self.specs.get("type")))
-        if self.specs.get("type") == "object":
-            self.get_obj_pcd(scene)
-        elif self.specs.get("type") == "ibs":
-            self.get_ibs_pcd(scene)
+        pcd1, pcd2 = self.get_obj_pcd(scene)
+        save_obj_pcd(self.specs, scene, (pcd1, pcd2))
 
 
 def my_process(scene, specs):

@@ -43,18 +43,19 @@ class TrainDataGenerator:
         aabb_total = o3d.geometry.AxisAlignedBoundingBox(min_border, max_border)
         return aabb_total
 
-    def sample_with_weight(self, ibs: o3d.geometry.TriangleMesh, pcd1, pcd2, points_num):
+    def sample_with_weight(self, ibs: o3d.geometry.TriangleMesh, pcd1, pcd2, points_num,
+                           weight_distance_exp, weight_angle_threshold):
         points1 = np.asarray(pcd1.points)
         points2 = np.asarray(pcd2.points)
-        ibs = self.subdevide_mesh(ibs, 0.05)
-        self.logger.info("ibs has {} triangles after subdevide".format(np.asarray(ibs.triangles).shape[0]))
-        ibs.compute_triangle_normals()
         ibs_vertices = np.asarray(ibs.vertices)
         ibs_triangles = np.asarray(ibs.triangles)
         ibs_triangle_num = ibs_triangles.shape[0]
         ibs_triangle_normals = np.asarray(ibs.triangle_normals)
         ibs_triangle_mid_points = np.zeros((ibs_triangle_num, 3))
         ibs_triangle_area = np.zeros(ibs_triangle_num)
+
+        assert ibs_triangle_normals.shape[0] == ibs_triangle_num
+
         # 计算面片中心点和面片面积
         for i, triangle in enumerate(ibs_triangles):
             p1 = ibs_vertices[triangle[0]]
@@ -82,19 +83,23 @@ class TrainDataGenerator:
         for i in range(ibs_triangle_num):
             # Weight-distance: 面片中心点到点云的最小距离越大，权重越小
             d = min(min_distance_pcd1[i], min_distance_pcd2[i])
-            weights_distance[i] = pow((1 - d/D), 20)
+            weights_distance[i] = pow((1 - d/D), weight_distance_exp)
 
             # Weight-angle: 面片中心点与点云最近点连线组成向量与面片法向量的角度越大，权重越小
-            closest_point = points1[min_indices_pcd1[i]] \
-                if min_distance_pcd1[i] < min_distance_pcd2[i] \
-                else points2[min_indices_pcd2[i]]
-            v = closest_point - ibs_triangle_mid_points[i]
+            closest_point1 = points1[min_indices_pcd1[i]]
+            closest_point2 = points2[min_indices_pcd2[i]]
+            v1 = closest_point1 - ibs_triangle_mid_points[i]
+            v2 = closest_point2 - ibs_triangle_mid_points[i]
             n = ibs_triangle_normals[i]
-            cosine_similarity = np.dot(v, n) / (np.linalg.norm(v) * np.linalg.norm(n))
-            theta = np.arccos(np.clip(cosine_similarity, -1.0, 1.0))
-            theta = np.degrees(theta)
+            cosine_similarity1 = np.dot(v1, n) / (np.linalg.norm(v1) * np.linalg.norm(n))
+            cosine_similarity2 = np.dot(v2, n) / (np.linalg.norm(v2) * np.linalg.norm(n))
+            theta1 = np.arccos(np.clip(cosine_similarity1, -1.0, 1.0))
+            theta2 = np.arccos(np.clip(cosine_similarity2, -1.0, 1.0))
+            theta1 = np.degrees(theta1)
+            theta2 = np.degrees(theta2)
+            theta = min(theta1, theta2)
             theta = theta if 0 < theta < 90 else 180 - theta
-            weights_angle[i] = 1 - theta/60 if theta < 60 else 0
+            weights_angle[i] = 1 - theta/weight_angle_threshold if theta < weight_angle_threshold else 0
 
         weights = weights_area * weights_distance * weights_angle
         weights /= sum(weights)
@@ -106,17 +111,23 @@ class TrainDataGenerator:
 
     def get_ibs_pcd(self, scene):
         geometries_path = path_utils.get_geometries_path(self.specs, scene)
-        sample_num = self.specs["sample_num"]
+        sample_num = self.specs.get("sample_options").get("sample_num")
+        subdivide_max_edge = self.specs.get("sample_options").get("subdivide_max_edge")
+        weight_distance_exp = self.specs.get("sample_options").get("weight_distance_exp")
+        weight_angle_threshold = self.specs.get("sample_options").get("weight_angle_threshold")
 
         mesh1 = geometry_utils.read_mesh(geometries_path["mesh1"])
         mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
         ibs = geometry_utils.read_mesh(geometries_path["ibs"])
         self.logger.info("ibs with {} vertices, {} triangles".
                          format(np.asarray(ibs.vertices).shape[0], np.asarray(ibs.triangles).shape[0]))
+        ibs = self.subdevide_mesh(ibs, subdivide_max_edge)
+        self.logger.info("ibs has {} triangles after subdevide".format(np.asarray(ibs.triangles).shape[0]))
+        ibs.compute_triangle_normals()
 
         pcd1 = mesh1.sample_points_poisson_disk(2048)
         pcd2 = mesh2.sample_points_poisson_disk(2048)
-        ibs_pcd = self.sample_with_weight(ibs, pcd1, pcd2, sample_num)
+        ibs_pcd = self.sample_with_weight(ibs, pcd1, pcd2, sample_num, weight_distance_exp, weight_angle_threshold)
         # pcd1.paint_uniform_color((1, 0, 0))
         # pcd2.paint_uniform_color((0, 1, 0))
         # ibs.paint_uniform_color((0, 0, 1))
@@ -140,7 +151,7 @@ def my_process(scene, specs):
         trainDataGenerator.handle_scene(scene)
         _logger.info("scene: {} succeed".format(scene))
     except Exception as e:
-        _logger.error("scene: {} failed, exception message: {}".format(scene, e.message))
+        _logger.error("scene: {} failed, exception message: {}".format(scene, e))
     finally:
         _logger.removeHandler(file_handler)
         _logger.removeHandler(stream_handler)
@@ -179,7 +190,11 @@ if __name__ == '__main__':
                                                                          filename)
 
             trainDataGenerator = TrainDataGenerator(specs, _logger)
-            trainDataGenerator.handle_scene(filename)
-
-            _logger.removeHandler(file_handler)
-            _logger.removeHandler(stream_handler)
+            try:
+                trainDataGenerator.handle_scene(filename)
+                _logger.info("scene: {} succeed".format(filename))
+            except Exception as e:
+                _logger.error("scene: {} failed, exception message: {}".format(filename, e))
+            finally:
+                _logger.removeHandler(file_handler)
+                _logger.removeHandler(stream_handler)

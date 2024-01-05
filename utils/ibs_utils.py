@@ -294,10 +294,13 @@ class IBS:
         resample_points = np.concatenate((contact_points_obj1,
                                           resample_points_clip_mesh,
                                           resample_points_projection), axis=0)
+        self._log_info("resample points num: {}".format(resample_points.shape[0]))
         if resample_points.shape[0] > self.max_resample_points:
             resample_points = np.asarray(
                 geometry_utils.get_pcd_from_np(resample_points).farthest_point_down_sample(
                     self.max_resample_points).points)
+            self._log_info("reduce resample points to {}".format(self.max_resample_points))
+
         return resample_points
 
     def _resample_points_on_clip_mesh(self, mesh: trimesh.Trimesh, contact_points_obj: np.ndarray):

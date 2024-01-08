@@ -4,20 +4,20 @@ import os.path
 from utils import path_utils
 
 
-def get_logger(log_dir: str, scene: str):
+def get_logger(log_dir: str, scene: str, file_handler_level=logging.INFO, stream_handler_level=logging.INFO):
     _logger = logging.getLogger()
-    _logger.setLevel("INFO")
+    _logger.setLevel("DEBUG")
 
     path_utils.generate_path(log_dir)
     log_filename = "{}.log".format(scene)
     log_path = os.path.join(log_dir, log_filename)
 
     file_handler = logging.FileHandler(log_path.format(scene), mode="w")
-    file_handler.setLevel(level=logging.INFO)
+    file_handler.setLevel(level=file_handler_level)
     _logger.addHandler(file_handler)
 
     stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(level=logging.INFO)
+    stream_handler.setLevel(level=stream_handler_level)
     _logger.addHandler(stream_handler)
 
     return _logger, file_handler, stream_handler

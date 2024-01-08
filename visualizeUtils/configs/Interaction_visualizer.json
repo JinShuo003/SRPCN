@@ -5,7 +5,7 @@
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
       "pcd_pred1_dir": "",
       "pcd_pred2_dir": "",
-      "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh_min_obj"
+      "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
     },
     "format_info": {
       "category_re": "scene\\d",

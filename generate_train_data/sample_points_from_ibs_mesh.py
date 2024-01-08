@@ -83,7 +83,7 @@ class TrainDataGenerator:
         for i in range(ibs_triangle_num):
             # Weight-distance: 面片中心点到点云的最小距离越大，权重越小
             d = min(min_distance_pcd1[i], min_distance_pcd2[i])
-            weights_distance[i] = pow((1 - d/D), weight_distance_exp)
+            weights_distance[i] = pow((1 - d / D), weight_distance_exp)
 
             # Weight-angle: 面片中心点与点云最近点连线组成向量与面片法向量的角度越大，权重越小
             closest_point1 = points1[min_indices_pcd1[i]]
@@ -93,31 +93,41 @@ class TrainDataGenerator:
             n = ibs_triangle_normals[i]
             cosine_similarity1 = np.dot(v1, n) / (np.linalg.norm(v1) * np.linalg.norm(n))
             cosine_similarity2 = np.dot(v2, n) / (np.linalg.norm(v2) * np.linalg.norm(n))
+            self.logger.debug("n.length: {}".format(np.linalg.norm(n)))
+            self.logger.debug("v1.length: {}".format(np.linalg.norm(v1)))
+            self.logger.debug("v2.length: {}".format(np.linalg.norm(v2)))
             theta1 = np.arccos(np.clip(cosine_similarity1, -1.0, 1.0))
             theta2 = np.arccos(np.clip(cosine_similarity2, -1.0, 1.0))
             theta1 = np.degrees(theta1)
             theta2 = np.degrees(theta2)
-            theta = min(theta1, theta2)
-            theta = theta if 0 < theta < 90 else 180 - theta
-            weights_angle[i] = 1 - theta/weight_angle_threshold if theta < weight_angle_threshold else 0
+            theta1 = theta1 if 0 < theta1 < 90 else 180 - theta1
+            theta2 = theta2 if 0 < theta2 < 90 else 180 - theta2
+            theta = max(theta1, theta2)
+            weights_angle[i] = 1 - theta / weight_angle_threshold if theta < weight_angle_threshold else 0
+            if weights_angle[i] == 0:
+                self.logger.debug("weight_angle is 0, angle1: {}, angle2: {}".format(theta1, theta2))
 
         weights = weights_area * weights_distance * weights_angle
         weights /= sum(weights)
+        if np.count_nonzero(weights) < points_num:
+            raise Exception("non zero weights not enough, need {}, have {}".format(points_num, np.count_nonzero(weights)))
         selected_triangles_idx = np.random.choice(range(ibs_triangle_num), points_num, False, weights)
         sample_points = ibs_triangle_mid_points[selected_triangles_idx]
         ibs_pcd = geometry_utils.get_pcd_from_np(sample_points)
 
         return ibs_pcd
 
-    def get_ibs_pcd(self, scene):
+    def get_sample_points_with_weight(self, scene):
         geometries_path = path_utils.get_geometries_path(self.specs, scene)
         sample_num = self.specs.get("sample_options").get("sample_num")
         subdivide_max_edge = self.specs.get("sample_options").get("subdivide_max_edge")
         weight_distance_exp = self.specs.get("sample_options").get("weight_distance_exp")
         weight_angle_threshold = self.specs.get("sample_options").get("weight_angle_threshold")
 
-        mesh1 = geometry_utils.read_mesh(geometries_path["mesh1"])
-        mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
+        self.mesh1 = geometry_utils.read_mesh(geometries_path["mesh1"])
+        self.mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
+        self.mesh1.paint_uniform_color((0.3, 0.7, 0.3))
+        self.mesh2.paint_uniform_color((0.7, 0.3, 0.3))
         ibs = geometry_utils.read_mesh(geometries_path["ibs"])
         self.logger.info("ibs with {} vertices, {} triangles".
                          format(np.asarray(ibs.vertices).shape[0], np.asarray(ibs.triangles).shape[0]))
@@ -125,16 +135,31 @@ class TrainDataGenerator:
         self.logger.info("ibs has {} triangles after subdevide".format(np.asarray(ibs.triangles).shape[0]))
         ibs.compute_triangle_normals()
 
-        pcd1 = mesh1.sample_points_poisson_disk(2048)
-        pcd2 = mesh2.sample_points_poisson_disk(2048)
+        pcd1 = self.mesh1.sample_points_poisson_disk(2048)
+        pcd2 = self.mesh2.sample_points_poisson_disk(2048)
         ibs_pcd = self.sample_with_weight(ibs, pcd1, pcd2, sample_num, weight_distance_exp, weight_angle_threshold)
-        # pcd1.paint_uniform_color((1, 0, 0))
-        # pcd2.paint_uniform_color((0, 1, 0))
-        # ibs.paint_uniform_color((0, 0, 1))
-        # ibs_pcd.paint_uniform_color((0, 1, 1))
-        # o3d.visualization.draw_geometries([pcd1, pcd2, ibs, ibs_pcd], mesh_show_wireframe=True, mesh_show_back_face=True)
         self.logger.info("get {} points from ibs".format(np.asarray(ibs_pcd.points).shape[0]))
+
         return ibs_pcd
+
+    def get_sample_points_with_poission_disk(self, scene):
+        geometries_path = path_utils.get_geometries_path(self.specs, scene)
+        sample_num = self.specs.get("sample_options").get("sample_num")
+
+        ibs = geometry_utils.read_mesh(geometries_path["ibs"])
+        ibs_pcd = ibs.sample_points_poisson_disk(sample_num)
+        self.logger.info("get {} points from ibs".format(np.asarray(ibs_pcd.points).shape[0]))
+
+        return ibs_pcd
+
+    def get_ibs_pcd(self, scene):
+        sample_method = self.specs.get("sample_options").get("sample_method")
+        if sample_method == "weight":
+            return self.get_sample_points_with_weight(scene)
+        elif sample_method == "poission":
+            return self.get_sample_points_with_poission_disk(scene)
+        else:
+            raise Exception("sample method not support")
 
     def handle_scene(self, scene):
         ibs_pcd = self.get_ibs_pcd(scene)
@@ -158,7 +183,7 @@ def my_process(scene, specs):
 
 
 if __name__ == '__main__':
-    config_filepath = 'configs/sample_points_from_mesh.json'
+    config_filepath = 'configs/sample_points_from_ibs_mesh.json'
     specs = path_utils.read_config(config_filepath)
     filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get("mesh_dir"))
     path_utils.generate_path(specs.get("path_options").get("pcd_save_dir"))
@@ -187,7 +212,7 @@ if __name__ == '__main__':
         for filename in view_list:
             logger.warning("current scene: {}".format(filename))
             _logger, file_handler, stream_handler = log_utils.get_logger(specs.get("path_options").get("log_dir"),
-                                                                         filename)
+                                                                         filename, file_handler_level=logging.DEBUG)
 
             trainDataGenerator = TrainDataGenerator(specs, _logger)
             try:

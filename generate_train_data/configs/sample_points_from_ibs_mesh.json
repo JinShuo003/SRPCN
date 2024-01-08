@@ -18,14 +18,16 @@
         "handle_filename": "scene\\d.\\d{4}"
       },
       "pcd_save_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE",
-      "log_dir": "logs/sample_points_from_mesh"
+      "log_dir": "logs/sample_points_from_ibs_mesh"
   },
   "sample_options": {
     "sample_num": 2048,
-    "subdivide_max_edge": 0.05,
+    "sample_method_options": ["weight", "poission"],
+    "sample_method": "poission",
+    "subdivide_max_edge": 0.02,
     "weight_distance_exp": 20,
-    "weight_angle_threshold": 45
+    "weight_angle_threshold": 60
   },
-  "use_process_pool": false,
-  "process_num": 3
+  "use_process_pool": true,
+  "process_num": 5
 }

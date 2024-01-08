@@ -9,13 +9,32 @@ from torch.autograd import Function
 import emd
 
 
+def ibs_loss(center, radius, pcd):
+    """
+    ibs Loss.
+    For sphere center ci, find the closest point pi in pcd and the loss of this center is ||||(pi-ci)|| - ri||
+
+    Args:
+        center (torch.tensor): (B, N, 3)
+        radius (torch.tensor): (B, N, 1)
+        pcd (torch.tensor): (B, N, 3)
+    """
+    cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    dist1, _, idx1, _ = cham_loss(center, pcd)
+    closest_points = torch.gather(pcd, 1, idx1.unsqueeze(2).expand(-1, -1, 3))
+    center_to_closest = torch.norm(center - closest_points, dim=2)
+    loss = torch.abs(center_to_closest - radius)
+
+    return torch.mean(loss)
+
+
 def cd_loss_L1(pcd1, pcd2):
     """
     L1 Chamfer Distance.
 
     Args:
-        pcs1 (torch.tensor): (B, N, 3)
-        pcs2 (torch.tensor): (B, M, 3)
+        pcd1 (torch.tensor): (B, N, 3)
+        pcd2 (torch.tensor): (B, M, 3)
     """
     cham_loss = dist_chamfer_3D.chamfer_3DDist()
     dist1, dist2, _, _ = cham_loss(pcd1, pcd2)
@@ -29,8 +48,8 @@ def cd_loss_L2(pcd1, pcd2):
     L2 Chamfer Distance.
 
     Args:
-        pcs1 (torch.tensor): (B, N, 3)
-        pcs2 (torch.tensor): (B, M, 3)
+        pcd1 (torch.tensor): (B, N, 3)
+        pcd2 (torch.tensor): (B, M, 3)
     """
     cham_loss = dist_chamfer_3D.chamfer_3DDist()
     dist1, dist2, _, _ = cham_loss(pcd1, pcd2)

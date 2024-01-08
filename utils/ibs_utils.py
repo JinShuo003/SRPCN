@@ -83,9 +83,11 @@ class IBS:
     def launch(self):
         with Log(self.logger, "subdivide mesh1"):
             self.trimesh_obj1 = self._subdivide_mesh(self.trimesh_obj1, self.subdivide_max_edge)
+            self._log_info("obj1 has {} faces after subdivide".format(self.trimesh_obj1.faces.shape[0]))
 
         with Log(self.logger, "subdivide mesh2"):
             self.trimesh_obj2 = self._subdivide_mesh(self.trimesh_obj2, self.subdivide_max_edge)
+            self._log_info("obj2 has {} faces after subdivide".format(self.trimesh_obj2.faces.shape[0]))
 
         with (Log(self.logger, "get init sample points")):
             self.init_points1, self.init_points2 = \
@@ -349,7 +351,7 @@ class IBS:
         Sample points on mesh, the weights of triangles are positively correlated with distance
         between triangle with another mesh.
         """
-        init_points_num = 2 * points_num
+        init_points_num = int(1.5 * points_num)
         o3d_obj1 = trimesh2o3d(trimesh_obj1)
         o3d_obj2 = trimesh2o3d(trimesh_obj2)
         sample_points1 = np.asarray(o3d_obj1.sample_points_poisson_disk(init_points_num).points)

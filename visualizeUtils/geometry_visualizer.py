@@ -30,6 +30,7 @@ def getGeometryPath(specs, filename):
     mesh1_filename = '{}_{}.obj'.format(scene, 0)
     mesh2_filename = '{}_{}.obj'.format(scene, 1)
     ibs_mesh_gt_filename = '{}.obj'.format(scene)
+    ibs_pcd_gt_filename = '{}.ply'.format(scene)
     ibs1_pcd_gt_filename = '{}_{}.ply'.format(scene, 0)
     ibs2_pcd_gt_filename = '{}_{}.ply'.format(scene, 1)
     pcd1_gt_filename = '{}_{}.ply'.format(scene, 0)
@@ -42,6 +43,7 @@ def getGeometryPath(specs, filename):
     geometry_path['mesh1'] = os.path.join(mesh_dir, category, mesh1_filename)
     geometry_path['mesh2'] = os.path.join(mesh_dir, category, mesh2_filename)
     geometry_path['ibs_mesh_gt'] = os.path.join(ibs_mesh_gt_dir, category, ibs_mesh_gt_filename)
+    geometry_path['ibs_pcd_gt'] = os.path.join(ibs_pcd_gt_dir, category, ibs_pcd_gt_filename)
     geometry_path['ibs1_pcd_gt'] = os.path.join(ibs_pcd_gt_dir, category, ibs1_pcd_gt_filename)
     geometry_path['ibs2_pcd_gt'] = os.path.join(ibs_pcd_gt_dir, category, ibs2_pcd_gt_filename)
     geometry_path['pcd1_gt'] = os.path.join(pcd_gt_dir, category, pcd1_gt_filename)
@@ -126,6 +128,7 @@ def visualize(specs, filename):
     mesh1 = meshGetter().get(geometry_path["mesh1"], geometry_color["mesh1"], geometry_option["mesh1"])
     mesh2 = meshGetter().get(geometry_path["mesh2"], geometry_color["mesh2"], geometry_option["mesh2"])
     ibs_mesh_gt = meshGetter().get(geometry_path["ibs_mesh_gt"], geometry_color["ibs_mesh_gt"], geometry_option["ibs_mesh_gt"])
+    ibs_pcd_gt = pcdGetter().get(geometry_path["ibs_pcd_gt"], geometry_color["ibs_pcd_gt"], geometry_option["ibs_pcd_gt"])
     ibs1_pcd_gt = pcdGetter().get(geometry_path["ibs1_pcd_gt"], geometry_color["ibs1_pcd_gt"], geometry_option["ibs1_pcd_gt"])
     ibs2_pcd_gt = pcdGetter().get(geometry_path["ibs2_pcd_gt"], geometry_color["ibs2_pcd_gt"], geometry_option["ibs2_pcd_gt"])
     pcd1_gt = pcdGetter().get(geometry_path['pcd1_gt'], geometry_color['pcd1_gt'], geometry_option["pcd1_gt"])
@@ -141,6 +144,7 @@ def visualize(specs, filename):
     container['mesh1'] = mesh1
     container['mesh2'] = mesh2
     container['ibs_mesh_gt'] = ibs_mesh_gt
+    container['ibs_pcd_gt'] = ibs_pcd_gt
     container['ibs1_pcd_gt'] = ibs1_pcd_gt
     container['ibs2_pcd_gt'] = ibs2_pcd_gt
     container['pcd1_gt'] = pcd1_gt

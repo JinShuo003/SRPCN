@@ -6,7 +6,7 @@
     },
     "geometries_dir": {
       "mesh_dir": "D:\\dataset\\IBPCDC\\mesh",
-      "ibs_mesh_gt_dir": "D:\\dataset\\IBPCDC\\IBSMesh_min_obj",
+      "ibs_mesh_gt_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
       "ibs_pcd_gt_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE",
       "pcd_gt_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "pcd_scan_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
@@ -17,7 +17,7 @@
       "scene_re": "scene\\d.\\d{4}",
       "filename_re": "scene\\d.\\d{4}",
       "handle_category": "scene\\d",
-      "handle_scene": "scene5.1014",
+      "handle_scene": "scene\\d.100[1-5]",
       "handle_filename": "scene\\d.\\d{4}"
     },
     "filename_tree_dir": "mesh_dir"
@@ -25,9 +25,10 @@
 
   "visualization_options": {
     "geometries": {
-      "mesh1": true,
+      "mesh1": false,
       "mesh2": true,
       "ibs_mesh_gt": true,
+      "ibs_pcd_gt": true,
       "ibs1_pcd_gt": false,
       "ibs2_pcd_gt": false,
       "pcd1_gt": false,
@@ -37,12 +38,13 @@
       "pcd1_pred": false,
       "pcd2_pred": false,
       "coord_frame": false,
-      "unit_sphere": true
+      "unit_sphere": false
     },
     "colors": {
       "mesh1": [0.7, 0.3, 0.3],
       "mesh2": [0.3, 0.7, 0.3],
       "ibs_mesh_gt": [0.3, 0.3, 0.7],
+      "ibs_pcd_gt": [1, 1, 0.3],
       "ibs1_pcd_gt": [0.7, 0, 0.7],
       "ibs2_pcd_gt": [0.7, 0, 0.7],
       "pcd1_gt": [0, 1, 0],

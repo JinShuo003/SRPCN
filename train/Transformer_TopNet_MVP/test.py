@@ -164,7 +164,7 @@ def main_function(specs, model_path):
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     time_begin_zip = time.time()
-    create_zip()
+    create_zip(dataset="INTE")
     time_end_zip = time.time()
     logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
 

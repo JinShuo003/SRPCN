@@ -1,12 +1,10 @@
 .idea/
-*.bak
 */__pycache__
 .vscode/
 */sftp.json
 /tensorboard_logs
 /test_result
 *.pth
-*.ply
 generate_train_data/logs
 *.log
 /data

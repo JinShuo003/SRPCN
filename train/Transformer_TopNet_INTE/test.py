@@ -125,7 +125,7 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
     dist_dict = dist_dict_total.get(tag)
     dist_total = 0
     num = 0
-    for i in range(1, 17):
+    for i in range(1, 10):
         category = "scene{}".format(i)
         dist_dict[category]["avrg_dist"] = dist_dict[category]["dist_total"] / dist_dict[category]["num"]
         dist_total += dist_dict[category]["dist_total"]
@@ -144,7 +144,7 @@ def test(network, test_dataloader, specs):
     }
     network.eval()
     with torch.no_grad():
-        for pcd_partial, pcd_gt, idx in test_dataloader:
+        for _, _, pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/Transformer_TopNet_INTE/epoch_90.pth",
+        default="trained_models/Transformer_TopNet_INTE/epoch_103.pth",
         required=False,
         help="The network para"
     )

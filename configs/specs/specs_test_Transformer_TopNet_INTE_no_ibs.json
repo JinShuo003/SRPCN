@@ -1,12 +1,12 @@
 {
-    "TAG": "Transformer_TopNet_INTE",
+    "TAG": "Transformer_TopNet_INTE_no_ibs",
     "DataSource" : "data",
     "TestSplit" : "configs/test_INTE_norm/test.json",
     "ScenePatten": "scene\\d+.\\d+",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "LogDir" : "logs/test",
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
-    "ResultSaveDir": "test_result/Transformer_TopNet_INTE",
+    "ResultSaveDir": "test_result/Transformer_TopNet_INTE_no_ibs",
     "Device" : 0,
     "BatchSize" : 256,
     "DataLoaderThreads" : 8

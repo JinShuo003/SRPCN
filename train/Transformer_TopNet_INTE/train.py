@@ -161,9 +161,12 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
-        pcd_gt = pcd_gt.to(device)
 
         pcd_pred = network(pcd_partial)
+
+        pcd_gt = pcd_gt.to(device)
+        center = center.to(device)
+        radius = radius.to(device)
 
         loss_cd = cd_loss_L1(pcd_pred, pcd_gt)
         loss_ibs = ibs_loss(center, radius, pcd_pred)
@@ -197,9 +200,12 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
         test_total_loss = 0
         for center, radius, pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
-            pcd_gt = pcd_gt.to(device)
 
             pcd_pred = network(pcd_partial)
+
+            pcd_gt = pcd_gt.to(device)
+            center = center.to(device)
+            radius = radius.to(device)
 
             loss_cd = cd_loss_L1(pcd_pred, pcd_gt)
             loss_ibs = ibs_loss(center, radius, pcd_pred)

@@ -20,10 +20,10 @@ def ibs_loss(center, radius, pcd):
         pcd (torch.tensor): (B, N, 3)
     """
     cham_loss = dist_chamfer_3D.chamfer_3DDist()
-    dist1, _, idx1, _ = cham_loss(center, pcd)
-    closest_points = torch.gather(pcd, 1, idx1.unsqueeze(2).expand(-1, -1, 3))
-    center_to_closest = torch.norm(center - closest_points, dim=2)
-    loss = torch.abs(center_to_closest - radius)
+    dist1, _, _, _ = cham_loss(center, pcd)
+    # closest_points = torch.gather(pcd, 1, idx1.to(torch.int64).unsqueeze(2).expand(-1, -1, 3))
+    # center_to_closest = torch.norm(center - closest_points, dim=2)
+    loss = torch.abs(torch.sqrt(dist1) - radius)
 
     return torch.mean(loss)
 

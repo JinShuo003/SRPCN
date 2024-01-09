@@ -3,8 +3,8 @@
     "geometries_dir": {
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
-      "pcd_pred1_dir": "",
-      "pcd_pred2_dir": "",
+      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\Transformer_TopNet_INTE\\INTE_norm",
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\Transformer_TopNet_INTE_no_ibs\\INTE_norm",
       "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
     },
     "format_info": {
@@ -15,13 +15,13 @@
       "handle_scene": "scene\\d.\\d{4}",
       "handle_filename": "scene\\d.\\d{4}_view\\d+"
     },
-    "filename_tree_dir": "pcd_partial_dir"
+    "filename_tree_dir": "pcd_pred1_dir"
   },
   "window_size_options": {
     "sub_window_width": 800,
     "sub_window_height": 500,
     "tool_bar_width": 300
   },
-  "sub_window_3_name": "Transformer_TopNet_1obj_ibs",
-  "sub_window_4_name": "Transformer_TopNet_1obj_no_ibs"
+  "sub_window_3_name": "Transformer_TopNet_INTE",
+  "sub_window_4_name": "Transformer_TopNet_INTE_no_ibs"
 }

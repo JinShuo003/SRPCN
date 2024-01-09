@@ -1,0 +1,13 @@
+{
+    "TAG": "PointAttN_INTE",
+    "DataSource" : "data",
+    "TestSplit" : "configs/test_INTE_norm/test.json",
+    "ScenePatten": "scene\\d+.\\d+",
+    "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
+    "LogDir" : "logs/test",
+    "NormalizeParaDir": "data/normalizePara/INTE_norm",
+    "ResultSaveDir": "test_result/PointAttN_INTE",
+    "Device" : 0,
+    "BatchSize" : 256,
+    "DataLoaderThreads" : 8
+}

@@ -12,7 +12,7 @@ import open3d as o3d
 import argparse
 import time
 
-from networks.model_PCN_MVP import *
+from models.model_PCN_MVP import *
 
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, emd_loss

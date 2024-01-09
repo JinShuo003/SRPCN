@@ -12,7 +12,7 @@ import numpy as np
 import open3d as o3d
 import shutil
 
-from networks.model_PCN_MVP import *
+from models.model_PCN_MVP import *
 from utils.loss import *
 from utils.metric import *
 

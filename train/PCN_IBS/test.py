@@ -11,7 +11,7 @@ import re
 import argparse
 import time
 
-from networks.loss import *
+from models.loss import *
 
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils

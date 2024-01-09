@@ -1,6 +1,6 @@
 {
     "TAG": "Transformer_TopNet_INTE",
-    "Description" : "encoder: Transformer, decoder: TopNet, dataset: INTE",
+    "Description" : "encoder: Transformer, decoder: TopNet, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "configs/train_INTE_norm/train.json",
     "TestSplit" : "configs/test_INTE_norm/test.json",

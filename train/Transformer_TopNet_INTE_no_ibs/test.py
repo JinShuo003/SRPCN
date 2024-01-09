@@ -12,7 +12,7 @@ import open3d as o3d
 import numpy as np
 import shutil
 
-from networks.model_Transformer_TopNet_INTE import IBPCDCNet
+from models.model_Transformer_TopNet_INTE import IBPCDCNet
 from utils.loss import *
 from utils.metric import *
 

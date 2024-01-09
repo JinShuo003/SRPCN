@@ -1,0 +1,20 @@
+{
+    "TAG": "PointAttN_INTE",
+    "Description" : "model: PointAttN, dataset: INTE_norm",
+    "DataSource" : "data",
+    "TrainSplit" : "configs/train_INTE_norm/train.json",
+    "TestSplit" : "configs/test_INTE_norm/test.json",
+    "ParaSaveDir" : "trained_models",
+    "TensorboardLogDir" : "tensorboard_logs",
+    "LogDir" : "logs/train",
+    "Device" : 0,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 512,
+        "DataLoaderThreads" : 8,
+        "LearningRate": 0.001,
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0
+    }
+}

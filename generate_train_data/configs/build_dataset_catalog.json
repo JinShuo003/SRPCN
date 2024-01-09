@@ -4,12 +4,12 @@
   "filename_re": "scene\\d\\.\\d{4}_view\\d+",
 
   "dataset_catalog_save_path": "../configs",
-  "pcd_scan_path": "D:\\dataset\\IBPCDC\\pcdScan\\pcd_partial_2048_normalize",
+  "pcd_scan_path": "D:\\dataset\\IBPCDC\\pcdScan\\INTE_norm",
   "categories": ["scene1","scene2","scene3","scene4","scene5","scene6","scene7","scene8","scene9"],
 
-  "dataset_name": "pcd_partial_2048_normalize",
-  "train_split_dirname": "train_scan_2048_normalize",
-  "test_split_dirname": "test_scan_2048_normalize",
+  "dataset_name": "INTE_norm",
+  "train_split_dirname": "train_INTE_norm",
+  "test_split_dirname": "test_INTE_norm",
 
   "partition_option": {
     "train_dataset_proportion": 0.7,

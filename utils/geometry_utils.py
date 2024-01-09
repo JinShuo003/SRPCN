@@ -38,6 +38,18 @@ def read_mesh(path):
     return mesh
 
 
+def read_medial_axis_sphere(path):
+    """
+    读取中轴球
+    Args:
+        path: 中轴球的路径
+    Returns:
+        center, radius
+    """
+    data = np.load(path)
+    return data["center"], data["radius"]
+
+
 def get_pcd_from_np(array: np.ndarray):
     """
     将(n, 3)的np.ndarray转为open3d.PointCloud
@@ -91,20 +103,27 @@ def geometry_transform(geometry, centroid, scale):
     return geometry_copy
 
 
-def get_sphere_mesh(radius=1.0):
+def sphere_transform(center, radius, centroid, scale):
+    """
+    将球心为center，半径为radius的球以centroid、scale进行平移和缩放
+    """
+    return (center-centroid)/scale, radius/scale
+
+
+def get_sphere_mesh(center=(0, 0, 0), radius=1.0):
     """
     获取半径为radius，格式为open3d.TriangleMesh的球
     Args:
+        center: 球心
         radius: 球半径
     Returns:
         r=radius，format=open3d.TriangleMesh的球
     """
-    sphere_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=radius)
-    sphere_mesh.compute_vertex_normals()
+    sphere_mesh = pyvista2o3d(pv.Sphere(radius, center))
     return sphere_mesh
 
 
-def get_sphere_pcd(center=(0, 0, 0), radius=1, points_num=256):
+def get_sphere_pcd(center=(0, 0, 0), radius=1.0, points_num=256):
     """
     获取r=radius，格式为open3d.PointCloud的球
     Args:
@@ -114,7 +133,7 @@ def get_sphere_pcd(center=(0, 0, 0), radius=1, points_num=256):
     Returns:
         r=radius，点数=points_num，format=open3d.PointCloud的球
     """
-    sphere_mesh = pyvista2o3d(pv.Sphere(radius, center))
+    sphere_mesh = get_sphere_mesh(center, radius)
     sphere_pcd = sphere_mesh.sample_points_uniformly(points_num)
     return sphere_pcd
 

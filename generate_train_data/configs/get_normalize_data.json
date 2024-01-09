@@ -1,9 +1,10 @@
 {
   "path_options": {
     "geometries_dir": {
-      "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\pcd_partial_2048",
-      "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\pcd_partial_2048",
-      "IBS_dir": "D:\\dataset\\IBPCDC\\IBS\\pcd_partial_2048"
+      "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
+      "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
+      "IBS_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE",
+      "Medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE"
     },
     "format_info": {
       "category_re": "scene\\d",
@@ -13,12 +14,14 @@
       "handle_scene": "scene\\d.\\d{4}",
       "handle_filename": "scene\\d.\\d{4}_view\\d+"
     },
-    "pcd_complete_save_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\pcd_partial_2048_normalize",
-    "pcd_partial_save_dir": "D:\\dataset\\IBPCDC\\pcdScan\\pcd_partial_2048_normalize",
-    "IBS_save_dir": "D:\\dataset\\IBPCDC\\IBS\\pcd_partial_2048_normalize",
-    "normalize_para_save_dir": "D:\\dataset\\IBPCDC\\normalizePara",
+    "pcd_complete_save_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE_norm",
+    "pcd_partial_save_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE_norm",
+    "IBS_save_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE_norm",
+    "Medial_axis_save_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE_norm",
+    "normalize_para_save_dir": "D:\\dataset\\IBPCDC\\normalizePara\\INTE_norm",
     "log_dir": "logs/get_normalize_data"
   },
-  "use_process_pool": false,
-  "process_num": 10
+  "normalize_scale": 0.5,
+  "use_process_pool": true,
+  "process_num": 8
 }

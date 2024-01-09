@@ -1,0 +1,11 @@
+{
+    "TAG": "Transformer_TopNet_INTE",
+    "DataSource" : "data",
+    "TestSplit" : "configs/test_INTE_norm/test.json",
+    "ScenePatten": "scene\\d+.\\d+",
+    "LogDir" : "logs/test",
+    "ResultSaveDir": "test_result/Transformer_TopNet_INTE",
+    "Device" : 0,
+    "BatchSize" : 256,
+    "DataLoaderThreads" : 8
+}

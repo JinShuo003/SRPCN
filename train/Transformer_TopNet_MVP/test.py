@@ -8,8 +8,8 @@ import json
 import re
 import argparse
 import time
-import numpy as np
 import open3d as o3d
+import numpy as np
 import shutil
 
 from networks.model_Transformer_TopNet_MVP import *

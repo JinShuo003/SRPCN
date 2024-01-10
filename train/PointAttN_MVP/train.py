@@ -157,7 +157,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
     train_total_loss_dense_cd = 0
     train_total_loss_coarse_cd = 0
-    for center, radius, pcd_partial, pcd_gt, idx in train_dataloader:
+    for pcd_partial, pcd_gt, idx in train_dataloader:
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
@@ -199,7 +199,7 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
     with torch.no_grad():
         test_total_coarse_cd_l1 = 0
         test_total_dense_cd_l1 = 0
-        for center, radius, pcd_partial, pcd_gt, idx in test_dataloader:
+        for pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
 
             coarse, fine, fine1 = network(pcd_partial)

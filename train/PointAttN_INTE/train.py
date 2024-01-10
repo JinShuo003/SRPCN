@@ -166,10 +166,10 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         pcd_gt = pcd_gt.to(device)
 
         loss3 = cd_loss_L1(fine1, pcd_gt)
-        gt_fine1 = gather_points(pcd_gt.transpose(1, 2).contiguous(),
+        gt_fine1 = gather_operation(pcd_gt.transpose(1, 2).contiguous(),
                                  furthest_point_sample(pcd_gt, fine.shape[1])).transpose(1, 2).contiguous()
         loss2 = cd_loss_L1(fine, gt_fine1)
-        gt_coarse = gather_points(gt_fine1.transpose(1, 2).contiguous(),
+        gt_coarse = gather_operation(gt_fine1.transpose(1, 2).contiguous(),
                                   furthest_point_sample(gt_fine1, coarse.shape[1])).transpose(1, 2).contiguous()
         loss1 = cd_loss_L1(coarse, gt_coarse)
 
@@ -206,8 +206,8 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
 
             pcd_gt = pcd_gt.to(device)
 
-            loss_coarse_cd = cd_loss_L1(fine1, pcd_gt)
-            loss_dense_cd = cd_loss_L1(coarse, pcd_gt)
+            loss_coarse_cd = cd_loss_L1(coarse, pcd_gt)
+            loss_dense_cd = cd_loss_L1(fine1, pcd_gt)
 
             test_total_coarse_cd_l1 += loss_coarse_cd.item()
             test_total_dense_cd_l1 += loss_dense_cd.item()
@@ -274,7 +274,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_Transformer_TopNet_INTE.json",
+        default="configs/specs/specs_train_PointAttN_INTE.json",
         required=False,
         help="The experiment config file."
     )

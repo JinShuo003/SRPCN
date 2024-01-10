@@ -12,7 +12,7 @@ import open3d as o3d
 import numpy as np
 import shutil
 
-from models.model_Transformer_TopNet_INTE import IBPCDCNet
+from networks.Transformer_TopNet_INTE_no_ibs import IBPCDCNet
 from utils.loss import *
 from utils.metric import *
 
@@ -101,7 +101,7 @@ def create_zip(dataset="MVP"):
 
     output_archive = os.path.join(save_dir, dataset)
 
-    shutil.make_archive(output_archive, 'zip', save_dir)
+    shutil.make_archive(output_archive, 'zip', output_archive)
 
 
 def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_Transformer_TopNet_INTE.json",
+        default="configs/specs/specs_test_Transformer_TopNet_INTE_no_ibs.json",
         required=False,
         help="The experiment config file."
     )
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/Transformer_TopNet_INTE/epoch_103.pth",
+        default="trained_models/Transformer_TopNet_INTE_no_ibs/epoch_92.pth",
         required=False,
         help="The network para"
     )

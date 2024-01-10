@@ -5,8 +5,7 @@ import torch.nn.parallel
 import torch.utils.data
 import torch.nn.functional as F
 
-from utils.loss import cd_loss_L1, cd_loss_L2
-from mm3d_pn2 import furthest_point_sample, gather_points
+from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation
 
 
 class cross_transformer(nn.Module):
@@ -140,23 +139,23 @@ class PCT_encoder(nn.Module):
 
         # GDP
         idx_0 = furthest_point_sample(points.transpose(1, 2).contiguous(), N // 4)
-        x_g0 = gather_points(x0, idx_0)
-        points = gather_points(points, idx_0)
+        x_g0 = gather_operation(x0, idx_0)
+        points = gather_operation(points, idx_0)
         x1 = self.sa1(x_g0, x0).contiguous()
         x1 = torch.cat([x_g0, x1], dim=1)
         # SFA
         x1 = self.sa1_1(x1, x1).contiguous()
         # GDP
         idx_1 = furthest_point_sample(points.transpose(1, 2).contiguous(), N // 8)
-        x_g1 = gather_points(x1, idx_1)
-        points = gather_points(points, idx_1)
+        x_g1 = gather_operation(x1, idx_1)
+        points = gather_operation(points, idx_1)
         x2 = self.sa2(x_g1, x1).contiguous()  # C*2, N
         x2 = torch.cat([x_g1, x2], dim=1)
         # SFA
         x2 = self.sa2_1(x2, x2).contiguous()
         # GDP
         idx_2 = furthest_point_sample(points.transpose(1, 2).contiguous(), N // 16)
-        x_g2 = gather_points(x2, idx_2)
+        x_g2 = gather_operation(x2, idx_2)
         # points = gather_points(points, idx_2)
         x3 = self.sa3(x_g2, x2).contiguous()  # C*4, N/4
         x3 = torch.cat([x_g2, x3], dim=1)
@@ -179,27 +178,21 @@ class PCT_encoder(nn.Module):
 
 
 class PointAttN(nn.Module):
-    def __init__(self, args):
+    def __init__(self):
         super(PointAttN, self).__init__()
-        if args.dataset == 'pcn':
-            step1 = 4
-            step2 = 8
-        elif args.dataset == 'c3d':
-            step1 = 1
-            step2 = 4
-        else:
-            ValueError('dataset is not exist')
-
         self.encoder = PCT_encoder()
 
+        step1 = 1
+        step2 = 4
         self.refine = PCT_refine(ratio=step1)
         self.refine1 = PCT_refine(ratio=step2)
 
     def forward(self, x):
+        x = x.transpose(1, 2).contiguous()
         feat_g, coarse = self.encoder(x)
 
         new_x = torch.cat([x, coarse], dim=2)
-        new_x = gather_points(new_x, furthest_point_sample(new_x.transpose(1, 2).contiguous(), 512))
+        new_x = gather_operation(new_x, furthest_point_sample(new_x.transpose(1, 2).contiguous(), 512))
 
         fine, feat_fine = self.refine(None, new_x, feat_g)
         fine1, feat_fine1 = self.refine1(feat_fine, fine, feat_g)

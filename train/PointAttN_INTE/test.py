@@ -12,7 +12,7 @@ import open3d as o3d
 import numpy as np
 import shutil
 
-from models.model_Transformer_TopNet_INTE import IBPCDCNet
+from models.PointAttN import PointAttN
 from utils.loss import *
 from utils.metric import *
 
@@ -101,7 +101,7 @@ def create_zip(dataset="MVP"):
 
     output_archive = os.path.join(save_dir, dataset)
 
-    shutil.make_archive(output_archive, 'zip', save_dir)
+    shutil.make_archive(output_archive, 'zip', output_archive)
 
 
 def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
@@ -148,7 +148,7 @@ def test(network, test_dataloader, specs):
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
-            pcd_pred = network(pcd_partial)
+            coarse, fine, pcd_pred = network(pcd_partial)
 
             cd_l1 = l1_cd(pcd_pred, pcd_gt)
             cd_l2 = l2_cd(pcd_pred, pcd_gt)
@@ -180,7 +180,7 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    model = IBPCDCNet().to(device)
+    model = PointAttN().to(device)
     state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
     model.load_state_dict(state_dict)
     logger.info("load trained model succeed")
@@ -191,7 +191,7 @@ def main_function(specs, model_path):
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     time_begin_zip = time.time()
-    create_zip()
+    create_zip(dataset="INTE")
     time_end_zip = time.time()
     logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
 
@@ -202,7 +202,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_Transformer_TopNet_INTE.json",
+        default="configs/specs/specs_test_PointAttN_INTE.json",
         required=False,
         help="The experiment config file."
     )
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/Transformer_TopNet_INTE/epoch_103.pth",
+        default="trained_models/PointAttN_INTE/epoch_260.pth",
         required=False,
         help="The network para"
     )

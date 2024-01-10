@@ -12,11 +12,11 @@ import open3d as o3d
 import argparse
 import time
 
-from models.model_PCN_IBS import *
+from models.PCN_MVP import *
 
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, emd_loss
-from dataset import data_normalize
+from dataset import data_INTE_norm
 
 logger = None
 
@@ -65,8 +65,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = data_normalize.InteractionDataset(data_source, train_split)
-    test_dataset = data_normalize.InteractionDataset(data_source, test_split)
+    train_dataset = data_INTE_norm.INTENormDataset(data_source, train_split)
+    test_dataset = data_INTE_norm.INTENormDataset(data_source, test_split)
 
     logger.info("length of train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
@@ -96,7 +96,7 @@ def get_network(specs):
     device = specs.get("Device")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
 
-    network = PCN(num_dense=2048, device=de).to(device)
+    network = PCN(num_dense=2048).to(device)
 
     if continue_train:
         continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
@@ -130,13 +130,11 @@ def get_tensorboard_writer(specs, network):
     tensorboard_writer = SummaryWriter(writer_path)
 
     input_pcd_shape = torch.randn(1, specs.get("PcdPointNum"), 3)
-    input_IBS_shape = torch.randn(1, specs.get("IBSPointNum"), 3)
 
     if torch.cuda.is_available():
         input_pcd_shape = input_pcd_shape.to(device)
-        input_IBS_shape = input_IBS_shape.to(device)
 
-    tensorboard_writer.add_graph(network, (input_pcd_shape, input_IBS_shape, input_IBS_shape))
+    tensorboard_writer.add_graph(network, input_pcd_shape)
 
     return tensorboard_writer
 
@@ -171,14 +169,13 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     train_total_loss_coarse = 0
     train_total_loss_dense = 0
     train_total_loss = 0
-    for IBS, pcd_partial, pcd_gt, idx in train_dataloader:
+    for pcd_partial, pcd_gt, idx in train_dataloader:
         optimizer.zero_grad()
 
-        IBS = IBS.to(device)
         pcd_partial = pcd_partial.to(device)
         pcd_gt = pcd_gt.to(device)
 
-        coarse_pred, dense_pred = network(pcd_partial, IBS)
+        coarse_pred, dense_pred = network(pcd_partial)
 
         if coarse_loss == 'cd':
             loss_coarse = cd_loss_L1(coarse_pred, pcd_gt)
@@ -215,17 +212,15 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
 def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1, best_epoch):
     device = specs.get("Device")
-    para_save_dir = specs.get("ParaSaveDir")
 
     network.eval()
     with torch.no_grad():
         test_total_cd_l1 = 0
-        for IBS, pcd_partial, pcd_gt, idx in test_dataloader:
-            IBS = IBS.to(device)
+        for pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
-            coarse_pred, dense_pred = network(pcd_partial, IBS)
+            coarse_pred, dense_pred = network(pcd_partial)
             loss_cd_l1 = cd_loss_L1(dense_pred, pcd_gt)
 
             test_total_cd_l1 += loss_cd_l1.item()
@@ -288,7 +283,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_PCN_IBS.json",
+        default="configs/specs/specs_train_PCN_INTE.json",
         required=False,
         help="The experiment config file."
     )

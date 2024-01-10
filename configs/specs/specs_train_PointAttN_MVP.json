@@ -1,0 +1,20 @@
+{
+    "TAG": "PointAttN_MVP",
+    "Description" : "model: PointAttN, dataset: MVP",
+    "DataSource" : "data",
+    "TrainSplit" : "configs/train_MVP/train.json",
+    "TestSplit" : "configs/test_MVP/test.json",
+    "ParaSaveDir" : "trained_models",
+    "TensorboardLogDir" : "tensorboard_logs",
+    "LogDir" : "logs/train",
+    "Device" : 0,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8,
+        "LearningRate": 0.0001,
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0
+    }
+}

@@ -8,3 +8,6 @@
 generate_train_data/logs
 *.log
 /data
+/ChamferDistancePytorch/chamfer3D/build
+/ChamferDistancePytorch/chamfer3D/chamfer_3D.egg-info
+/ChamferDistancePytorch/chamfer3D/dist

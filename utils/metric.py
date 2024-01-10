@@ -1,6 +1,6 @@
 import torch
 
-from ChamferDistancePytorch.chamfer3D import dist_chamfer_3D
+from utils.ChamferDistancePytorch.chamfer3D import dist_chamfer_3D
 from utils.loss import emdModule
 
 

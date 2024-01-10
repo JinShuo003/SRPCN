@@ -8,17 +8,17 @@ import json
 import re
 import argparse
 import time
-import numpy as np
 import open3d as o3d
+import numpy as np
 import shutil
 
-from models.model_PCN_MVP import *
+from models.PCN_MVP import *
 from utils.loss import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils
-from dataset import dataset_MVP
+from dataset import data_INTE_norm
 
 logger = None
 
@@ -33,7 +33,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = dataset_MVP.PcdDataset(data_source, test_split)
+    test_dataset = data_INTE_norm.INTENormDataset(data_source, test_split)
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader
@@ -49,32 +49,59 @@ def get_dataloader(specs):
     return test_dataloader
 
 
+def get_normalize_para(file_path):
+    with open(file_path, "r") as file:
+        content = file.read()
+        data = list(map(float, content.split(",")))
+        translate = data[0:3]
+        scale = data[-1]
+    return translate, scale
+
+
 def save_result(test_dataloader, pcd, indices, specs):
     save_dir = specs.get("ResultSaveDir")
+    normalize_para_dir = specs.get("NormalizeParaDir")
 
-    # 将udf数据拆分开，并且转移到cpu
+    filename_patten = specs.get("FileNamePatten")
+    scene_patten = specs.get("ScenePatten")
+
     pcd_np = pcd.cpu().detach().numpy()
 
     filename_list = [test_dataloader.dataset.pcd_partial_filenames[index] for index in indices]
     for index, filename_abs in enumerate(filename_list):
         # [dataset, category, filename], example:[MVP, scene1, scene1.1000_view0_0.ply]
         dataset, category, filename = filename_abs.split('/')
+        filename = re.match(filename_patten, filename).group()
+        scene = re.match(scene_patten, filename).group()
 
+        # normalize parameters
+        normalize_para_filename = "{}_{}.txt".format(scene, re.findall(r'\d+', filename)[-1])
+        normalize_para_path = os.path.join(normalize_para_dir, category, normalize_para_filename)
+        translate, scale = get_normalize_para(normalize_para_path)
+
+        # the real directory is save_dir/dataset/category
         save_path = os.path.join(save_dir, dataset, category)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 
-        pcd_save_absolute_path = os.path.join(save_path, filename)
+        # get final filename
+        filename_final = "{}.ply".format(filename)
+        absolute_path = os.path.join(save_path, filename_final)
+        pcd = get_pcd_from_np(pcd_np[index])
 
-        o3d.io.write_point_cloud(pcd_save_absolute_path, get_pcd_from_np(pcd_np[index]))
+        # transform to origin coordinate
+        pcd.scale(scale, np.array([0, 0, 0]))
+        pcd.translate(translate)
+
+        o3d.io.write_point_cloud(absolute_path, pcd)
 
 
-def create_zip(dataset="MVP"):
+def create_zip(dataset: str = None):
     save_dir = specs.get("ResultSaveDir")
 
     output_archive = os.path.join(save_dir, dataset)
 
-    shutil.make_archive(output_archive, 'zip', save_dir)
+    shutil.make_archive(output_archive, 'zip', output_archive)
 
 
 def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
@@ -98,7 +125,7 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
     dist_dict = dist_dict_total.get(tag)
     dist_total = 0
     num = 0
-    for i in range(1, 17):
+    for i in range(1, 10):
         category = "scene{}".format(i)
         dist_dict[category]["avrg_dist"] = dist_dict[category]["dist_total"] / dist_dict[category]["num"]
         dist_total += dist_dict[category]["dist_total"]
@@ -117,7 +144,7 @@ def test(network, test_dataloader, specs):
     }
     network.eval()
     with torch.no_grad():
-        for pcd_partial, pcd_gt, idx in test_dataloader:
+        for _, _, pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
@@ -153,10 +180,10 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    model = PCN(num_dense=2048).to(device)
-    state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(state_dict)
-    logger.info("load trained model succeed")
+    model = PCN(num_dense=2048, device=device).to(device)
+    checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
+    model.load_state_dict(checkpoint["model"])
+    logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()
     test(model, test_dataloader, specs)
@@ -164,7 +191,7 @@ def main_function(specs, model_path):
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     time_begin_zip = time.time()
-    create_zip()
+    create_zip(dataset="INTE_norm")
     time_end_zip = time.time()
     logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
 
@@ -175,7 +202,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_PCN_MVP.json",
+        default="configs/specs/specs_test_PCN_INTE.json",
         required=False,
         help="The experiment config file."
     )
@@ -183,7 +210,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN/epoch_277.pth",
+        default="trained_models/PCN_INTE/epoch_15.pth",
         required=False,
         help="The network para"
     )

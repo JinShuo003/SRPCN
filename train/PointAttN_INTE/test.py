@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
@@ -183,9 +184,9 @@ def main_function(specs, model_path):
     logger.info("init dataloader succeed")
 
     model = PointAttN().to(device)
-    state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(state_dict)
-    logger.info("load trained model succeed")
+    checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
+    model.load_state_dict(checkpoint["model"])
+    logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()
     test(model, test_dataloader, specs)
@@ -222,7 +223,8 @@ if __name__ == '__main__':
     specs = path_utils.read_config(args.experiment_config_file)
 
     logger = log_utils.get_test_logger(specs)
-
+    TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
+    logger.info("current time: {}".format(TIMESTAMP))
     logger.info("test split: {}".format(specs.get("TestSplit")))
     logger.info("specs file: {}".format(args.experiment_config_file))
     logger.info("specs file: \n{}".format(json.dumps(specs, sort_keys=False, indent=4)))

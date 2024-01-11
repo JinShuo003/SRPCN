@@ -4,49 +4,20 @@ sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
 
 from datetime import datetime, timedelta
+import tensorboard.summary
 from torch.utils.tensorboard import SummaryWriter
 import torch.utils.data as data_utils
 import torch.optim as Optim
 import json
-import open3d as o3d
 import argparse
 import time
 
-from models.PointAttN import *
-
+from models.PointAttN import PointAttN
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1, ibs_loss
+from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss
 from dataset import data_INTE_norm
 
 logger = None
-
-
-def visualize(pcd1, pcd2, IBS, pcd1_gt, pcd2_gt):
-    # 将udf数据拆分开，并且转移到cpu
-    IBS = IBS.cpu().detach().numpy()
-    pcd1_np = pcd1.cpu().detach().numpy()
-    pcd2_np = pcd2.cpu().detach().numpy()
-    pcd1gt_np = pcd1_gt.cpu().detach().numpy()
-    pcd2gt_np = pcd2_gt.cpu().detach().numpy()
-
-    for i in range(pcd1_np.shape[0]):
-        pcd1_o3d = o3d.geometry.PointCloud()
-        pcd2_o3d = o3d.geometry.PointCloud()
-        ibs_o3d = o3d.geometry.PointCloud()
-        pcd1gt_o3d = o3d.geometry.PointCloud()
-        pcd2gt_o3d = o3d.geometry.PointCloud()
-
-        pcd1_o3d.points = o3d.utility.Vector3dVector(pcd1_np[i])
-        pcd2_o3d.points = o3d.utility.Vector3dVector(pcd2_np[i])
-        ibs_o3d.points = o3d.utility.Vector3dVector(IBS[i])
-        pcd1gt_o3d.points = o3d.utility.Vector3dVector(pcd1gt_np[i])
-        pcd2gt_o3d.points = o3d.utility.Vector3dVector(pcd2gt_np[i])
-
-        pcd1_o3d.paint_uniform_color([1, 0, 0])
-        pcd2_o3d.paint_uniform_color([0, 1, 0])
-        ibs_o3d.paint_uniform_color([0, 0, 1])
-
-        o3d.visualization.draw_geometries([ibs_o3d, pcd1_o3d, pcd2_o3d])
 
 
 def get_dataloader(specs):
@@ -148,6 +119,19 @@ def save_model(specs, model, epoch):
     torch.save(model.state_dict(), model_filename)
 
 
+def get_medial_axis_loss_weight(specs, epoch):
+    begin_epoch = specs.get("MedialAxisLossOptions").get("BeginEpoch")
+    init_ratio = specs.get("MedialAxisLossOptions").get("InitRatio")
+    step_size = specs.get("MedialAxisLossOptions").get("StepSize")
+    gamma = specs.get("MedialAxisLossOptions").get("Gamma")
+    return init_ratio * pow((1 + gamma), (epoch - begin_epoch) / step_size)
+
+
+def record_loss_info(tag: str, avrg_loss, epoch, tensorboard_writer: SummaryWriter):
+    tensorboard_writer.add_scalar("{}".format(tag), avrg_loss, epoch)
+    logger.info('{}: {}'.format(tag, avrg_loss))
+
+
 def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
     device = specs.get("Device")
 
@@ -155,41 +139,52 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     logger.info("")
     logger.info('epoch: {}, learning rate: {}'.format(epoch, optimizer.param_groups[0]["lr"]))
 
-    train_total_loss_dense_cd = 0
-    train_total_loss_coarse_cd = 0
+    medial_axis_loss_weight = get_medial_axis_loss_weight(specs, epoch)
+    logger.info("medial_axis_loss_weight: {}".format(medial_axis_loss_weight))
+
+    train_total_loss_dense = 0
+    train_total_loss_sub_dense = 0
+    train_total_loss_coarse = 0
+    train_total_loss_medial_axis_surface = 0
     for center, radius, pcd_partial, pcd_gt, idx in train_dataloader:
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
-        coarse, fine, fine1 = network(pcd_partial)
+        pcd_pred_coarse, pcd_pred_sub_dense, pcd_pred_dense = network(pcd_partial)
 
         pcd_gt = pcd_gt.to(device)
 
-        loss3 = cd_loss_L1(fine1, pcd_gt)
-        gt_fine1 = gather_operation(pcd_gt.transpose(1, 2).contiguous(),
-                                 furthest_point_sample(pcd_gt, fine.shape[1])).transpose(1, 2).contiguous()
-        loss2 = cd_loss_L1(fine, gt_fine1)
-        gt_coarse = gather_operation(gt_fine1.transpose(1, 2).contiguous(),
-                                  furthest_point_sample(gt_fine1, coarse.shape[1])).transpose(1, 2).contiguous()
-        loss1 = cd_loss_L1(coarse, gt_coarse)
+        loss_dense = cd_loss_L1(pcd_pred_dense, pcd_gt)
+        gt_sub_dense = gather_operation(pcd_gt.transpose(1, 2).contiguous(),
+                                        furthest_point_sample(pcd_gt, pcd_pred_sub_dense.shape[1])).transpose(1,
+                                                                                                              2).contiguous()
+        loss_sub_dense = cd_loss_L1(pcd_pred_sub_dense, gt_sub_dense)
+        gt_coarse = gather_operation(gt_sub_dense.transpose(1, 2).contiguous(),
+                                     furthest_point_sample(gt_sub_dense, pcd_pred_coarse.shape[1])).transpose(1,
+                                                                                                              2).contiguous()
+        loss_coarse = cd_loss_L1(pcd_pred_dense, gt_coarse)
 
-        loss_total = loss1 + loss2 + loss3
+        loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
 
-        train_total_loss_dense_cd += loss3.item()
-        train_total_loss_coarse_cd += loss1.item()
+        loss_total = loss_dense + loss_sub_dense + loss_coarse + medial_axis_loss_weight * loss_medial_axis_surface
+
+        train_total_loss_dense += loss_dense.item()
+        train_total_loss_sub_dense += loss_sub_dense.item()
+        train_total_loss_coarse += loss_coarse.item()
+        train_total_loss_medial_axis_surface += loss_medial_axis_surface.item()
 
         loss_total.backward()
         optimizer.step()
-        
+
     lr_schedule.step()
 
-    train_avrg_loss_cd = train_total_loss_dense_cd / train_dataloader.__len__()
-    tensorboard_writer.add_scalar("train_loss_cd", train_avrg_loss_cd, epoch)
-    logger.info('train_avrg_loss_cd: {}'.format(train_avrg_loss_cd))
-
-    train_avrg_loss_coarse_cd = train_total_loss_coarse_cd / train_dataloader.__len__()
-    tensorboard_writer.add_scalar("train_loss_coarse_cd", train_avrg_loss_coarse_cd, epoch)
-    logger.info('train_avrg_loss_coarse_cd: {}'.format(train_avrg_loss_coarse_cd))
+    record_loss_info("train_loss_dense", train_total_loss_dense / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_sub_dense", train_total_loss_sub_dense / train_dataloader.__len__(), epoch,
+                     tensorboard_writer)
+    record_loss_info("train_loss_coarse", train_total_loss_coarse / train_dataloader.__len__(), epoch,
+                     tensorboard_writer)
+    record_loss_info("train_loss_medial_axis_surface",
+                     train_total_loss_medial_axis_surface / train_dataloader.__len__(), epoch, tensorboard_writer)
 
 
 def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1, best_epoch):
@@ -197,32 +192,42 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
 
     network.eval()
     with torch.no_grad():
-        test_total_coarse_cd_l1 = 0
-        test_total_dense_cd_l1 = 0
+        test_total_dense = 0
+        test_total_sub_dense = 0
+        test_total_coarse = 0
+        test_total_medial_axis_surface = 0
+        test_total_medial_axis_interaction = 0
         for center, radius, pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
 
-            coarse, fine, fine1 = network(pcd_partial)
+            pcd_pred_coarse, pcd_pred_sub_dense, pcd_pred_dense = network(pcd_partial)
 
             pcd_gt = pcd_gt.to(device)
 
-            loss_coarse_cd = cd_loss_L1(coarse, pcd_gt)
-            loss_dense_cd = cd_loss_L1(fine1, pcd_gt)
+            loss_dense = cd_loss_L1(pcd_pred_dense, pcd_gt)
+            loss_sub_dense = cd_loss_L1(pcd_pred_sub_dense, pcd_gt)
+            loss_coarse = cd_loss_L1(pcd_pred_coarse, pcd_gt)
+            loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
+            loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
 
-            test_total_coarse_cd_l1 += loss_coarse_cd.item()
-            test_total_dense_cd_l1 += loss_dense_cd.item()
+            test_total_dense += loss_dense.item()
+            test_total_sub_dense += loss_sub_dense.item()
+            test_total_coarse += loss_coarse.item()
+            test_total_medial_axis_surface += loss_medial_axis_surface.item()
+            test_total_medial_axis_interaction += loss_medial_axis_interaction.item()
 
-        test_avrg_loss_coarse_cd_l1 = test_total_coarse_cd_l1 / test_dataloader.__len__()
-        tensorboard_writer.add_scalar("test_loss_coarse_cd_l1", test_avrg_loss_coarse_cd_l1, epoch)
-        logger.info('test_avrg_loss_coarse_cd: {}'.format(test_avrg_loss_coarse_cd_l1))
+        test_avrg_dense = test_total_dense / test_dataloader.__len__()
+        record_loss_info("test_loss_dense", test_total_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_sub_dense", test_total_sub_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_coarse", test_total_coarse / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_medial_axis_surface", test_total_medial_axis_surface / test_dataloader.__len__(),
+                         epoch, tensorboard_writer)
+        record_loss_info("test_loss_medial_axis_interaction",
+                         test_total_medial_axis_interaction / test_dataloader.__len__(), epoch, tensorboard_writer)
 
-        test_avrg_loss_dense_cd_l1 = test_total_dense_cd_l1 / test_dataloader.__len__()
-        tensorboard_writer.add_scalar("test_loss_dense_cd_l1", test_avrg_loss_dense_cd_l1, epoch)
-        logger.info('test_avrg_loss_dense_cd: {}'.format(test_avrg_loss_dense_cd_l1))
-
-        if test_avrg_loss_dense_cd_l1 < best_cd_l1:
+        if test_avrg_dense / test_dataloader.__len__() < best_cd_l1:
             best_epoch = epoch
-            best_cd_l1 = test_avrg_loss_dense_cd_l1
+            best_cd_l1 = test_avrg_dense / test_dataloader.__len__()
             logger.info('newest best epoch: {}'.format(best_epoch))
             logger.info('newest best cd l1: {}'.format(best_cd_l1))
             save_model(specs, network, epoch)

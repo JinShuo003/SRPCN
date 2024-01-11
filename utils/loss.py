@@ -9,10 +9,10 @@ from torch.autograd import Function
 import emd
 
 
-def ibs_loss(center, radius, pcd):
+def medial_axis_surface_loss(center, radius, pcd):
     """
-    ibs Loss.
-    For sphere center ci, find the closest point pi in pcd and the loss of this center is ||||(pi-ci)|| - ri||
+    Medial Axis Surface Loss.
+    For sphere center ci, find the closest point pi in pcd, the loss of this center is ||||(pi-ci)|| - ri||
 
     Args:
         center (torch.tensor): (B, N, 3)
@@ -22,6 +22,25 @@ def ibs_loss(center, radius, pcd):
     cham_loss = dist_chamfer_3D.chamfer_3DDist()
     dist1, _, _, _ = cham_loss(center, pcd)
     loss = torch.abs(torch.sqrt(dist1) - radius)
+
+    return torch.mean(loss)
+
+
+def medial_axis_interaction_loss(center, radius, pcd):
+    """
+    Medial Axis Interaction Loss.
+    For sphere center ci, find the closest point pi in pcd, the loss of this center is
+    1 / ri - ||ci - pi||, if ri > ||ci - pi||
+    0, if ri <= ||ci - pi||
+
+    Args:
+        center (torch.tensor): (B, N, 3)
+        radius (torch.tensor): (B, N, 1)
+        pcd (torch.tensor): (B, N, 3)
+    """
+    cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    dist1, _, _, _ = cham_loss(center, pcd)
+    loss = torch.where(radius > dist1, 1 / (radius - dist1), 0)
 
     return torch.mean(loss)
 

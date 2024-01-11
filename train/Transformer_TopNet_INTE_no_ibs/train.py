@@ -15,7 +15,7 @@ import time
 from models.model_Transformer_TopNet_INTE import *
 
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1, ibs_loss
+from utils.loss import cd_loss_L1, medial_axis_surface_loss
 from dataset import data_INTE_norm
 
 logger = None

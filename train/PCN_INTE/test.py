@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
@@ -12,7 +13,7 @@ import open3d as o3d
 import numpy as np
 import shutil
 
-from models.PCN_MVP import *
+from models.PCN_MVP import PCN
 from utils.loss import *
 from utils.metric import *
 
@@ -222,7 +223,8 @@ if __name__ == '__main__':
     specs = path_utils.read_config(args.experiment_config_file)
 
     logger = log_utils.get_test_logger(specs)
-
+    TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
+    logger.info("current time: {}".format(TIMESTAMP))
     logger.info("test split: {}".format(specs.get("TestSplit")))
     logger.info("specs file: {}".format(args.experiment_config_file))
     logger.info("specs file: \n{}".format(json.dumps(specs, sort_keys=False, indent=4)))

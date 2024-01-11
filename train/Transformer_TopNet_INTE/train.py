@@ -12,10 +12,10 @@ import open3d as o3d
 import argparse
 import time
 
-from models.model_Transformer_TopNet_INTE import *
+from models.Transformer_TopNet_INTE import *
 
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1, ibs_loss
+from utils.loss import cd_loss_L1, medial_axis_surface_loss
 from dataset import data_INTE_norm
 
 logger = None
@@ -169,7 +169,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         radius = radius.to(device)
 
         loss_cd = cd_loss_L1(pcd_pred, pcd_gt)
-        loss_ibs = ibs_loss(center, radius, pcd_pred)
+        loss_ibs = medial_axis_surface_loss(center, radius, pcd_pred)
         loss_total = loss_cd + loss_ibs
 
         train_total_loss_cd += loss_cd.item()
@@ -208,7 +208,7 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd_l1,
             radius = radius.to(device)
 
             loss_cd = cd_loss_L1(pcd_pred, pcd_gt)
-            loss_ibs = ibs_loss(center, radius, pcd_pred)
+            loss_ibs = medial_axis_surface_loss(center, radius, pcd_pred)
             loss_total = loss_cd + loss_ibs
 
             test_total_cd_l1 += loss_cd.item()

@@ -16,5 +16,11 @@
         "LearningRate": 0.0001,
         "ContinueTrain": false,
         "ContinueFromEpoch": 0
+    },
+    "MedialAxisLossOptions": {
+        "BeginEpoch": 50,
+        "InitRatio": 0.5,
+        "StepSize": 20,
+        "Gamma": 0.7
     }
 }

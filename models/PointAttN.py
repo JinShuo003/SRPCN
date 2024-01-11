@@ -194,11 +194,11 @@ class PointAttN(nn.Module):
         new_x = torch.cat([x, coarse], dim=2)
         new_x = gather_operation(new_x, furthest_point_sample(new_x.transpose(1, 2).contiguous(), 512))
 
-        fine, feat_fine = self.refine(None, new_x, feat_g)
-        fine1, feat_fine1 = self.refine1(feat_fine, fine, feat_g)
+        sub_dense, feat_sub_dense = self.refine(None, new_x, feat_g)
+        dense, feat_dense = self.refine1(feat_sub_dense, sub_dense, feat_g)
 
         coarse = coarse.transpose(1, 2).contiguous()
-        fine = fine.transpose(1, 2).contiguous()
-        fine1 = fine1.transpose(1, 2).contiguous()
+        sub_dense = sub_dense.transpose(1, 2).contiguous()
+        dense = dense.transpose(1, 2).contiguous()
 
-        return coarse, fine, fine1
+        return coarse, sub_dense, dense

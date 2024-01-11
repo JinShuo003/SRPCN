@@ -17,7 +17,7 @@ from utils.loss import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
-from utils import log_utils, path_utils
+from utils import log_utils, path_utils, statistics_utils
 from dataset import data_INTE_norm
 
 logger = None
@@ -130,7 +130,7 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
         dist_dict[category]["avrg_dist"] = dist_dict[category]["dist_total"] / dist_dict[category]["num"]
         dist_total += dist_dict[category]["dist_total"]
         num += dist_dict[category]["num"]
-    dist_dict["avrg_dist"] = dist_total/num
+    dist_dict["avrg_dist"] = dist_total / num
 
 
 def test(network, test_dataloader, specs):
@@ -169,8 +169,10 @@ def test(network, test_dataloader, specs):
         cal_avrg_dist(dist_dict, "fscore")
 
         logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
+        csv_file_dir = os.path.join(specs.get("LogDir"), specs.get("TAG"))
+        csv_file_path = os.path.join(csv_file_dir, "evaluate_result.csv")
+        statistics_utils.save_json_as_csv(csv_file_path, dist_dict, "INTE")
 
-        
 
 def main_function(specs, model_path):
     device = specs.get("Device")

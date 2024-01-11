@@ -49,7 +49,7 @@ indicator_scale = {
 }
 
 
-def json2csv(csv_path, json_data, dataset: str):
+def save_json_as_csv(csv_path, json_data, dataset: str):
     if dataset == "MVP":
         name_dict = MVP_name_dict
     elif dataset == "INTE":

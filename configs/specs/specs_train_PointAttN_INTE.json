@@ -18,9 +18,9 @@
         "ContinueFromEpoch": 0
     },
     "MedialAxisLossOptions": {
-        "BeginEpoch": 50,
+        "BeginEpoch": 40,
         "InitRatio": 0.5,
         "StepSize": 20,
-        "Gamma": 0.7
+        "Gamma": 1.2
     }
 }

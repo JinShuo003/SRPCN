@@ -80,6 +80,7 @@ def get_checkpoint(specs):
 
     return checkpoint
 
+
 def get_network(specs, checkpoint):
     device = specs.get("Device")
 

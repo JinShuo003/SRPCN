@@ -7,11 +7,11 @@
     "geometries_dir": {
       "mesh_dir": "D:\\dataset\\IBPCDC\\mesh",
       "ibs_mesh_gt_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
-      "ibs_pcd_gt_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE_norm",
-      "pcd_gt_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE_norm",
+      "ibs_pcd_gt_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE",
+      "pcd_gt_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "pcd_scan_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE_norm",
       "pcd_pred_dir": "D:\\dataset\\IBPCDC\\pcdPred\\INTE",
-      "medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE_norm"
+      "medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE"
     },
     "format_info": {
       "category_re": "scene\\d",
@@ -29,20 +29,20 @@
       "mesh1": false,
       "mesh2": false,
       "ibs_mesh_gt": false,
-      "ibs_pcd_gt": false,
-      "ibs1_pcd_gt": true,
+      "ibs_pcd_gt": true,
+      "ibs1_pcd_gt": false,
       "ibs2_pcd_gt": false,
-      "pcd1_gt": false,
-      "pcd2_gt": false,
-      "pcd1_scan": true,
+      "pcd1_gt": true,
+      "pcd2_gt": true,
+      "pcd1_scan": false,
       "pcd2_scan": false,
       "pcd1_pred": false,
       "pcd2_pred": false,
-      "medial_axis_sphere": false,
-      "medial_axis_sphere1": true,
+      "medial_axis_sphere": true,
+      "medial_axis_sphere1": false,
       "medial_axis_sphere2": false,
       "coord_frame": false,
-      "unit_sphere": true
+      "unit_sphere": false
     },
     "colors": {
       "mesh1": [0.7, 0.3, 0.3],

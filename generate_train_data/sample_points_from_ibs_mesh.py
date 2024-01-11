@@ -128,7 +128,7 @@ class TrainDataGenerator:
         self.mesh2 = geometry_utils.read_mesh(geometries_path["mesh2"])
         self.mesh1.paint_uniform_color((0.3, 0.7, 0.3))
         self.mesh2.paint_uniform_color((0.7, 0.3, 0.3))
-        ibs = geometry_utils.read_mesh(geometries_path["ibs"])
+        ibs = geometry_utils.read_mesh(geometries_path["ibs_mesh"])
         self.logger.info("ibs with {} vertices, {} triangles".
                          format(np.asarray(ibs.vertices).shape[0], np.asarray(ibs.triangles).shape[0]))
         ibs = self.subdevide_mesh(ibs, subdivide_max_edge)
@@ -146,8 +146,9 @@ class TrainDataGenerator:
         geometries_path = path_utils.get_geometries_path(self.specs, scene)
         sample_num = self.specs.get("sample_options").get("sample_num")
 
-        ibs = geometry_utils.read_mesh(geometries_path["ibs"])
+        ibs = geometry_utils.read_mesh(geometries_path["ibs_mesh"])
         ibs_pcd = ibs.sample_points_poisson_disk(sample_num)
+
         self.logger.info("get {} points from ibs".format(np.asarray(ibs_pcd.points).shape[0]))
 
         return ibs_pcd

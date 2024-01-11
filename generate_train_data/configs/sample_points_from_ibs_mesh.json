@@ -3,11 +3,11 @@
       "required_geometry": {
         "mesh1": true,
         "mesh2": true,
-        "ibs": true
+        "ibs_mesh": true
       },
       "geometries_dir": {
         "mesh_dir": "D:\\dataset\\IBPCDC\\mesh",
-        "ibs_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
+        "ibs_mesh_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
       },
       "format_info": {
         "category_re": "scene\\d",
@@ -28,6 +28,6 @@
     "weight_distance_exp": 20,
     "weight_angle_threshold": 60
   },
-  "use_process_pool": true,
+  "use_process_pool": false,
   "process_num": 5
 }

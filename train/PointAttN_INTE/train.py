@@ -154,6 +154,8 @@ def get_medial_axis_loss_weight(specs, epoch):
     init_ratio = specs.get("MedialAxisLossOptions").get("InitRatio")
     step_size = specs.get("MedialAxisLossOptions").get("StepSize")
     gamma = specs.get("MedialAxisLossOptions").get("Gamma")
+    if epoch < begin_epoch:
+        return 0
     return init_ratio * pow(gamma, int((epoch - begin_epoch) / step_size))
 
 

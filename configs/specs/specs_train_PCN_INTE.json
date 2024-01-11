@@ -15,7 +15,7 @@
         "DataLoaderThreads" : 8,
         "LearningRate": 0.0001,
         "CoarseLoss": "cd",
-        "ContinueTrain": true,
-        "ContinueFromEpoch": 2
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0
     }
 }

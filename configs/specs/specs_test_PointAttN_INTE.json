@@ -8,6 +8,6 @@
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
     "ResultSaveDir": "test_result/PointAttN_INTE",
     "Device" : 0,
-    "BatchSize" : 64,
+    "BatchSize" : 512,
     "DataLoaderThreads" : 8
 }

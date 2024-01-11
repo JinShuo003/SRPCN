@@ -117,7 +117,7 @@ def test(network, test_dataloader, specs):
     }
     network.eval()
     with torch.no_grad():
-        for _, _, pcd_partial, pcd_gt, idx in test_dataloader:
+        for pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
@@ -183,7 +183,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PointAttN_MVP/epoch_260.pth",
+        default="trained_models/PointAttN_MVP/epoch_30.pth",
         required=False,
         help="The network para"
     )

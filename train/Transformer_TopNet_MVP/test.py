@@ -12,7 +12,7 @@ import open3d as o3d
 import numpy as np
 import shutil
 
-from models.model_Transformer_TopNet_MVP import *
+from models.Transformer_TopNet_MVP import *
 from utils.loss import *
 from utils.metric import *
 
@@ -74,7 +74,7 @@ def create_zip(dataset="MVP"):
 
     output_archive = os.path.join(save_dir, dataset)
 
-    shutil.make_archive(output_archive, 'zip', save_dir)
+    shutil.make_archive(output_archive, 'zip', output_archive)
 
 
 def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
@@ -164,7 +164,7 @@ def main_function(specs, model_path):
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     time_begin_zip = time.time()
-    create_zip(dataset="INTE")
+    create_zip(dataset="MVP")
     time_end_zip = time.time()
     logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
 

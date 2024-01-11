@@ -17,7 +17,7 @@ def l2_cd(pcd1, pcd2):
     dist1, dist2, _, _ = cham_loss(pcd1, pcd2)
     dist1 = torch.mean(dist1, dim=1)
     dist2 = torch.mean(dist2, dim=1)
-    return (dist1 + dist2)/2
+    return dist1 + dist2
 
 
 def emd(pcd1, pcd2):

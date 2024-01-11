@@ -12,8 +12,7 @@ import numpy as np
 import open3d as o3d
 import shutil
 
-from models.model_PCN_MVP import *
-from utils.loss import *
+from models.PCN_MVP import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
@@ -74,7 +73,7 @@ def create_zip(dataset="MVP"):
 
     output_archive = os.path.join(save_dir, dataset)
 
-    shutil.make_archive(output_archive, 'zip', save_dir)
+    shutil.make_archive(output_archive, 'zip', output_archive)
 
 
 def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
@@ -153,7 +152,7 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    model = PCN(num_dense=2048).to(device)
+    model = PCN(num_dense=2048, device=device).to(device)
     state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
     model.load_state_dict(state_dict)
     logger.info("load trained model succeed")
@@ -164,7 +163,7 @@ def main_function(specs, model_path):
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     time_begin_zip = time.time()
-    create_zip()
+    create_zip(dataset="MVP")
     time_end_zip = time.time()
     logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
 
@@ -183,7 +182,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN/epoch_277.pth",
+        default="trained_models/PCN_MVP/epoch_277.pth",
         required=False,
         help="The network para"
     )

@@ -5,7 +5,7 @@
     "ScenePatten": "scene\\d+.\\d+",
     "LogDir" : "logs/test",
     "ResultSaveDir": "test_result/PointAttN_MVP",
-    "Device" : 0,
-    "BatchSize" : 64,
+    "Device" : 2,
+    "BatchSize" : 512,
     "DataLoaderThreads" : 8
 }

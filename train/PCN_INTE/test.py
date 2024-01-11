@@ -210,7 +210,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN_INTE/epoch_15.pth",
+        default="trained_models/PCN_INTE/epoch_190.pth",
         required=False,
         help="The network para"
     )

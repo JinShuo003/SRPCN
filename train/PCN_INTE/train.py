@@ -156,11 +156,11 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
     alpha = 0
     train_step = epoch * train_dataloader.__len__()
-    if train_step < 10000:
+    if train_step < 40 * train_dataloader.__len__():
         alpha = 0.01
-    elif train_step < 20000:
+    elif train_step < 80 * train_dataloader.__len__():
         alpha = 0.1
-    elif train_step < 50000:
+    elif train_step < 200 * train_dataloader.__len__():
         alpha = 0.5
     else:
         alpha = 1.0

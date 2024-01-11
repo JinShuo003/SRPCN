@@ -12,7 +12,7 @@ import open3d as o3d
 import numpy as np
 import shutil
 
-from models.model_Transformer_TopNet_INTE import IBPCDCNet
+from models.Transformer_TopNet_INTE import IBPCDCNet
 from utils.loss import *
 from utils.metric import *
 
@@ -65,7 +65,6 @@ def save_result(test_dataloader, pcd, indices, specs):
     filename_patten = specs.get("FileNamePatten")
     scene_patten = specs.get("ScenePatten")
 
-    # 将udf数据拆分开，并且转移到cpu
     pcd_np = pcd.cpu().detach().numpy()
 
     filename_list = [test_dataloader.dataset.pcd_partial_filenames[index] for index in indices]
@@ -80,28 +79,29 @@ def save_result(test_dataloader, pcd, indices, specs):
         normalize_para_path = os.path.join(normalize_para_dir, category, normalize_para_filename)
         translate, scale = get_normalize_para(normalize_para_path)
 
-        # the real directory is save_dir/category
+        # the real directory is save_dir/dataset/category
         save_path = os.path.join(save_dir, dataset, category)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 
-        # append the extend info to the filename
+        # get final filename
         filename_final = "{}.ply".format(filename)
-        absolute_dir = os.path.join(save_path, filename_final)
+        absolute_path = os.path.join(save_path, filename_final)
         pcd = get_pcd_from_np(pcd_np[index])
 
         # transform to origin coordinate
         pcd.scale(scale, np.array([0, 0, 0]))
         pcd.translate(translate)
 
-        o3d.io.write_point_cloud(absolute_dir, pcd)
+        o3d.io.write_point_cloud(absolute_path, pcd)
 
-def create_zip(dataset="MVP"):
+
+def create_zip(dataset: str = None):
     save_dir = specs.get("ResultSaveDir")
 
     output_archive = os.path.join(save_dir, dataset)
 
-    shutil.make_archive(output_archive, 'zip', save_dir)
+    shutil.make_archive(output_archive, 'zip', output_archive)
 
 
 def update_loss_dict(dist_dict_total: dict, dist, test_dataloader, indices, tag: str):
@@ -191,7 +191,7 @@ def main_function(specs, model_path):
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     time_begin_zip = time.time()
-    create_zip()
+    create_zip(dataset="INTE_norm")
     time_end_zip = time.time()
     logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
 
@@ -210,7 +210,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/Transformer_TopNet_INTE/epoch_103.pth",
+        default="trained_models/Transformer_TopNet_INTE/epoch_130.pth",
         required=False,
         help="The network para"
     )

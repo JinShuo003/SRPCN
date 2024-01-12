@@ -15,7 +15,8 @@ def medial_axis_surface_dist(center, radius, pcd):
 def medial_axis_interaction_dist(center, radius, pcd):
     cham_loss = dist_chamfer_3D.chamfer_3DDist()
     dist1, _, _, _ = cham_loss(center, pcd)
-    dist = torch.where(radius > dist1, 1 / (radius - dist1), 0)
+    dist1 = torch.sqrt(dist1)
+    dist = torch.where(radius > dist1, radius - dist1, 0)
 
     return torch.mean(dist, 1)
 

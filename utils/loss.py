@@ -30,7 +30,7 @@ def medial_axis_interaction_loss(center, radius, pcd):
     """
     Medial Axis Interaction Loss.
     For sphere center ci, find the closest point pi in pcd, the loss of this center is
-    1 / ri - ||ci - pi||, if ri > ||ci - pi||
+    ri - ||ci - pi||, if ri > ||ci - pi||
     0, if ri <= ||ci - pi||
 
     Args:
@@ -40,7 +40,8 @@ def medial_axis_interaction_loss(center, radius, pcd):
     """
     cham_loss = dist_chamfer_3D.chamfer_3DDist()
     dist1, _, _, _ = cham_loss(center, pcd)
-    loss = torch.where(radius > dist1, 1 / (radius - dist1), 0)
+    dist1 = torch.sqrt(dist1)
+    loss = torch.where(radius > dist1, radius - dist1, 0)
 
     return torch.mean(loss)
 

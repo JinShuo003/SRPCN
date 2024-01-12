@@ -1,6 +1,6 @@
 {
-    "TAG": "PointAttN_INTE",
-    "Description" : "model: PointAttN, dataset: INTE_norm",
+    "TAG": "PointAttN_INTE_no_mad",
+    "Description" : "model: PointAttN, dataset: INTE_norm, loss: cd, no mad",
     "DataSource" : "data",
     "TrainSplit" : "configs/train_INTE_norm/train.json",
     "TestSplit" : "configs/test_INTE_norm/test.json",

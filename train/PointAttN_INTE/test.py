@@ -14,7 +14,6 @@ import numpy as np
 import shutil
 
 from models.PointAttN import PointAttN
-from utils.loss import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
@@ -141,13 +140,17 @@ def test(network, test_dataloader, specs):
         "cd_l1": {},
         "cd_l2": {},
         "emd": {},
-        "fscore": {}
+        "fscore": {},
+        "mad_s": {},
+        "mad_i": {}
     }
     network.eval()
     with torch.no_grad():
-        for _, _, pcd_partial, pcd_gt, idx in test_dataloader:
+        for center, radius, pcd_partial, pcd_gt, idx in test_dataloader:
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
+            center = center.to(device)
+            radius = radius.to(device)
 
             coarse, fine, pcd_pred = network(pcd_partial)
 
@@ -155,11 +158,15 @@ def test(network, test_dataloader, specs):
             cd_l2 = l2_cd(pcd_pred, pcd_gt)
             emd_ = emd(pcd_pred, pcd_gt)
             fscore = f_score(pcd_pred, pcd_gt)
+            mad_s = medial_axis_surface_dist(center, radius, pcd_pred)
+            mad_i = medial_axis_interaction_dist(center, radius, pcd_pred)
 
             update_loss_dict(dist_dict, cd_l1.detach().cpu().numpy(), test_dataloader, idx, "cd_l1")
             update_loss_dict(dist_dict, cd_l2.detach().cpu().numpy(), test_dataloader, idx, "cd_l2")
             update_loss_dict(dist_dict, emd_.detach().cpu().numpy(), test_dataloader, idx, "emd")
             update_loss_dict(dist_dict, fscore.detach().cpu().numpy(), test_dataloader, idx, "fscore")
+            update_loss_dict(dist_dict, mad_s.detach().cpu().numpy(), test_dataloader, idx, "mad_s")
+            update_loss_dict(dist_dict, mad_i.detach().cpu().numpy(), test_dataloader, idx, "mad_i")
 
             save_result(test_dataloader, pcd_pred, idx, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))
@@ -168,6 +175,8 @@ def test(network, test_dataloader, specs):
         cal_avrg_dist(dist_dict, "cd_l2")
         cal_avrg_dist(dist_dict, "emd")
         cal_avrg_dist(dist_dict, "fscore")
+        cal_avrg_dist(dist_dict, "mad_s")
+        cal_avrg_dist(dist_dict, "mad_i")
 
         logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
         csv_file_dir = os.path.join(specs.get("LogDir"), specs.get("TAG"))
@@ -213,7 +222,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PointAttN_INTE/epoch_260.pth",
+        default="trained_models/PointAttN_INTE_surface/epoch_40.pth",
         required=False,
         help="The network para"
     )

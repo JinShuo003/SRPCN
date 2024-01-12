@@ -200,7 +200,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
         loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
 
-        loss_total = loss_dense + loss_sub_dense + loss_coarse + medial_axis_loss_weight * loss_medial_axis_surface
+        loss_total = loss_dense + loss_sub_dense + loss_coarse
 
         train_total_loss_dense += loss_dense.item()
         train_total_loss_sub_dense += loss_sub_dense.item()
@@ -254,7 +254,7 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 
         test_avrg_dense = test_total_dense / test_dataloader.__len__()
         record_loss_info("test_loss_dense", test_total_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
-        record_loss_info("test_sub_dense", test_total_sub_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_sub_dense", test_total_sub_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
         record_loss_info("test_loss_coarse", test_total_coarse / test_dataloader.__len__(), epoch, tensorboard_writer)
         record_loss_info("test_loss_medial_axis_surface", test_total_medial_axis_surface / test_dataloader.__len__(),
                          epoch, tensorboard_writer)

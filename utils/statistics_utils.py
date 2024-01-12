@@ -1,5 +1,4 @@
 import csv
-import json
 import re
 
 
@@ -38,14 +37,18 @@ indicators = [
     "cd_l1",
     "cd_l2",
     "emd",
-    "fscore"
+    "fscore",
+    "mad_s",
+    "mad_i"
 ]
 
 indicator_scale = {
     "cd_l1": 1000,
     "cd_l2": 10000,
     "emd": 10000,
-    "fscore": 1
+    "fscore": 1,
+    "mad_s": 1000,
+    "mad_i": 1
 }
 
 

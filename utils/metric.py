@@ -4,6 +4,22 @@ from utils.ChamferDistancePytorch.chamfer3D import dist_chamfer_3D
 from utils.loss import emdModule
 
 
+def medial_axis_surface_dist(center, radius, pcd):
+    cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    dist1, _, _, _ = cham_loss(center, pcd)
+    dist = torch.abs(torch.sqrt(dist1) - radius)
+
+    return torch.mean(dist, 1)
+
+
+def medial_axis_interaction_dist(center, radius, pcd):
+    cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    dist1, _, _, _ = cham_loss(center, pcd)
+    dist = torch.where(radius > dist1, 1 / (radius - dist1), 0)
+
+    return torch.mean(dist, 1)
+
+
 def l1_cd(pcd1, pcd2):
     cham_loss = dist_chamfer_3D.chamfer_3DDist()
     dist1, dist2, _, _ = cham_loss(pcd1, pcd2)

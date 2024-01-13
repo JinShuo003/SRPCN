@@ -48,7 +48,7 @@ indicator_scale = {
     "emd": 10000,
     "fscore": 1,
     "mad_s": 1000,
-    "mad_i": 1
+    "mad_i": 1000
 }
 
 

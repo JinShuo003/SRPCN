@@ -178,6 +178,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     train_total_loss_sub_dense = 0
     train_total_loss_coarse = 0
     train_total_loss_medial_axis_surface = 0
+    train_total_loss_medial_axis_interaction = 0
     for center, radius, pcd_partial, pcd_gt, idx in train_dataloader:
         optimizer.zero_grad()
 
@@ -197,15 +198,16 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
                                      furthest_point_sample(gt_sub_dense, pcd_pred_coarse.shape[1])).transpose(1,
                                                                                                               2).contiguous()
         loss_coarse = cd_loss_L1(pcd_pred_dense, gt_coarse)
-
         loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
+        loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
 
-        loss_total = loss_dense + loss_sub_dense + loss_coarse
+        loss_total = loss_dense + loss_sub_dense + loss_coarse + medial_axis_loss_weight * (loss_medial_axis_surface + loss_medial_axis_interaction)
 
         train_total_loss_dense += loss_dense.item()
         train_total_loss_sub_dense += loss_sub_dense.item()
         train_total_loss_coarse += loss_coarse.item()
         train_total_loss_medial_axis_surface += loss_medial_axis_surface.item()
+        train_total_loss_medial_axis_interaction += loss_medial_axis_interaction.item()
 
         loss_total.backward()
         optimizer.step()
@@ -219,7 +221,8 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
                      tensorboard_writer)
     record_loss_info("train_loss_medial_axis_surface",
                      train_total_loss_medial_axis_surface / train_dataloader.__len__(), epoch, tensorboard_writer)
-
+    record_loss_info("train_loss_medial_axis_interaction",
+                     train_total_loss_medial_axis_interaction / train_dataloader.__len__(), epoch, tensorboard_writer)
 
 def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch):
     device = specs.get("Device")

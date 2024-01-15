@@ -13,12 +13,22 @@ def medial_axis_surface_dist(center, radius, pcd):
 
 
 def medial_axis_interaction_dist(center, radius, pcd):
-    cham_loss = dist_chamfer_3D.chamfer_3DDist()
-    dist1, _, _, _ = cham_loss(center, pcd)
-    dist1 = torch.sqrt(dist1)
-    dist = torch.where(radius > dist1, radius - dist1, 0)
+    B, N, _ = center.shape
+    B, M, _ = pcd.shape
 
-    return torch.mean(dist, 1)
+    distances = torch.cdist(center, pcd, p=2.0)
+    radius = torch.unsqueeze(radius, dim=2)
+    radius = radius.repeat(1, 1, M)
+
+    loss = torch.where(radius > distances, radius - distances, 0)
+    return torch.mean(loss, dim=[1, 2])
+
+    # cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    # dist1, _, _, _ = cham_loss(center, pcd)
+    # dist1 = torch.sqrt(dist1)
+    # dist = torch.where(radius > dist1, radius - dist1, 0)
+
+    # return torch.mean(dist, 1)
 
 
 def l1_cd(pcd1, pcd2):

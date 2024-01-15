@@ -38,12 +38,22 @@ def medial_axis_interaction_loss(center, radius, pcd):
         radius (torch.tensor): (B, N, 1)
         pcd (torch.tensor): (B, N, 3)
     """
-    cham_loss = dist_chamfer_3D.chamfer_3DDist()
-    dist1, _, _, _ = cham_loss(center, pcd)
-    dist1 = torch.sqrt(dist1)
-    loss = torch.where(radius > dist1, radius - dist1, 0)
+    B, N, _ = center.shape
+    B, M, _ = pcd.shape
 
+    distances = torch.cdist(center, pcd, p=2.0)
+    radius = torch.unsqueeze(radius, dim=2)
+    radius = radius.repeat(1, 1, M)
+
+    loss = torch.where(radius > distances, radius - distances, 0)
     return torch.mean(loss)
+
+    # cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    # dist1, _, _, _ = cham_loss(center, pcd)
+    # dist1 = torch.sqrt(dist1)
+    # loss = torch.where(radius > dist1, radius - dist1, 0)
+
+    # return torch.mean(loss)
 
 
 def cd_loss_L1(pcd1, pcd2):

@@ -33,13 +33,20 @@ INTE_name_dict = {
     "scene9": "shelf-cap",
 }
 
-indicators = [
+INTE_indicators = [
     "cd_l1",
     "cd_l2",
     "emd",
     "fscore",
     "mad_s",
     "mad_i"
+]
+
+MVP_indicators = [
+    "cd_l1",
+    "cd_l2",
+    "emd",
+    "fscore"
 ]
 
 indicator_scale = {
@@ -55,8 +62,10 @@ indicator_scale = {
 def save_json_as_csv(csv_path, json_data, dataset: str):
     if dataset == "MVP":
         name_dict = MVP_name_dict
+        indicators = MVP_indicators
     elif dataset == "INTE":
         name_dict = INTE_name_dict
+        indicators = INTE_indicators
     else:
         raise Exception("dataset not support")
 

@@ -1,6 +1,6 @@
 {
-    "TAG": "PointAttN_INTE_mads_madi",
-    "Description" : "model: PointAttN, dataset: INTE_norm, loss: cd, mads, mad_i",
+    "TAG": "PointAttN_INTE_mads_madi_pretrain",
+    "Description" : "model: PointAttN, dataset: INTE_norm, loss: cd, mads, mad_i, pretrain",
     "DataSource" : "data",
     "TrainSplit" : "configs/train_INTE_norm/train.json",
     "TestSplit" : "configs/test_INTE_norm/test.json",
@@ -13,9 +13,16 @@
         "NumEpochs" : 400,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "LearningRate": 0.0001,
+        "LearningRate": 0.00005,
+        "PreTrain": true,
+        "PreTrainModel": "trained_models/PointAttN_MVP/epoch_235.pth",
         "ContinueTrain": false,
-        "ContinueFromEpoch": 0
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "InitLearningRate": 5e-5,
+            "StepSize": 10,
+            "Gamma": 0.7
+        }
     },
     "MedialAxisLossOptions": {
         "BeginEpoch": 20,

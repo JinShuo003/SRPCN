@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
@@ -13,7 +14,6 @@ import numpy as np
 import shutil
 
 from models.PointAttN import PointAttN
-from utils.loss import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
@@ -69,7 +69,7 @@ def save_result(test_dataloader, pcd, indices, specs):
         o3d.io.write_point_cloud(pcd_save_absolute_path, get_pcd_from_np(pcd_np[index]))
 
 
-def create_zip(dataset="MVP"):
+def create_zip(dataset: str = None):
     save_dir = specs.get("ResultSaveDir")
 
     output_archive = os.path.join(save_dir, dataset)
@@ -103,7 +103,7 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
         dist_dict[category]["avrg_dist"] = dist_dict[category]["dist_total"] / dist_dict[category]["num"]
         dist_total += dist_dict[category]["dist_total"]
         num += dist_dict[category]["num"]
-    dist_dict["avrg_dist"] = dist_total/num
+    dist_dict["avrg_dist"] = dist_total / num
 
 
 def test(network, test_dataloader, specs):
@@ -156,9 +156,9 @@ def main_function(specs, model_path):
     logger.info("init dataloader succeed")
 
     model = PointAttN().to(device)
-    state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(state_dict)
-    logger.info("load trained model succeed")
+    checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
+    model.load_state_dict(checkpoint["model"])
+    logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()
     test(model, test_dataloader, specs)
@@ -185,7 +185,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PointAttN_MVP/epoch_30.pth",
+        default="trained_models/PointAttN_MVP/epoch_235.pth",
         required=False,
         help="The network para"
     )
@@ -195,7 +195,8 @@ if __name__ == '__main__':
     specs = path_utils.read_config(args.experiment_config_file)
 
     logger = log_utils.get_test_logger(specs)
-
+    TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
+    logger.info("current time: {}".format(TIMESTAMP))
     logger.info("test split: {}".format(specs.get("TestSplit")))
     logger.info("specs file: {}".format(args.experiment_config_file))
     logger.info("specs file: \n{}".format(json.dumps(specs, sort_keys=False, indent=4)))

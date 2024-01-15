@@ -68,20 +68,26 @@ def get_dataloader(specs):
 
 def get_checkpoint(specs):
     device = specs.get("Device")
+    pre_train = specs.get("TrainOptions").get("PreTrain")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    assert not (pre_train and continue_train)
 
-    if not continue_train:
-        return None
-    
-    continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
-    para_save_dir = specs.get("ParaSaveDir")
-    para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
-    checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
-    logger.info("load checkpoint from {}".format(checkpoint_path))
-    checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
-
+    checkpoint = None
+    if pre_train:
+        logger.info("pretrain mode")
+        pretrain_model_path = specs.get("TrainOptions").get("PreTrainModel")
+        logger.info("load checkpoint from {}".format(pretrain_model_path))
+        checkpoint = torch.load(pretrain_model_path, map_location="cuda:{}".format(device))
+    elif continue_train:
+        logger.info("continue train mode")
+        continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+        para_save_dir = specs.get("ParaSaveDir")
+        para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
+        checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
+        logger.info("load checkpoint from {}".format(checkpoint_path))
+        checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
     return checkpoint
-
+    
 
 def get_network(specs, checkpoint):
     device = specs.get("Device")
@@ -96,20 +102,26 @@ def get_network(specs, checkpoint):
 
 
 def get_optimizer(specs, network, checkpoint):
-    learning_rate = specs.get("TrainOptions").get("LearningRate")
-    last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+    init_lr = specs.get("TrainOptions").get("LearningRateOptions").get("InitLearningRate")
+    step_size = specs.get("TrainOptions").get("LearningRateOptions").get("StepSize")
+    gamma = specs.get("TrainOptions").get("LearningRateOptions").get("Gamma")
+
+    pre_train = specs.get("TrainOptions").get("PreTrain")
+    continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    assert not (pre_train and continue_train)
     
-    if checkpoint:
-        optimizer = Optim.Adam([{'params': network.parameters(), 'initial_lr': learning_rate}], lr=learning_rate, betas=(0.9, 0.999))
-        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.7, last_epoch=last_epoch)
+    if continue_train:
+        last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+        optimizer = Optim.Adam([{'params': network.parameters(), 'initial_lr': init_lr}], lr=init_lr, betas=(0.9, 0.999))
+        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, last_epoch=last_epoch)
 
         logger.info("load lr_schedule parameter from epoch {}".format(checkpoint["epoch"]))
         lr_schedule.load_state_dict(checkpoint["lr_schedule"])
         logger.info("load optimizer parameter from epoch {}".format(checkpoint["epoch"]))
         optimizer.load_state_dict(checkpoint["optimizer"])
     else:
-        optimizer = Optim.Adam(network.parameters(), lr=learning_rate, betas=(0.9, 0.999))
-        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.7)
+        optimizer = Optim.Adam(network.parameters(), lr=init_lr, betas=(0.9, 0.999))
+        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     return lr_schedule, optimizer
 
 
@@ -278,7 +290,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 def main_function(specs):
     epoch_num = specs.get("TrainOptions").get("NumEpochs")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
-    last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
 
     TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
 
@@ -296,6 +307,7 @@ def main_function(specs):
     best_epoch = -1
     epoch_begin = 0
     if continue_train:
+        last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
         epoch_begin = last_epoch + 1
         logger.info("continue train from epoch {}".format(epoch_begin))
     for epoch in range(epoch_begin, epoch_num + 1):

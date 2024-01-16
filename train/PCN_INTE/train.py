@@ -8,12 +8,10 @@ from torch.utils.tensorboard import SummaryWriter
 import torch.utils.data as data_utils
 import torch.optim as Optim
 import json
-import open3d as o3d
 import argparse
 import time
 
-from models.PCN import *
-
+from models.PCN import PCN
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, emd_loss
 from dataset import data_INTE
@@ -37,8 +35,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = data_INTE.INTENormDataset(data_source, train_split)
-    test_dataset = data_INTE.INTENormDataset(data_source, test_split)
+    train_dataset = data_INTE.INTEDataset(data_source, train_split)
+    test_dataset = data_INTE.INTEDataset(data_source, test_split)
 
     logger.info("length of train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
@@ -66,18 +64,24 @@ def get_dataloader(specs):
 
 def get_checkpoint(specs):
     device = specs.get("Device")
+    pre_train = specs.get("TrainOptions").get("PreTrain")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    assert not (pre_train and continue_train)
 
-    if not continue_train:
-        return None
-    
-    continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
-    para_save_dir = specs.get("ParaSaveDir")
-    para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
-    checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
-    logger.info("load checkpoint from {}".format(checkpoint_path))
-    checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
-
+    checkpoint = None
+    if pre_train:
+        logger.info("pretrain mode")
+        pretrain_model_path = specs.get("TrainOptions").get("PreTrainModel")
+        logger.info("load checkpoint from {}".format(pretrain_model_path))
+        checkpoint = torch.load(pretrain_model_path, map_location="cuda:{}".format(device))
+    elif continue_train:
+        logger.info("continue train mode")
+        continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+        para_save_dir = specs.get("ParaSaveDir")
+        para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
+        checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
+        logger.info("load checkpoint from {}".format(checkpoint_path))
+        checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
     return checkpoint
 
 
@@ -94,20 +98,27 @@ def get_network(specs, checkpoint):
 
 
 def get_optimizer(specs, network, checkpoint):
-    learning_rate = specs.get("TrainOptions").get("LearningRate")
-    last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
-    
-    if checkpoint:
-        optimizer = Optim.Adam([{'params': network.parameters(), 'initial_lr': learning_rate}], lr=learning_rate, betas=(0.9, 0.999))
-        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.7, last_epoch=last_epoch)
+    init_lr = specs.get("TrainOptions").get("LearningRateOptions").get("InitLearningRate")
+    step_size = specs.get("TrainOptions").get("LearningRateOptions").get("StepSize")
+    gamma = specs.get("TrainOptions").get("LearningRateOptions").get("Gamma")
+    logger.info("init_lr: {}, step_size: {}, gamma: {}".format(init_lr, step_size, gamma))
+
+    pre_train = specs.get("TrainOptions").get("PreTrain")
+    continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    assert not (pre_train and continue_train)
+
+    if continue_train:
+        last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+        optimizer = Optim.Adam([{'params': network.parameters(), 'initial_lr': init_lr}], lr=init_lr, betas=(0.9, 0.999))
+        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, last_epoch=last_epoch)
 
         logger.info("load lr_schedule parameter from epoch {}".format(checkpoint["epoch"]))
         lr_schedule.load_state_dict(checkpoint["lr_schedule"])
         logger.info("load optimizer parameter from epoch {}".format(checkpoint["epoch"]))
         optimizer.load_state_dict(checkpoint["optimizer"])
     else:
-        optimizer = Optim.Adam(network.parameters(), lr=learning_rate, betas=(0.9, 0.999))
-        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.7)
+        optimizer = Optim.Adam(network.parameters(), lr=init_lr, betas=(0.9, 0.999))
+        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     return lr_schedule, optimizer
 
 
@@ -147,6 +158,21 @@ def save_model(specs, model, lr_schedule, optimizer, epoch):
     torch.save(checkpoint, checkpoint_filename)
 
 
+def get_medial_axis_loss_weight(specs, epoch):
+    begin_epoch = specs.get("MedialAxisLossOptions").get("BeginEpoch")
+    init_ratio = specs.get("MedialAxisLossOptions").get("InitRatio")
+    step_size = specs.get("MedialAxisLossOptions").get("StepSize")
+    gamma = specs.get("MedialAxisLossOptions").get("Gamma")
+    if epoch < begin_epoch:
+        return 0
+    return init_ratio * pow(gamma, int((epoch - begin_epoch) / step_size))
+
+
+def record_loss_info(tag: str, avrg_loss, epoch, tensorboard_writer: SummaryWriter):
+    tensorboard_writer.add_scalar("{}".format(tag), avrg_loss, epoch)
+    logger.info('{}: {}'.format(tag, avrg_loss))
+
+
 def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
     device = specs.get("Device")
     coarse_loss = specs.get("TrainOptions").get("CoarseLoss")
@@ -168,7 +194,8 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     train_total_loss_coarse = 0
     train_total_loss_dense = 0
     train_total_loss = 0
-    for _, _, pcd_partial, pcd_gt, idx in train_dataloader:
+    for data, idx in train_dataloader:
+        center, radius, direction, pcd_partial, pcd_gt, idx = data
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
@@ -215,7 +242,8 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
     network.eval()
     with torch.no_grad():
         test_total_cd = 0
-        for _, _, pcd_partial, pcd_gt, idx in test_dataloader:
+        for data, idx in test_dataloader:
+            center, radius, direction, pcd_partial, pcd_gt, idx = data
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
@@ -242,7 +270,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 def main_function(specs):
     epoch_num = specs.get("TrainOptions").get("NumEpochs")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
-    last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
 
     TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
 
@@ -260,6 +287,7 @@ def main_function(specs):
     best_epoch = -1
     epoch_begin = 0
     if continue_train:
+        last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
         epoch_begin = last_epoch + 1
         logger.info("continue train from epoch {}".format(epoch_begin))
     for epoch in range(epoch_begin, epoch_num + 1):

@@ -5,6 +5,7 @@ from utils.ChamferDistancePytorch.chamfer3D import dist_chamfer_3D
 import torch
 import torch.nn as nn
 from torch.autograd import Function
+import torch.nn.functional as F
 
 import emd
 
@@ -48,12 +49,26 @@ def medial_axis_interaction_loss(center, radius, pcd):
     loss = torch.where(radius > distances, radius - distances, 0)
     return torch.mean(loss)
 
-    # cham_loss = dist_chamfer_3D.chamfer_3DDist()
-    # dist1, _, _, _ = cham_loss(center, pcd)
-    # dist1 = torch.sqrt(dist1)
-    # loss = torch.where(radius > dist1, radius - dist1, 0)
 
-    # return torch.mean(loss)
+def ibs_angle_loss(center, pcd, direction):
+    """
+    ibs angle Loss.
+    For each point in ibs, find the cloest point in pcd, let the vector from ibs point to pcd point close to direction(cosine distance)
+    Args:
+        center (torch.tensor): (B, N, 3)
+        pcd (torch.tensor): (B, N, 3)
+        direction (torch.tensor): (B, N, 3)
+    """
+    B, N, _ = center.shape
+    B, M, _ = pcd.shape
+
+    distances = torch.cdist(center, pcd, p=2)
+    min_indices = torch.argmin(distances, dim=2)
+    closest_points = torch.gather(pcd, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
+    direction_pred = closest_points - center
+    loss = 1 - F.cosine_similarity(direction_pred, direction, dim=2)
+
+    return torch.mean(loss)
 
 
 def cd_loss_L1(pcd1, pcd2):
@@ -140,3 +155,11 @@ class emdModule(nn.Module):
 
     def forward(self, input1, input2, eps=0.005, iters=50):
         return emdFunction.apply(input1, input2, eps, iters)
+
+
+if __name__ == "__main__":
+    center = torch.tensor([[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=torch.float32).reshape(1, -1, 3)
+    pcd = torch.tensor([[0, 0, 0.1], [0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]], dtype=torch.float32).reshape(1, -1, 3)
+    direction = torch.tensor([[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]], dtype=torch.float32).reshape(1, -1, 3)
+    ibs_angle_loss = ibs_angle_loss(center, pcd, direction)
+    print(ibs_angle_loss.item())

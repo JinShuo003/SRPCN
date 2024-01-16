@@ -47,9 +47,11 @@ def get_medial_axis_sphere_data(medial_axis_sphere_filename):
     data = np.load(medial_axis_sphere_filename)
     center = data["center"]
     radius = data["radius"]
+    direction = data["direction"]
     center = torch.from_numpy(np.asarray(center).astype(np.float32))
     radius = torch.from_numpy(np.asarray(radius).astype(np.float32))
-    return center, radius
+    direction = torch.from_numpy(np.asarray(direction).astype(np.float32))
+    return center, radius, direction
 
 
 class INTEDataset(torch.utils.data.Dataset):
@@ -65,8 +67,8 @@ class INTEDataset(torch.utils.data.Dataset):
         pcd_partial_filename = os.path.join(self.data_source, ws.pcd_partial_subdir, self.pcd_partial_filenames[idx])
         pcd1_gt_filename = os.path.join(self.data_source, ws.pcd_complete_subdir, self.pcd_gt_filenames[idx])
 
-        center, radius = get_medial_axis_sphere_data(medial_axis_sphere_filename)
+        center, radius, direction = get_medial_axis_sphere_data(medial_axis_sphere_filename)
         pcd_partial = get_pcd_data(pcd_partial_filename)
         pcd_gt = get_pcd_data(pcd1_gt_filename)
 
-        return center, radius, pcd_partial, pcd_gt, idx
+        return (center, radius, direction, pcd_partial, pcd_gt), idx

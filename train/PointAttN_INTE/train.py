@@ -3,21 +3,18 @@ import sys
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
 
-import torch
-import json
-import argparse
-import time
-
 from datetime import datetime, timedelta
 from torch.utils.tensorboard import SummaryWriter
 import torch.utils.data as data_utils
 import torch.optim as Optim
-
-from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation
+import json
+import argparse
+import time
 
 from models.PointAttN import PointAttN
+from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss
+from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss, ibs_angle_loss
 from dataset import data_INTE
 
 logger = None
@@ -192,7 +189,9 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     train_total_loss_coarse = 0
     train_total_loss_medial_axis_surface = 0
     train_total_loss_medial_axis_interaction = 0
-    for center, radius, pcd_partial, pcd_gt, idx in train_dataloader:
+    train_total_loss_ibs_angle = 0
+    for data, idx in train_dataloader:
+        center, radius, direction, pcd_partial, pcd_gt, idx = data
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
@@ -201,6 +200,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         pcd_gt = pcd_gt.to(device)
         center = center.to(device)
         radius = radius.to(device)
+        direction = direction.to(device)
 
         loss_dense = cd_loss_L1(pcd_pred_dense, pcd_gt)
         gt_sub_dense = gather_operation(pcd_gt.transpose(1, 2).contiguous(),
@@ -213,6 +213,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         loss_coarse = cd_loss_L1(pcd_pred_dense, gt_coarse)
         loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
         loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
+        loss_ibs_angle = ibs_angle_loss(center, pcd_pred_dense, direction)
 
         loss_total = loss_dense + loss_sub_dense + loss_coarse + medial_axis_loss_weight * (loss_medial_axis_surface + loss_medial_axis_interaction)
 
@@ -221,6 +222,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         train_total_loss_coarse += loss_coarse.item()
         train_total_loss_medial_axis_surface += loss_medial_axis_surface.item()
         train_total_loss_medial_axis_interaction += loss_medial_axis_interaction.item()
+        train_total_loss_ibs_angle += loss_ibs_angle.item()
 
         loss_total.backward()
         optimizer.step()
@@ -236,6 +238,9 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
                      train_total_loss_medial_axis_surface / train_dataloader.__len__(), epoch, tensorboard_writer)
     record_loss_info("train_loss_medial_axis_interaction",
                      train_total_loss_medial_axis_interaction / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_ibs_angle",
+                     train_total_loss_ibs_angle / train_dataloader.__len__(), epoch, tensorboard_writer)
+
 
 def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch):
     device = specs.get("Device")
@@ -247,7 +252,8 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
         test_total_coarse = 0
         test_total_medial_axis_surface = 0
         test_total_medial_axis_interaction = 0
-        for center, radius, pcd_partial, pcd_gt, idx in test_dataloader:
+        for data, idx in test_dataloader:
+            center, radius, direction, pcd_partial, pcd_gt, idx = data
             pcd_partial = pcd_partial.to(device)
 
             pcd_pred_coarse, pcd_pred_sub_dense, pcd_pred_dense = network(pcd_partial)

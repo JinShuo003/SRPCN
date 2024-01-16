@@ -1,0 +1,25 @@
+{
+    "TAG": "PCN_C3d",
+    "Description" : "encoder: PCN, decoder: PCN, dataset: C3d",
+    "DataSource" : "data",
+    "TrainSplit" : "dataset/train_C3d/train.json",
+    "TestSplit" : "dataset/test_C3d/test.json",
+    "ParaSaveDir" : "models_paras",
+    "TensorboardLogDir" : "tensorboard_logs",
+    "LogDir" : "logs/train",
+    "Device" : 1,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8,
+        "CoarseLoss": "cd",
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "InitLearningRate": 1e-4,
+            "StepSize": 50,
+            "Gamma": 0.7
+        }
+    }
+}

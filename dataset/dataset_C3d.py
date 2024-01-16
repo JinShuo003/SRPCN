@@ -34,7 +34,7 @@ def get_pcd_data(pcd_filename):
     return xyz_load
 
 
-class PcdDataset(torch.utils.data.Dataset):
+class C3dDataset(torch.utils.data.Dataset):
     def __init__(self, data_source, split):
         self.data_source = data_source
         self.pcd_partial_filenames, self.pcd_gt_filenames = get_instance_filenames(data_source, split)

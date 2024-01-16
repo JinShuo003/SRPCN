@@ -18,7 +18,7 @@ from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operatio
 from models.PointAttN import PointAttN
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss
-from dataset import dataset_MVP
+from dataset import dataset_C3d
 
 logger = None
 
@@ -39,8 +39,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = dataset_MVP.PcdDataset(data_source, train_split)
-    test_dataset = dataset_MVP.PcdDataset(data_source, test_split)
+    train_dataset = dataset_C3d.PcdDataset(data_source, train_split)
+    test_dataset = dataset_C3d.PcdDataset(data_source, test_split)
 
     logger.info("length of train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))

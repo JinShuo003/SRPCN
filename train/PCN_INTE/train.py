@@ -12,11 +12,11 @@ import open3d as o3d
 import argparse
 import time
 
-from models.PCN_MVP import *
+from models.PCN import *
 
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, emd_loss
-from dataset import data_INTE_norm
+from dataset import data_INTE
 
 logger = None
 
@@ -37,8 +37,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = data_INTE_norm.INTENormDataset(data_source, train_split)
-    test_dataset = data_INTE_norm.INTENormDataset(data_source, test_split)
+    train_dataset = data_INTE.INTENormDataset(data_source, train_split)
+    test_dataset = data_INTE.INTENormDataset(data_source, test_split)
 
     logger.info("length of train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))

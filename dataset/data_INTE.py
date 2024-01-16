@@ -52,7 +52,7 @@ def get_medial_axis_sphere_data(medial_axis_sphere_filename):
     return center, radius
 
 
-class INTENormDataset(torch.utils.data.Dataset):
+class INTEDataset(torch.utils.data.Dataset):
     def __init__(self, data_source, split):
         self.data_source = data_source
         self.medial_axis_sphere_filenames, self.pcd_partial_filenames, self.pcd_gt_filenames = get_instance_filenames(data_source, split)

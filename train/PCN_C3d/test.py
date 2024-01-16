@@ -1,5 +1,4 @@
 import sys
-from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
@@ -9,16 +8,16 @@ import json
 import re
 import argparse
 import time
-import open3d as o3d
 import numpy as np
+import open3d as o3d
 import shutil
 
-from models.PointAttN import PointAttN
+from models.PCN import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils, statistics_utils
-from dataset import dataset_MVP
+from dataset import dataset_C3d
 
 logger = None
 
@@ -33,7 +32,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = dataset_MVP.PcdDataset(data_source, test_split)
+    test_dataset = dataset_C3d.PcdDataset(data_source, test_split)
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader
@@ -69,7 +68,7 @@ def save_result(test_dataloader, pcd, indices, specs):
         o3d.io.write_point_cloud(pcd_save_absolute_path, get_pcd_from_np(pcd_np[index]))
 
 
-def create_zip(dataset: str = None):
+def create_zip(dataset="MVP"):
     save_dir = specs.get("ResultSaveDir")
 
     output_archive = os.path.join(save_dir, dataset)
@@ -103,7 +102,7 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
         dist_dict[category]["avrg_dist"] = dist_dict[category]["dist_total"] / dist_dict[category]["num"]
         dist_total += dist_dict[category]["dist_total"]
         num += dist_dict[category]["num"]
-    dist_dict["avrg_dist"] = dist_total / num
+    dist_dict["avrg_dist"] = dist_total/num
 
 
 def test(network, test_dataloader, specs):
@@ -121,19 +120,19 @@ def test(network, test_dataloader, specs):
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
 
-            coarse, fine, pcd_pred = network(pcd_partial)
+            coarse_pred, dense_pred = network(pcd_partial)
 
-            cd_l1 = l1_cd(pcd_pred, pcd_gt)
-            cd_l2 = l2_cd(pcd_pred, pcd_gt)
-            emd_ = emd(pcd_pred, pcd_gt)
-            fscore = f_score(pcd_pred, pcd_gt)
+            cd_l1 = l1_cd(dense_pred, pcd_gt)
+            cd_l2 = l2_cd(dense_pred, pcd_gt)
+            emd_ = emd(dense_pred, pcd_gt)
+            fscore = f_score(dense_pred, pcd_gt)
 
             update_loss_dict(dist_dict, cd_l1.detach().cpu().numpy(), test_dataloader, idx, "cd_l1")
             update_loss_dict(dist_dict, cd_l2.detach().cpu().numpy(), test_dataloader, idx, "cd_l2")
             update_loss_dict(dist_dict, emd_.detach().cpu().numpy(), test_dataloader, idx, "emd")
             update_loss_dict(dist_dict, fscore.detach().cpu().numpy(), test_dataloader, idx, "fscore")
 
-            save_result(test_dataloader, pcd_pred, idx, specs)
+            save_result(test_dataloader, dense_pred, idx, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))
 
         cal_avrg_dist(dist_dict, "cd_l1")
@@ -155,10 +154,10 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    model = PointAttN().to(device)
-    checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(checkpoint["model"])
-    logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
+    model = PCN(num_dense=2048, device=device).to(device)
+    state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
+    model.load_state_dict(state_dict)
+    logger.info("load trained model succeed")
 
     time_begin_test = time.time()
     test(model, test_dataloader, specs)
@@ -177,7 +176,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_PointAttN_MVP.json",
+        default="configs/specs/specs_test_PCN_MVP.json",
         required=False,
         help="The experiment config file."
     )
@@ -185,7 +184,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PointAttN_MVP/epoch_235.pth",
+        default="trained_models/PCN_MVP/epoch_277.pth",
         required=False,
         help="The network para"
     )
@@ -195,8 +194,7 @@ if __name__ == '__main__':
     specs = path_utils.read_config(args.experiment_config_file)
 
     logger = log_utils.get_test_logger(specs)
-    TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
-    logger.info("current time: {}".format(TIMESTAMP))
+
     logger.info("test split: {}".format(specs.get("TestSplit")))
     logger.info("specs file: {}".format(args.experiment_config_file))
     logger.info("specs file: \n{}".format(json.dumps(specs, sort_keys=False, indent=4)))

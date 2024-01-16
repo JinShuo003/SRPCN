@@ -13,13 +13,13 @@ import open3d as o3d
 import numpy as np
 import shutil
 
-from models.PCN_MVP import PCN
+from models.PCN import PCN
 from utils.loss import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils, statistics_utils
-from dataset import data_INTE_norm
+from dataset import data_INTE
 
 logger = None
 
@@ -34,7 +34,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = data_INTE_norm.INTENormDataset(data_source, test_split)
+    test_dataset = data_INTE.INTENormDataset(data_source, test_split)
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader

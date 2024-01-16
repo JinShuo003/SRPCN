@@ -1,8 +1,19 @@
 import csv
 import re
 
+INTE_name_dict = {
+    "scene1": "desk-chair",
+    "scene2": "hook-bag",
+    "scene3": "vace-flower",
+    "scene4": "shelf-hanger",
+    "scene5": "hanger-clothes",
+    "scene6": "basket-object",
+    "scene7": "shelf-object",
+    "scene8": "cart-object",
+    "scene9": "shelf-cap",
+}
 
-MVP_name_dict = {
+C3d_name_dict = {
     "scene1": "airplane",
     "scene2": "cabinet",
     "scene3": "car",
@@ -21,17 +32,6 @@ MVP_name_dict = {
     "scene16": "skateboard",
 }
 
-INTE_name_dict = {
-    "scene1": "desk-chair",
-    "scene2": "hook-bag",
-    "scene3": "vace-flower",
-    "scene4": "shelf-hanger",
-    "scene5": "hanger-clothes",
-    "scene6": "basket-object",
-    "scene7": "shelf-object",
-    "scene8": "cart-object",
-    "scene9": "shelf-cap",
-}
 
 INTE_indicators = [
     "cd_l1",
@@ -42,7 +42,7 @@ INTE_indicators = [
     "mad_i"
 ]
 
-MVP_indicators = [
+C3d_indicators = [
     "cd_l1",
     "cd_l2",
     "emd",
@@ -55,14 +55,14 @@ indicator_scale = {
     "emd": 10000,
     "fscore": 1,
     "mad_s": 1000,
-    "mad_i": 1000
+    "mad_i": 1000000
 }
 
 
 def save_json_as_csv(csv_path, json_data, dataset: str):
-    if dataset == "MVP":
-        name_dict = MVP_name_dict
-        indicators = MVP_indicators
+    if dataset == "C3d":
+        name_dict = C3d_name_dict
+        indicators = C3d_indicators
     elif dataset == "INTE":
         name_dict = INTE_name_dict
         indicators = INTE_indicators

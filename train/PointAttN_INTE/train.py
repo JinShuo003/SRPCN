@@ -18,7 +18,7 @@ from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operatio
 from models.PointAttN import PointAttN
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss
-from dataset import data_INTE_norm
+from dataset import data_INTE
 
 logger = None
 
@@ -39,8 +39,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = data_INTE_norm.INTENormDataset(data_source, train_split)
-    test_dataset = data_INTE_norm.INTENormDataset(data_source, test_split)
+    train_dataset = data_INTE.INTEDataset(data_source, train_split)
+    test_dataset = data_INTE.INTEDataset(data_source, test_split)
 
     logger.info("length of train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
@@ -105,6 +105,7 @@ def get_optimizer(specs, network, checkpoint):
     init_lr = specs.get("TrainOptions").get("LearningRateOptions").get("InitLearningRate")
     step_size = specs.get("TrainOptions").get("LearningRateOptions").get("StepSize")
     gamma = specs.get("TrainOptions").get("LearningRateOptions").get("Gamma")
+    logger.info("init_lr: {}, step_size: {}, gamma: {}".format(init_lr, step_size, gamma))
 
     pre_train = specs.get("TrainOptions").get("PreTrain")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")

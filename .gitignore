@@ -2,11 +2,12 @@
 .vscode/
 */__pycache__
 */sftp.json
+
+/logs
 /models_paras
 /tensorboard_logs
 /test_result
-/generate_train_data/logs
 /data
-/logs
 
 *.log
+*.pth

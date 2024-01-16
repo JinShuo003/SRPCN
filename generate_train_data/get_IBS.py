@@ -1,5 +1,5 @@
 """
-计算成对Mesh的IBS面
+计算IBS
 """
 import logging
 import multiprocessing

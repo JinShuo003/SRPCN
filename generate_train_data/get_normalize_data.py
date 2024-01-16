@@ -116,11 +116,11 @@ class TrainDataGenerator:
 
         o3d.io.write_point_cloud(save_path, pcd)
 
-    def save_medial_axis_sphere(self, center, radius, save_path):
+    def save_medial_axis_sphere(self, center, radius, direction, save_path):
         save_dir, filename = os.path.split(save_path)
         path_utils.generate_path(save_dir)
 
-        np.savez(save_path, center=center, radius=radius)
+        np.savez(save_path, center=center, radius=radius, direction=direction)
 
     def save_normalize_para(self, translate, scale, save_path):
         save_dir, filename = os.path.split(save_path)
@@ -140,7 +140,7 @@ class TrainDataGenerator:
         pcd1_partial = geometry_utils.read_point_cloud(self.geometries_path.get("pcd1_partial"))
         pcd2_partial = geometry_utils.read_point_cloud(self.geometries_path.get("pcd2_partial"))
         IBS = geometry_utils.read_point_cloud(self.geometries_path.get("IBS"))
-        sphere_center, sphere_radius = geometry_utils.read_medial_axis_sphere(self.geometries_path.get("Medial_axis_sphere"))
+        sphere_center, sphere_radius, direction1, direction2 = geometry_utils.read_medial_axis_sphere(self.geometries_path.get("Medial_axis_sphere"))
 
         translate1, scale1 = geometry_utils.get_pcd_normalize_para(pcd1_complete)
         scale1 /= normalize_scale
@@ -151,7 +151,7 @@ class TrainDataGenerator:
         self.save_pcd(pcd1_complete_normalized, self.get_pcd_complete_save_path(scene, '0'))
         self.save_pcd(pcd1_partial_normalized, self.get_pcd_partial_save_path(scene, '0'))
         self.save_pcd(IBS1_normalized, self.get_IBS_save_path(scene, '0'))
-        self.save_medial_axis_sphere(sphere_center1, sphere_radius1, self.get_medial_axis_sphere__save_path(scene, '0'))
+        self.save_medial_axis_sphere(sphere_center1, sphere_radius1, direction1, self.get_medial_axis_sphere__save_path(scene, '0'))
         self.save_normalize_para(translate1, scale1, self.get_normalize_para_save_path(scene, '0'))
 
         translate2, scale2 = geometry_utils.get_pcd_normalize_para(pcd2_complete)
@@ -163,7 +163,7 @@ class TrainDataGenerator:
         self.save_pcd(pcd2_complete_normalized, self.get_pcd_complete_save_path(scene, '1'))
         self.save_pcd(pcd2_partial_normalized, self.get_pcd_partial_save_path(scene, '1'))
         self.save_pcd(IBS2_normalized, self.get_IBS_save_path(scene, '1'))
-        self.save_medial_axis_sphere(sphere_center2, sphere_radius2, self.get_medial_axis_sphere__save_path(scene, '1'))
+        self.save_medial_axis_sphere(sphere_center2, sphere_radius2, direction2, self.get_medial_axis_sphere__save_path(scene, '1'))
         self.save_normalize_para(translate2, scale2, self.get_normalize_para_save_path(scene, '1'))
 
 

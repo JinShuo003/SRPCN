@@ -4,6 +4,7 @@ import open3d as o3d
 import numpy as np
 import trimesh
 import pyvista as pv
+from scipy.spatial.transform import Rotation
 
 
 def read_point_cloud(path):
@@ -47,7 +48,7 @@ def read_medial_axis_sphere(path):
         center, radius
     """
     data = np.load(path)
-    return data["center"], data["radius"]
+    return data["center"], data["radius"], data["direction1"], data["direction2"]
 
 
 def get_pcd_from_np(array: np.ndarray):
@@ -149,6 +150,27 @@ def get_coordinate(size=1):
     coord_frame = o3d.geometry.TriangleMesh.create_coordinate_frame(size=size)
     coord_frame.compute_vertex_normals()
     return coord_frame
+
+
+def get_arrow(direction=np.array([0, 0, 1]), location=np.array([0, 0, 0])):
+    arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=0.001, cone_radius=0.003, cylinder_height=0.01,
+                                                   cone_height=0.01)
+
+    v = np.array([0, 0, 1])
+    w = direction
+
+    v_normalized = v / np.linalg.norm(v)
+    w_normalized = w / np.linalg.norm(w)
+    rotation_axis = np.cross(v_normalized, w_normalized)
+    rotation_axis_normalized = rotation_axis / np.linalg.norm(rotation_axis)
+    dot_product = np.dot(v_normalized, w_normalized)
+    rotation_angle = np.arccos(dot_product)
+
+    rotation_matrix = Rotation.from_rotvec(rotation_angle * rotation_axis_normalized).as_matrix()
+
+    arrow = arrow.rotate(rotation_matrix, [0, 0, 0])
+    arrow.translate(location)
+    return arrow
 
 
 def o3d2trimesh(o3d_mesh):

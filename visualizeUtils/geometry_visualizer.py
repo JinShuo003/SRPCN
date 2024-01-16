@@ -126,9 +126,9 @@ class pcdHandler(GeometryHandler):
         return pcd
 
 
-class medialAxisHandler(GeometryHandler):
+class medialAxisSphereHandler(GeometryHandler):
     def __init__(self):
-        super(medialAxisHandler, self).__init__()
+        super(medialAxisSphereHandler, self).__init__()
         pass
 
     def read_geometry(self, medial_axis_sphere_path):
@@ -151,7 +151,48 @@ class medialAxisHandler(GeometryHandler):
         return sphere_list
 
 
+class medialAxisDirectionHandler(GeometryHandler):
+    def __init__(self, mode: str, idx: int):
+        super(medialAxisDirectionHandler, self).__init__()
+        self.mode = mode
+        self.idx = idx
+
+    def read_geometry(self, medial_axis_sphere_path):
+        data = np.load(medial_axis_sphere_path)
+        if self.mode == "origin":
+            center, radius, direction1, direction2 = data["center"], data["radius"], data["direction1"], data["direction2"]
+            if self.idx == 1:
+                direction = direction1
+            elif self.idx == 2:
+                direction = direction2
+        elif self.mode == "norm":
+            center, radius, direction = data["center"], data["radius"], data["direction"]
+        arrow_list = []
+        for i in range(center.shape[0]):
+            arrow = geometry_utils.get_arrow(direction[i], center[i])
+            arrow_list.append(arrow)
+            # if i == 100:
+            #     break
+        return arrow_list
+
+    def color_geometry(self, medial_axis_sphere, sphere_color):
+        for sphere in medial_axis_sphere:
+            sphere.paint_uniform_color(sphere_color)
+
+    def get(self, medial_axis_sphere_path, color, option):
+        arrow_list = super().get(medial_axis_sphere_path, color, option)
+        return arrow_list
+
+
 def visualize(specs, filename):
+    batch_geometry_key_set = set(["medial_axis_sphere",
+                                  "medial_axis_sphere1",
+                                  "medial_axis_sphere2",
+                                  "medial_axis_origin_direction1",
+                                  "medial_axis_origin_direction2",
+                                  "medial_axis_direction1",
+                                  "medial_axis_direction2"])
+
     container = dict()
     geometries = []
     geometry_path = getGeometryPath(specs, filename)
@@ -160,19 +201,41 @@ def visualize(specs, filename):
 
     mesh1 = meshHandler().get(geometry_path["mesh1"], geometry_color["mesh1"], geometry_option["mesh1"])
     mesh2 = meshHandler().get(geometry_path["mesh2"], geometry_color["mesh2"], geometry_option["mesh2"])
-    ibs_mesh_gt = meshHandler().get(geometry_path["ibs_mesh_gt"], geometry_color["ibs_mesh_gt"], geometry_option["ibs_mesh_gt"])
-    ibs_pcd_gt = pcdHandler().get(geometry_path["ibs_pcd_gt"], geometry_color["ibs_pcd_gt"], geometry_option["ibs_pcd_gt"])
-    ibs1_pcd_gt = pcdHandler().get(geometry_path["ibs1_pcd_gt"], geometry_color["ibs1_pcd_gt"], geometry_option["ibs1_pcd_gt"])
-    ibs2_pcd_gt = pcdHandler().get(geometry_path["ibs2_pcd_gt"], geometry_color["ibs2_pcd_gt"], geometry_option["ibs2_pcd_gt"])
+    ibs_mesh_gt = meshHandler().get(geometry_path["ibs_mesh_gt"], geometry_color["ibs_mesh_gt"],
+                                    geometry_option["ibs_mesh_gt"])
+    ibs_pcd_gt = pcdHandler().get(geometry_path["ibs_pcd_gt"], geometry_color["ibs_pcd_gt"],
+                                  geometry_option["ibs_pcd_gt"])
+    ibs1_pcd_gt = pcdHandler().get(geometry_path["ibs1_pcd_gt"], geometry_color["ibs1_pcd_gt"],
+                                   geometry_option["ibs1_pcd_gt"])
+    ibs2_pcd_gt = pcdHandler().get(geometry_path["ibs2_pcd_gt"], geometry_color["ibs2_pcd_gt"],
+                                   geometry_option["ibs2_pcd_gt"])
     pcd1_gt = pcdHandler().get(geometry_path['pcd1_gt'], geometry_color['pcd1_gt'], geometry_option["pcd1_gt"])
     pcd2_gt = pcdHandler().get(geometry_path['pcd2_gt'], geometry_color['pcd2_gt'], geometry_option["pcd2_gt"])
     pcd1_scan = pcdHandler().get(geometry_path['pcd1_scan'], geometry_color['pcd1_scan'], geometry_option["pcd1_scan"])
     pcd2_scan = pcdHandler().get(geometry_path['pcd2_scan'], geometry_color['pcd2_scan'], geometry_option["pcd2_scan"])
     pcd1_pred = pcdHandler().get(geometry_path['pcd1_pred'], geometry_color['pcd1_pred'], geometry_option["pcd1_pred"])
     pcd2_pred = pcdHandler().get(geometry_path['pcd2_pred'], geometry_color['pcd2_pred'], geometry_option["pcd2_pred"])
-    medial_axis_sphere = medialAxisHandler().get(geometry_path['medial_axis_sphere'], geometry_color['medial_axis_sphere'], geometry_option["medial_axis_sphere"])
-    medial_axis_sphere1 = medialAxisHandler().get(geometry_path['medial_axis_sphere1'], geometry_color['medial_axis_sphere1'], geometry_option["medial_axis_sphere1"])
-    medial_axis_sphere2 = medialAxisHandler().get(geometry_path['medial_axis_sphere2'], geometry_color['medial_axis_sphere2'], geometry_option["medial_axis_sphere2"])
+    medial_axis_sphere = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere'],
+                                                       geometry_color['medial_axis_sphere'],
+                                                       geometry_option["medial_axis_sphere"])
+    medial_axis_sphere1 = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere1'],
+                                                        geometry_color['medial_axis_sphere1'],
+                                                        geometry_option["medial_axis_sphere1"])
+    medial_axis_sphere2 = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere2'],
+                                                        geometry_color['medial_axis_sphere2'],
+                                                        geometry_option["medial_axis_sphere2"])
+    medial_axis_origin_direction1 = medialAxisDirectionHandler("origin", 1).get(geometry_path['medial_axis_sphere'],
+                                                             geometry_color['medial_axis_direction1'],
+                                                             geometry_option["medial_axis_origin_direction1"])
+    medial_axis_origin_direction2 = medialAxisDirectionHandler("origin", 2).get(geometry_path['medial_axis_sphere'],
+                                                             geometry_color['medial_axis_direction2'],
+                                                             geometry_option["medial_axis_origin_direction2"])
+    medial_axis_direction1 = medialAxisDirectionHandler("norm", 1).get(geometry_path['medial_axis_sphere1'],
+                                                              geometry_color['medial_axis_direction1'],
+                                                              geometry_option["medial_axis_direction1"])
+    medial_axis_direction2 = medialAxisDirectionHandler("norm", 2).get(geometry_path['medial_axis_sphere2'],
+                                                              geometry_color['medial_axis_direction2'],
+                                                              geometry_option["medial_axis_direction2"])
 
     coord_frame = geometry_utils.get_coordinate(size=0.5)
     unit_sphere_pcd = geometry_utils.get_sphere_pcd(radius=0.5)
@@ -192,12 +255,16 @@ def visualize(specs, filename):
     container['medial_axis_sphere'] = medial_axis_sphere
     container['medial_axis_sphere1'] = medial_axis_sphere1
     container['medial_axis_sphere2'] = medial_axis_sphere2
+    container['medial_axis_origin_direction1'] = medial_axis_origin_direction1
+    container['medial_axis_origin_direction2'] = medial_axis_origin_direction2
+    container['medial_axis_direction1'] = medial_axis_direction1
+    container['medial_axis_direction2'] = medial_axis_direction2
     container['coord_frame'] = coord_frame
     container['unit_sphere'] = unit_sphere_pcd
 
     for key in geometry_option.keys():
         if geometry_option[key] is True:
-            if key == "medial_axis_sphere" or key == "medial_axis_sphere1" or key == "medial_axis_sphere2":
+            if key in batch_geometry_key_set:
                 geometries += container[key]
             else:
                 geometries.append(container[key])
@@ -210,7 +277,8 @@ if __name__ == '__main__':
     config_filepath = 'configs/geometry_visualizer.json'
     specs = path_utils.read_config(config_filepath)
     filename_tree_dir = specs.get("path_options").get("filename_tree_dir")
-    filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get(filename_tree_dir))
+    filename_tree = path_utils.get_filename_tree(specs,
+                                                 specs.get("path_options").get("geometries_dir").get(filename_tree_dir))
 
     for category in filename_tree:
         for scene in filename_tree[category]:

@@ -8,3 +8,5 @@ coordinate = geometry_utils.get_coordinate(size=0.1)
 arrow = geometry_utils.get_arrow(np.array([1, 0, 0]), np.array([0.5, 0, 0], dtype=np.float32))
 o3d.visualization.draw_geometries([arrow, sphere, coordinate])
 
+mesh = o3d.geometry.TriangleMesh()
+mesh.vertices = o3d.utility.Vector3dVector(np.array([1, 0, 0].reshape(-1, 3)))

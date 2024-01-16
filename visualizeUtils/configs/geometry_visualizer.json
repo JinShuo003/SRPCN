@@ -29,7 +29,7 @@
       "mesh1": false,
       "mesh2": false,
       "ibs_mesh_gt": false,
-      "ibs_pcd_gt": true,
+      "ibs_pcd_gt": false,
       "ibs1_pcd_gt": false,
       "ibs2_pcd_gt": false,
       "pcd1_gt": true,

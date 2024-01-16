@@ -4,7 +4,7 @@
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\MVP",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\MVP",
       "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\Transformer_TopNet_MVP\\MVP",
-      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_MVP\\MVP"
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_MVP"
     },
     "format_info": {
       "category_re": "scene\\d+",

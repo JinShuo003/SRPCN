@@ -222,7 +222,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PointAttN_INTE_mads_madi_pretrain/epoch_28.pth",
+        default="trained_models/PointAttN_INTE_mads_new_madi_pretrain/epoch_30.pth",
         required=False,
         help="The network para"
     )

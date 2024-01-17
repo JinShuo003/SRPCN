@@ -39,7 +39,8 @@ INTE_indicators = [
     "emd",
     "fscore",
     "mad_s",
-    "mad_i"
+    "mad_i",
+    "ibs_a"
 ]
 
 C3d_indicators = [
@@ -55,7 +56,8 @@ indicator_scale = {
     "emd": 10000,
     "fscore": 1,
     "mad_s": 1000,
-    "mad_i": 1000000
+    "mad_i": 1000000,
+    "ibs_a": 100
 }
 
 

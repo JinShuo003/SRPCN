@@ -10,10 +10,11 @@ import torch.optim as Optim
 import json
 import argparse
 import time
+import torch
 
 from models.PCN import PCN
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1, emd_loss
+from utils.loss import cd_loss_L1, emd_loss, medial_axis_surface_loss, medial_axis_interaction_loss, ibs_angle_loss
 from dataset import data_INTE
 
 logger = None
@@ -83,7 +84,7 @@ def get_checkpoint(specs):
         logger.info("load checkpoint from {}".format(checkpoint_path))
         checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
     return checkpoint
-
+    
 
 def get_network(specs, checkpoint):
     device = specs.get("Device")
@@ -106,7 +107,7 @@ def get_optimizer(specs, network, checkpoint):
     pre_train = specs.get("TrainOptions").get("PreTrain")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
     assert not (pre_train and continue_train)
-
+    
     if continue_train:
         last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
         optimizer = Optim.Adam([{'params': network.parameters(), 'initial_lr': init_lr}], lr=init_lr, betas=(0.9, 0.999))
@@ -158,11 +159,11 @@ def save_model(specs, model, lr_schedule, optimizer, epoch):
     torch.save(checkpoint, checkpoint_filename)
 
 
-def get_medial_axis_loss_weight(specs, epoch):
-    begin_epoch = specs.get("MedialAxisLossOptions").get("BeginEpoch")
-    init_ratio = specs.get("MedialAxisLossOptions").get("InitRatio")
-    step_size = specs.get("MedialAxisLossOptions").get("StepSize")
-    gamma = specs.get("MedialAxisLossOptions").get("Gamma")
+def get_loss_weight(loss_options, epoch):
+    begin_epoch = loss_options.get("BeginEpoch")
+    init_ratio = loss_options.get("InitRatio")
+    step_size = loss_options.get("StepSize")
+    gamma = loss_options.get("Gamma")
     if epoch < begin_epoch:
         return 0
     return init_ratio * pow(gamma, int((epoch - begin_epoch) / step_size))
@@ -179,7 +180,15 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
     network.train()
     logger.info("")
-    logger.info('epoch: {}, learning rate: {}'.format(epoch, lr_schedule.get_last_lr()))
+    logger.info('epoch: {}, learning rate: {}'.format(epoch, optimizer.param_groups[0]["lr"]))
+
+    mads_loss_weight = get_loss_weight(specs.get("MADSLossOptions"), epoch)
+    madi_loss_weight = get_loss_weight(specs.get("MADILossOptions"), epoch)
+    ibsa_loss_weight = get_loss_weight(specs.get("IBSALossOptions"), epoch)
+
+    logger.info("mads_loss_weight: {}".format(mads_loss_weight))
+    logger.info("madi_loss_weight: {}".format(madi_loss_weight))
+    logger.info("ibsa_loss_weight: {}".format(ibsa_loss_weight))
 
     alpha = 0
     train_step = epoch * train_dataloader.__len__()
@@ -193,14 +202,19 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         alpha = 1.0
     train_total_loss_coarse = 0
     train_total_loss_dense = 0
-    train_total_loss = 0
+    train_total_loss_medial_axis_surface = 0
+    train_total_loss_medial_axis_interaction = 0
+    train_total_loss_ibs_angle = 0
     for data, idx in train_dataloader:
-        center, radius, direction, pcd_partial, pcd_gt, idx = data
+        center, radius, direction, pcd_partial, pcd_gt = data
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
         pcd_gt = pcd_gt.to(device)
-
+        center = center.to(device)
+        radius = radius.to(device)
+        direction = direction.to(device)
+        
         coarse_pred, dense_pred = network(pcd_partial)
 
         if coarse_loss == 'cd':
@@ -212,28 +226,34 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
             raise ValueError('Not implemented loss {}'.format(coarse_loss))
 
         loss_dense = cd_loss_L1(dense_pred, pcd_gt)
-        loss = loss_coarse + alpha * loss_dense
+        loss_medial_axis_surface = medial_axis_surface_loss(center, radius, dense_pred)
+        loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, dense_pred)
+        loss_ibs_angle = ibs_angle_loss(center, dense_pred, direction)
 
+        loss_total = loss_dense  + alpha * loss_coarse + \
+                    mads_loss_weight * loss_medial_axis_surface + \
+                    madi_loss_weight * loss_medial_axis_interaction + \
+                    ibsa_loss_weight * loss_ibs_angle
         train_total_loss_coarse += loss_coarse.item()
         train_total_loss_dense += loss_dense.item()
-        train_total_loss += loss.item()
+        train_total_loss_medial_axis_surface += loss_medial_axis_surface.item()
+        train_total_loss_medial_axis_interaction += loss_medial_axis_interaction.item()
+        train_total_loss_ibs_angle += loss_ibs_angle.item()
 
-        loss.backward()
+        loss_total.backward()
         optimizer.step()
-        
+
     lr_schedule.step()
 
-    train_avrg_loss_coarse = train_total_loss_coarse / train_dataloader.__len__()
-    tensorboard_writer.add_scalar("train_loss_coarse", train_avrg_loss_coarse, epoch)
-    logger.info('train_avrg_loss_coarse: {}'.format(train_avrg_loss_coarse))
-
-    train_avrg_loss_dense = train_total_loss_dense / train_dataloader.__len__()
-    tensorboard_writer.add_scalar("train_loss_dense", train_avrg_loss_dense, epoch)
-    logger.info('train_avrg_loss_dense: {}'.format(train_avrg_loss_dense))
-
-    train_avrg_loss = train_total_loss / train_dataloader.__len__()
-    tensorboard_writer.add_scalar("train_loss", train_avrg_loss, epoch)
-    logger.info('train_avrg_loss: {}'.format(train_avrg_loss))
+    record_loss_info("train_loss_dense", train_total_loss_dense / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_coarse", train_total_loss_coarse / train_dataloader.__len__(), epoch,
+                     tensorboard_writer)
+    record_loss_info("train_loss_medial_axis_surface",
+                     train_total_loss_medial_axis_surface / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_medial_axis_interaction",
+                     train_total_loss_medial_axis_interaction / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_ibs_angle",
+                     train_total_loss_ibs_angle / train_dataloader.__len__(), epoch, tensorboard_writer)
 
 
 def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch):
@@ -241,28 +261,48 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 
     network.eval()
     with torch.no_grad():
-        test_total_cd = 0
+        test_total_dense = 0
+        test_total_coarse = 0
+        test_total_medial_axis_surface = 0
+        test_total_medial_axis_interaction = 0
+        test_total_ibs_angle = 0
         for data, idx in test_dataloader:
-            center, radius, direction, pcd_partial, pcd_gt, idx = data
+            center, radius, direction, pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
-            pcd_gt = pcd_gt.to(device)
 
             coarse_pred, dense_pred = network(pcd_partial)
-            loss_cd = cd_loss_L1(dense_pred, pcd_gt)
+            pcd_gt = pcd_gt.to(device)
+            center = center.to(device)
+            radius = radius.to(device)
+            direction = direction.to(device)
 
-            test_total_cd += loss_cd.item()
+            loss_dense = cd_loss_L1(dense_pred, pcd_gt)
+            loss_coarse = cd_loss_L1(dense_pred, pcd_gt)
+            loss_medial_axis_surface = medial_axis_surface_loss(center, radius, dense_pred)
+            loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, dense_pred)
+            loss_ibs_angle = ibs_angle_loss(center, dense_pred, direction)
 
-        test_avrg_loss_cd = test_total_cd / test_dataloader.__len__()
-        tensorboard_writer.add_scalar("test_loss_cd", test_avrg_loss_cd, epoch)
-        logger.info('test_avrg_loss_cd: {}'.format(test_avrg_loss_cd))
+            test_total_dense += loss_dense.item()
+            test_total_coarse += loss_coarse.item()
+            test_total_medial_axis_surface += loss_medial_axis_surface.item()
+            test_total_medial_axis_interaction += loss_medial_axis_interaction.item()
+            test_total_ibs_angle += loss_ibs_angle.item()
 
-        if test_avrg_loss_cd < best_cd:
+        test_avrg_dense = test_total_dense / test_dataloader.__len__()
+        record_loss_info("test_loss_dense", test_total_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_coarse", test_total_coarse / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_medial_axis_surface", test_total_medial_axis_surface / test_dataloader.__len__(),
+                         epoch, tensorboard_writer)
+        record_loss_info("test_loss_medial_axis_interaction",
+                         test_total_medial_axis_interaction / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_ibs_angle",
+                         test_total_ibs_angle / test_dataloader.__len__(), epoch, tensorboard_writer)
+
+        if test_avrg_dense < best_cd:
             best_epoch = epoch
-            best_cd = test_avrg_loss_cd
+            best_cd = test_avrg_dense
             logger.info('current best epoch: {}, cd: {}'.format(best_epoch, best_cd))
-            save_model(specs, network, lr_schedule, optimizer, epoch)
-        if epoch % 5 == 0:
-            save_model(specs, network, lr_schedule, optimizer, epoch)
+        save_model(specs, network, lr_schedule, optimizer, epoch)
 
         return best_cd, best_epoch
 
@@ -310,7 +350,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_train_PCN_INTE.json",
+        default="configs/INTE/train/specs_train_PCN_INTE.json",
         required=False,
         help="The experiment config file."
     )

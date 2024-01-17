@@ -3,21 +3,19 @@ import sys
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
 
-import torch
-import json
-import argparse
-import time
-
 from datetime import datetime, timedelta
 from torch.utils.tensorboard import SummaryWriter
 import torch.utils.data as data_utils
 import torch.optim as Optim
-
-from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation
+import json
+import argparse
+import time
+import torch
 
 from models.PointAttN import PointAttN
+from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss
+from utils.loss import cd_loss_L1
 from dataset import dataset_C3d
 
 logger = None
@@ -69,7 +67,6 @@ def get_dataloader(specs):
 def get_checkpoint(specs):
     device = specs.get("Device")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
-
     if not continue_train:
         return None
     
@@ -79,9 +76,8 @@ def get_checkpoint(specs):
     checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
     logger.info("load checkpoint from {}".format(checkpoint_path))
     checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
-
     return checkpoint
-
+    
 
 def get_network(specs, checkpoint):
     device = specs.get("Device")
@@ -96,20 +92,24 @@ def get_network(specs, checkpoint):
 
 
 def get_optimizer(specs, network, checkpoint):
-    learning_rate = specs.get("TrainOptions").get("LearningRate")
-    last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
-    
-    if checkpoint:
-        optimizer = Optim.Adam([{'params': network.parameters(), 'initial_lr': learning_rate}], lr=learning_rate, betas=(0.9, 0.999))
-        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.7, last_epoch=last_epoch)
+    init_lr = specs.get("TrainOptions").get("LearningRateOptions").get("InitLearningRate")
+    step_size = specs.get("TrainOptions").get("LearningRateOptions").get("StepSize")
+    gamma = specs.get("TrainOptions").get("LearningRateOptions").get("Gamma")
+    logger.info("init_lr: {}, step_size: {}, gamma: {}".format(init_lr, step_size, gamma))
+
+    continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    if continue_train:
+        last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+        optimizer = Optim.Adam([{'params': network.parameters(), 'initial_lr': init_lr}], lr=init_lr, betas=(0.9, 0.999))
+        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, last_epoch=last_epoch)
 
         logger.info("load lr_schedule parameter from epoch {}".format(checkpoint["epoch"]))
         lr_schedule.load_state_dict(checkpoint["lr_schedule"])
         logger.info("load optimizer parameter from epoch {}".format(checkpoint["epoch"]))
         optimizer.load_state_dict(checkpoint["optimizer"])
     else:
-        optimizer = Optim.Adam(network.parameters(), lr=learning_rate, betas=(0.9, 0.999))
-        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=40, gamma=0.7)
+        optimizer = Optim.Adam(network.parameters(), lr=init_lr, betas=(0.9, 0.999))
+        lr_schedule = Optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
     return lr_schedule, optimizer
 
 
@@ -147,16 +147,6 @@ def save_model(specs, model, lr_schedule, optimizer, epoch):
     checkpoint_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
 
     torch.save(checkpoint, checkpoint_filename)
-
-
-def get_medial_axis_loss_weight(specs, epoch):
-    begin_epoch = specs.get("MedialAxisLossOptions").get("BeginEpoch")
-    init_ratio = specs.get("MedialAxisLossOptions").get("InitRatio")
-    step_size = specs.get("MedialAxisLossOptions").get("StepSize")
-    gamma = specs.get("MedialAxisLossOptions").get("Gamma")
-    if epoch < begin_epoch:
-        return 0
-    return init_ratio * pow(gamma, int((epoch - begin_epoch) / step_size))
 
 
 def record_loss_info(tag: str, avrg_loss, epoch, tensorboard_writer: SummaryWriter):
@@ -249,7 +239,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 def main_function(specs):
     epoch_num = specs.get("TrainOptions").get("NumEpochs")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
-    last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
 
     TIMESTAMP = "{0:%Y-%m-%d_%H-%M-%S/}".format(datetime.now() + timedelta(hours=8))
 
@@ -267,6 +256,7 @@ def main_function(specs):
     best_epoch = -1
     epoch_begin = 0
     if continue_train:
+        last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
         epoch_begin = last_epoch + 1
         logger.info("continue train from epoch {}".format(epoch_begin))
     for epoch in range(epoch_begin, epoch_num + 1):

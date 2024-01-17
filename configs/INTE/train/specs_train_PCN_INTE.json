@@ -2,20 +2,43 @@
     "TAG": "PCN_INTE",
     "Description" : "encoder: PCN, decoder: PCN, dataset: INTE",
     "DataSource" : "data",
-    "TrainSplit" : "configs/train_INTE_norm/train.json",
-    "TestSplit" : "configs/test_INTE_norm/test.json",
-    "ParaSaveDir" : "trained_models",
+    "TrainSplit" : "dataset/train_INTE/train.json",
+    "TestSplit" : "dataset/test_INTE/test.json",
+    "ParaSaveDir" : "model_paras",
     "TensorboardLogDir" : "tensorboard_logs",
     "LogDir" : "logs/train",
-    "Device" : 1,
+    "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 256,
+        "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "LearningRate": 0.0001,
-        "CoarseLoss": "cd",
+        "PreTrain": true,
+        "PreTrainModel": "model_paras/PCN_C3d/epoch_20.pth",
         "ContinueTrain": false,
-        "ContinueFromEpoch": 0
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "InitLearningRate": 1e-5,
+            "StepSize": 20,
+            "Gamma": 0.7
+        }
+    },
+    "IBSALossOptions": {
+        "BeginEpoch": 10,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADSLossOptions": {
+        "BeginEpoch": 20,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADILossOptions": {
+        "BeginEpoch": 30,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
     }
 }

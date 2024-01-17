@@ -14,7 +14,7 @@ class PCN(nn.Module):
         num_coarse: 1024
     """
 
-    def __init__(self, num_dense=16384, latent_dim=1024, grid_size=4, device=0):
+    def __init__(self, num_dense=2048, latent_dim=1024, grid_size=4, device=0):
         super().__init__()
 
         self.num_dense = num_dense

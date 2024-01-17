@@ -1,31 +1,43 @@
 {
-    "TAG": "PointAttN_INTE_mads_new_madi_pretrain",
-    "Description" : "model: PointAttN, dataset: INTE_norm, loss: cd, mads, new_mad_i, pretrain",
+    "TAG": "PointAttN_INTE_ibsa",
+    "Description" : "model: PointAttN, dataset: INTE_norm, loss: ibsa",
     "DataSource" : "data",
-    "TrainSplit" : "configs/train_INTE_norm/train.json",
-    "TestSplit" : "configs/test_INTE_norm/test.json",
-    "ParaSaveDir" : "trained_models",
+    "TrainSplit" : "dataset/train_INTE/train.json",
+    "TestSplit" : "dataset/test_INTE/test.json",
+    "ParaSaveDir" : "model_paras",
     "TensorboardLogDir" : "tensorboard_logs",
     "LogDir" : "logs/train",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 32,
+        "BatchSize" : 64,
         "DataLoaderThreads" : 8,
         "PreTrain": true,
-        "PreTrainModel": "trained_models/PointAttN_MVP/epoch_235.pth",
+        "PreTrainModel": "model_paras/PointAttN_C3d/epoch_53.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
-            "InitLearningRate": 1e-4,
-            "StepSize": 10,
-            "Gamma": 0.5
+            "InitLearningRate": 1e-5,
+            "StepSize": 20,
+            "Gamma": 0.7
         }
     },
-    "MedialAxisLossOptions": {
+    "IBSALossOptions": {
         "BeginEpoch": 20,
-        "InitRatio": 1,
+        "InitRatio": 0.05,
+        "StepSize": 10,
+        "Gamma": 1.3
+    },
+    "MADSLossOptions": {
+        "BeginEpoch": 20,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADILossOptions": {
+        "BeginEpoch": 30,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     }

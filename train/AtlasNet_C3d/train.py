@@ -82,7 +82,7 @@ def get_checkpoint(specs):
 def get_network(specs, checkpoint):
     device = specs.get("Device")
 
-    network = AtlasNet(num_points=2048, nb_primitives=4).to(device)
+    network = AtlasNet(num_points=2048, nb_primitives=4, device=device).to(device)
 
     if checkpoint:
         logger.info("load model parameter from epoch {}".format(checkpoint["epoch"]))

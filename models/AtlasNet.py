@@ -3,7 +3,6 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 import torch.nn as nn
 import numpy as np
-from common import PointNetfeat, weights_init
 
 
 def get_grid(num_points: int = 2048, nb_primitives: int = 4):
@@ -18,6 +17,43 @@ def get_grid(num_points: int = 2048, nb_primitives: int = 4):
     grid = [vertices for i in range(0, nb_primitives)]
     return grid
 
+
+class PointNetfeat(nn.Module):
+    def __init__(self, num_points=2500, global_feat=True, trans=False):
+        super(PointNetfeat, self).__init__()
+        self.conv1 = torch.nn.Conv1d(3, 64, 1)
+        self.conv2 = torch.nn.Conv1d(64, 128, 1)
+        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
+
+        self.bn1 = torch.nn.BatchNorm1d(64)
+        self.bn2 = torch.nn.BatchNorm1d(128)
+        self.bn3 = torch.nn.BatchNorm1d(1024)
+        self.trans = trans
+
+        self.num_points = num_points
+        self.global_feat = global_feat
+
+    def forward(self, x):
+        if self.trans:
+            trans = self.stn(x)
+            x = x.transpose(2, 1)
+            x = torch.bmm(x, trans)
+            x = x.transpose(2, 1)
+        x = F.relu(self.bn1(self.conv1(x)))
+        pointfeat = x
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = self.bn3(self.conv3(x))
+        x, _ = torch.max(x, 2)
+        x = x.view(-1, 1024)
+        if self.trans:
+            if self.global_feat:
+                return x, trans
+            else:
+                x = x.view(-1, 1024, 1).repeat(1, 1, self.num_points)
+                return torch.cat([x, pointfeat], 1), trans
+        else:
+            return x
+        
 
 class PointGenCon(nn.Module):
     def __init__(self, bottleneck_size=2500):
@@ -42,13 +78,14 @@ class PointGenCon(nn.Module):
 
 
 class AtlasNet(nn.Module):
-    def __init__(self, args, num_points=2048, bottleneck_size=1024, nb_primitives=4):
+    def __init__(self, num_points=2048, bottleneck_size=1024, nb_primitives=4, device=0):
         super(AtlasNet, self).__init__()
         self.num_points = num_points
         self.bottleneck_size = bottleneck_size
         self.nb_primitives = nb_primitives
+        self.device = device
         self.encoder = nn.Sequential(
-            PointNetfeat(args, num_points, global_feat=True, trans=False),
+            PointNetfeat(num_points, global_feat=True, trans=False),
             nn.Linear(1024, self.bottleneck_size),
             nn.BatchNorm1d(self.bottleneck_size),
             nn.ReLU()
@@ -57,11 +94,12 @@ class AtlasNet(nn.Module):
             [PointGenCon(bottleneck_size=2 + self.bottleneck_size) for i in range(0, self.nb_primitives)])
         self.grid = get_grid(num_points, nb_primitives)
 
-    def forward(self, x, grid):
+    def forward(self, x):
+        x = x.transpose(1, 2).contiguous()
         x = self.encoder(x)
         outs = []
         for i in range(0, self.nb_primitives):
-            rand_grid = Variable(torch.cuda.FloatTensor(grid[i]))
+            rand_grid = Variable(torch.FloatTensor(self.grid[i]).to(self.device))
             rand_grid = rand_grid.transpose(0, 1).contiguous().unsqueeze(0)
             rand_grid = rand_grid.expand(x.size(0), rand_grid.size(1), rand_grid.size(2)).contiguous()
             y = x.unsqueeze(2).expand(x.size(0), x.size(1), rand_grid.size(2)).contiguous()

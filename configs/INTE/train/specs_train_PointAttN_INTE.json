@@ -24,7 +24,7 @@
         }
     },
     "IBSALossOptions": {
-        "BeginEpoch": 20,
+        "BeginEpoch": 0,
         "InitRatio": 0.05,
         "StepSize": 10,
         "Gamma": 1.3

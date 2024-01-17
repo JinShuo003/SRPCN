@@ -59,14 +59,19 @@ def ibs_angle_loss(center, pcd, direction):
         pcd (torch.tensor): (B, N, 3)
         direction (torch.tensor): (B, N, 3)
     """
-    B, N, _ = center.shape
-    B, M, _ = pcd.shape
+    # distances = torch.cdist(center, pcd, p=2)
+    # min_indices = torch.argmin(distances, dim=2)
+    # closest_points = torch.gather(pcd, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
+    # direction_pred = closest_points - center
+    # loss = 1 - F.cosine_similarity(direction_pred, direction, dim=2)
+    # return torch.mean(loss)
     
-    distances = torch.cdist(center, pcd, p=2)
+    distances = torch.cdist(pcd, center, p=2)
     min_indices = torch.argmin(distances, dim=2)
-    closest_points = torch.gather(pcd, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
-    direction_pred = closest_points - center
-    loss = 1 - F.cosine_similarity(direction_pred, direction, dim=2)
+    closest_center = torch.gather(center, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
+    direction_pred = pcd - closest_center
+    cosine_sim = F.cosine_similarity(direction_pred, direction, dim=2)
+    loss = torch.clamp(-cosine_sim, min=0)
 
     return torch.mean(loss)
 

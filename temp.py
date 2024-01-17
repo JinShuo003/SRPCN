@@ -1,29 +1,28 @@
 import open3d as o3d
 from utils import geometry_utils
 import numpy as np
+from utils.loss import ibs_angle_loss
+import torch
+import torch.optim as optim 
 
 
-def get_grid(points_num: int = 2048, nb_primitives: int = 4):
-    points_num = 2048
-    nb_primitives = 4
-    grain = int(np.sqrt(points_num / nb_primitives))
-    grain = grain * 1.0
-    n = ((grain + 1) * (grain + 1) * nb_primitives)
-    if n < points_num:
-        grain += 1
-    npts = (grain + 1) * (grain + 1) * nb_primitives
-    print(npts)
+if __name__ == '__main__':
+    center = torch.tensor([[[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]], dtype=torch.float32)
+    pcd_init = torch.tensor([[[0.05, 0, 0], [0.5, 0, 0], [0, 0.5, 0], [0, 0, 0.5]]], dtype=torch.float32)
+    pcd_init.requires_grad = True
+    direction = torch.tensor([[[1, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]]], dtype=torch.float32)
 
-    # generate regular grid
-    vertices = []
-    for i in range(0, int(grain + 1)):
-        for j in range(0, int(grain + 1)):
-            vertices.append([i / grain, j / grain])
+    optimizer = optim.Adam([pcd_init], lr=0.001, betas=(0.9, 0.999))
+    lr_schedule = optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.9)
 
-    grid = [vertices for i in range(0, nb_primitives)]
-    print("grain", grain, 'number vertices', len(vertices) * nb_primitives)
-    return grid
+    for epoch in range(10):
+        print(pcd_init.grad)
+        # optimizer.zero_grad()
 
+        loss = ibs_angle_loss(center, pcd_init, direction)
 
-grid = AtlasNet_setup()
-print(grid)
+        print(loss.item())
+
+        loss.backward()
+        optimizer.step()
+

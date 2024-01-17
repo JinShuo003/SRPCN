@@ -3,10 +3,27 @@ from utils import geometry_utils
 import numpy as np
 
 
-sphere = geometry_utils.get_sphere_pcd(radius=0.5)
-coordinate = geometry_utils.get_coordinate(size=0.1)
-arrow = geometry_utils.get_arrow(np.array([1, 0, 0]), np.array([0.5, 0, 0], dtype=np.float32))
-o3d.visualization.draw_geometries([arrow, sphere, coordinate])
+def get_grid(points_num: int = 2048, nb_primitives: int = 4):
+    points_num = 2048
+    nb_primitives = 4
+    grain = int(np.sqrt(points_num / nb_primitives))
+    grain = grain * 1.0
+    n = ((grain + 1) * (grain + 1) * nb_primitives)
+    if n < points_num:
+        grain += 1
+    npts = (grain + 1) * (grain + 1) * nb_primitives
+    print(npts)
 
-mesh = o3d.geometry.TriangleMesh()
-mesh.vertices = o3d.utility.Vector3dVector(np.array([1, 0, 0].reshape(-1, 3)))
+    # generate regular grid
+    vertices = []
+    for i in range(0, int(grain + 1)):
+        for j in range(0, int(grain + 1)):
+            vertices.append([i / grain, j / grain])
+
+    grid = [vertices for i in range(0, nb_primitives)]
+    print("grain", grain, 'number vertices', len(vertices) * nb_primitives)
+    return grid
+
+
+grid = AtlasNet_setup()
+print(grid)

@@ -3,8 +3,8 @@
     "geometries_dir": {
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
-      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\INTE_norm\\no_mad_epoch43",
-      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\INTE_norm\\mads_new_madi_pretrain_epoch30",
+      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\origin",
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\mads_new_madi_pretrain_epoch30",
       "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
     },
     "format_info": {
@@ -23,5 +23,5 @@
     "tool_bar_width": 300
   },
   "sub_window_3_name": "PointAttN",
-  "sub_window_4_name": "PointAttN_mads_madi_pretrain"
+  "sub_window_4_name": "PointAttN_mads_madi"
 }

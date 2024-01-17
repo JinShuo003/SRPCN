@@ -3,18 +3,16 @@ import sys
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
 
-import torch
-import json
-import argparse
-import time
-
 from datetime import datetime, timedelta
 from torch.utils.tensorboard import SummaryWriter
 import torch.utils.data as data_utils
 import torch.optim as Optim
+import json
+import argparse
+import time
+import torch
 
 from models.PCN import PCN
-
 from utils import path_utils, log_utils
 from utils.loss import cd_loss_L1, emd_loss
 from dataset import dataset_C3d
@@ -78,14 +76,13 @@ def get_checkpoint(specs):
     checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
     logger.info("load checkpoint from {}".format(checkpoint_path))
     checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
-
     return checkpoint
-
+    
 
 def get_network(specs, checkpoint):
     device = specs.get("Device")
 
-    network = PCN(device=device).to(device)
+    network = PCN(num_dense=2048, device=device).to(device)
 
     if checkpoint:
         logger.info("load model parameter from epoch {}".format(checkpoint["epoch"]))
@@ -151,16 +148,6 @@ def save_model(specs, model, lr_schedule, optimizer, epoch):
     checkpoint_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
 
     torch.save(checkpoint, checkpoint_filename)
-
-
-def get_medial_axis_loss_weight(specs, epoch):
-    begin_epoch = specs.get("MedialAxisLossOptions").get("BeginEpoch")
-    init_ratio = specs.get("MedialAxisLossOptions").get("InitRatio")
-    step_size = specs.get("MedialAxisLossOptions").get("StepSize")
-    gamma = specs.get("MedialAxisLossOptions").get("Gamma")
-    if epoch < begin_epoch:
-        return 0
-    return init_ratio * pow(gamma, int((epoch - begin_epoch) / step_size))
 
 
 def record_loss_info(tag: str, avrg_loss, epoch, tensorboard_writer: SummaryWriter):

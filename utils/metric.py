@@ -2,6 +2,7 @@ import torch
 
 from utils.ChamferDistancePytorch.chamfer3D import dist_chamfer_3D
 from utils.loss import emdModule
+import torch.nn.functional as F
 
 
 def medial_axis_surface_dist(center, radius, pcd):
@@ -23,12 +24,15 @@ def medial_axis_interaction_dist(center, radius, pcd):
     loss = torch.where(radius > distances, radius - distances, 0)
     return torch.mean(loss, dim=[1, 2])
 
-    # cham_loss = dist_chamfer_3D.chamfer_3DDist()
-    # dist1, _, _, _ = cham_loss(center, pcd)
-    # dist1 = torch.sqrt(dist1)
-    # dist = torch.where(radius > dist1, radius - dist1, 0)
 
-    # return torch.mean(dist, 1)
+def ibs_angle_dist(center, pcd, direction):
+    distances = torch.cdist(center, pcd, p=2)
+    min_indices = torch.argmin(distances, dim=2)
+    closest_points = torch.gather(pcd, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
+    direction_pred = closest_points - center
+    loss = 1 - F.cosine_similarity(direction_pred, direction, dim=2)
+
+    return torch.mean(loss, 1)
 
 
 def l1_cd(pcd1, pcd2):

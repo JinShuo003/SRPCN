@@ -13,8 +13,9 @@
         "NumEpochs" : 400,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
+        "CoarseLoss": "cd",
         "PreTrain": true,
-        "PreTrainModel": "model_paras/PCN_C3d/epoch_20.pth",
+        "PreTrainModel": "model_paras/PCN_C3d/epoch_106.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {

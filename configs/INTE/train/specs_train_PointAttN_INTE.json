@@ -1,6 +1,6 @@
 {
-    "TAG": "PointAttN_INTE_ibsa",
-    "Description" : "model: PointAttN, dataset: INTE_norm, loss: ibsa",
+    "TAG": "PointAttN_INTE_madi_scale10",
+    "Description" : "model: PointAttN, dataset: INTE_norm, loss: madi",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
@@ -25,19 +25,19 @@
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0.05,
+        "InitRatio": 0,
         "StepSize": 10,
-        "Gamma": 1.3
+        "Gamma": 1
     },
     "MADSLossOptions": {
-        "BeginEpoch": 20,
+        "BeginEpoch": 0,
         "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
-        "BeginEpoch": 30,
-        "InitRatio": 0,
+        "BeginEpoch": 0,
+        "InitRatio": 10,
         "StepSize": 10,
         "Gamma": 1
     }

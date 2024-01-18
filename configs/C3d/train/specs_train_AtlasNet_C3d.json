@@ -11,7 +11,7 @@
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 32,
+        "BatchSize" : 64,
         "DataLoaderThreads" : 8,
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,

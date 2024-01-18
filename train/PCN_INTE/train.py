@@ -191,12 +191,11 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     logger.info("ibsa_loss_weight: {}".format(ibsa_loss_weight))
 
     alpha = 0
-    train_step = epoch * train_dataloader.__len__()
-    if train_step < 40 * train_dataloader.__len__():
+    if epoch < 20 :
         alpha = 0.01
-    elif train_step < 80 * train_dataloader.__len__():
+    elif epoch < 40:
         alpha = 0.1
-    elif train_step < 200 * train_dataloader.__len__():
+    elif epoch < 60:
         alpha = 0.5
     else:
         alpha = 1.0

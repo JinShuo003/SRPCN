@@ -55,9 +55,8 @@ class PCN_encoder(nn.Module):
         return feature
 
 
-
 class TopNet_decoder(nn.Module):
-    def __init__(self, arch=[2, 4, 4, 4, 4, 4]):
+    def __init__(self, arch=[4, 4, 8, 8]):
         super(TopNet_decoder, self).__init__()
         self.arch = arch
         self.level_num = len(arch)
@@ -65,22 +64,15 @@ class TopNet_decoder(nn.Module):
         self.level_2 = nn.ModuleList()
         self.level_3 = nn.ModuleList()
         self.level_4 = nn.ModuleList()
-        self.level_5 = nn.ModuleList()
-        self.level_6 = nn.ModuleList()
         # construct tree
         for _ in range(arch[0]):
-            self.level_1.append(mlp(512, 8))
+            self.level_1.append(mlp(512,8))
         for _ in range(arch[1]):
-            self.level_2.append(mlp(512 + 8, 8))
+            self.level_2.append(mlp(512+8,8))
         for _ in range(arch[2]):
-            self.level_3.append(mlp(512 + 8, 8))
+            self.level_3.append(mlp(512+8,8))
         for _ in range(arch[3]):
-            self.level_4.append(mlp(512 + 8, 8))
-        for _ in range(arch[4]):
-            self.level_5.append(mlp(512 + 8, 8))
-        for _ in range(arch[5]):
-            self.level_6.append(final_mlp(512 + 8, 3))
-
+            self.level_4.append(final_mlp(512+8,3))
     def forward(self, x):
         features_1 = []
         for net in self.level_1:
@@ -96,17 +88,9 @@ class TopNet_decoder(nn.Module):
         features_4 = []
         for feat in features_3:
             for net in self.level_4:
-                features_4.append(torch.cat([net(feat), x], dim=1))
-        features_5 = []
-        for feat in features_4:
-            for net in self.level_5:
-                features_5.append(torch.cat([net(feat), x], dim=1))
-        features_6 = []
-        for feat in features_5:
-            for net in self.level_6:
-                features_6.append(net(feat))
-        pc = torch.cat(features_6, dim=2)
-        return pc
+                features_4.append(net(feat))
+        pcd = torch.cat(features_4, dim=2)
+        return pcd
 
 
 class TopNet(nn.Module):

@@ -14,7 +14,7 @@ import torch
 
 from models.TopNet import TopNet
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1, emd_loss
+from utils.loss import cd_loss_L1
 from dataset import dataset_C3d
 
 logger = None
@@ -82,7 +82,7 @@ def get_checkpoint(specs):
 def get_network(specs, checkpoint):
     device = specs.get("Device")
 
-    network = TopNet(num_dense=2048).to(device)
+    network = TopNet(input_num=2048).to(device)
 
     if checkpoint:
         logger.info("load model parameter from epoch {}".format(checkpoint["epoch"]))
@@ -157,7 +157,6 @@ def record_loss_info(tag: str, avrg_loss, epoch, tensorboard_writer: SummaryWrit
 
 def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
     device = specs.get("Device")
-    coarse_loss = specs.get("TrainOptions").get("CoarseLoss")
 
     network.train()
     logger.info("")

@@ -7,14 +7,18 @@
     "ParaSaveDir" : "trained_models",
     "TensorboardLogDir" : "tensorboard_logs",
     "LogDir" : "logs/train",
-    "Device" : 0,
+    "Device" : 1,
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 64,
+        "BatchSize" : 32,
         "DataLoaderThreads" : 8,
-        "LearningRate": 0.0001,
         "ContinueTrain": false,
-        "ContinueFromEpoch": 0
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "InitLearningRate": 0.5e-2,
+            "StepSize": 50,
+            "Gamma": 0.7
+        }
     }
 }

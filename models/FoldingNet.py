@@ -66,11 +66,11 @@ class FoldingNet_decoder(nn.Module):
     def __init__(self, in_channel=512):
         super(FoldingNet_decoder, self).__init__()
 
-        xx = np.linspace(-0.3, 0.3, 45, dtype=np.float32)
-        yy = np.linspace(-0.3, 0.3, 45, dtype=np.float32)
-        self.grid = np.meshgrid(xx, yy)  # (2, 45, 45)
+        xx = np.linspace(-0.3, 0.3, 46, dtype=np.float32)
+        yy = np.linspace(-0.3, 0.3, 46, dtype=np.float32)
+        self.grid = np.meshgrid(xx, yy)  # (2, 46, 46)
 
-        self.grid = torch.Tensor(self.grid).view(2, -1)  # (2, 45, 45) -> (2, 45 * 45)
+        self.grid = torch.Tensor(self.grid).view(2, -1)  # (2, 46, 46) -> (2, 46 * 46)
 
         self.m = self.grid.shape[1]
 
@@ -86,7 +86,7 @@ class FoldingNet_decoder(nn.Module):
         grid = self.grid.to(x.device)  # (2, 45 * 45)
         grid = grid.unsqueeze(0).repeat(batch_size, 1, 1)  # (B, 2, 45 * 45)
 
-        x = x.unsqueeze(2).repeat(1, 1, self.m)  # (B, 512, 45 * 45)
+        x = x.repeat(1, 1, self.m)  # (B, 512, 45 * 45)
 
         recon1 = self.fold1(grid, x)
         recon2 = self.fold2(recon1, x)
@@ -103,5 +103,5 @@ class FoldingNet(nn.Module):
     def forward(self, x: torch.Tensor):
         x = x.transpose(1, 2).contiguous()
         feat = self.encoder(x)
-        pcd = self.decoder(feat)
+        pcd = self.decoder(feat).transpose(2, 1).contiguous()
         return pcd

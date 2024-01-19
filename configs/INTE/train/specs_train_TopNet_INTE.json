@@ -1,0 +1,44 @@
+{
+    "TAG": "TopNet_INTE",
+    "Description" : "model: TopNet, dataset: INTE_norm",
+    "DataSource" : "data",
+    "TrainSplit" : "dataset/train_INTE/train.json",
+    "TestSplit" : "dataset/test_INTE/test.json",
+    "ParaSaveDir" : "model_paras",
+    "TensorboardLogDir" : "tensorboard_logs/INTE",
+    "LogDir" : "logs/train",
+    "Device" : 1,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8,
+        "PreTrain": false,
+        "PreTrainModel": "",
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "InitLearningRate": 1e-3,
+            "StepSize": 20,
+            "Gamma": 0.7
+        }
+    },
+    "IBSALossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADSLossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADILossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    }
+}

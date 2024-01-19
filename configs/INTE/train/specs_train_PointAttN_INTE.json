@@ -1,11 +1,11 @@
 {
-    "TAG": "PointAttN_INTE_madi_scale10",
-    "Description" : "model: PointAttN, dataset: INTE_norm, loss: madi",
+    "TAG": "PointAttN_INTE_mads_scale5",
+    "Description" : "model: PointAttN, dataset: INTE_norm, loss: mads",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs",
+    "TensorboardLogDir" : "tensorboard_logs/INTE",
     "LogDir" : "logs/train",
     "Device" : 0,
     "PcdPointNum": 2048,
@@ -31,13 +31,13 @@
     },
     "MADSLossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 5,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 10,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     }

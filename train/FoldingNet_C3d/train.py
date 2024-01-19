@@ -11,6 +11,7 @@ import json
 import argparse
 import time
 import torch
+import random
 
 from models.FoldingNet import FoldingNet
 from utils import path_utils, log_utils
@@ -170,6 +171,8 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         pcd_gt = pcd_gt.to(device)
 
         dense_pred = network(pcd_partial)
+        index = torch.LongTensor(random.sample(range(46 * 46), 2048)).to(device)
+        dense_pred = torch.index_select(dense_pred, 1, index)
 
         loss_dense = cd_loss_L1(dense_pred, pcd_gt)
         loss = loss_dense
@@ -195,6 +198,9 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             pcd_gt = pcd_gt.to(device)
 
             dense_pred = network(pcd_partial)
+            index = torch.LongTensor(random.sample(range(46 * 46), 2048)).to(device)
+            dense_pred = torch.index_select(dense_pred, 1, index)
+            
             loss_cd = cd_loss_L1(dense_pred, pcd_gt)
 
             test_total_dense += loss_cd.item()

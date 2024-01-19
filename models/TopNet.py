@@ -56,7 +56,7 @@ class PCN_encoder(nn.Module):
 
 
 class TopNet_decoder(nn.Module):
-    def __init__(self, arch=[4, 4, 8, 8]):
+    def __init__(self, arch=[4, 8, 8, 8]):
         super(TopNet_decoder, self).__init__()
         self.arch = arch
         self.level_num = len(arch)
@@ -103,4 +103,4 @@ class TopNet(nn.Module):
         x = x.transpose(1, 2).contiguous()
         feat = self.encoder(x)
         pcd = self.decoder(feat)
-        return pcd
+        return pcd.transpose(1, 2).contiguous()

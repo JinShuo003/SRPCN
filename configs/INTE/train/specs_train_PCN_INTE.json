@@ -5,7 +5,7 @@
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs",
+    "TensorboardLogDir" : "tensorboard_logs/INTE",
     "LogDir" : "logs/train",
     "Device" : 0,
     "PcdPointNum": 2048,

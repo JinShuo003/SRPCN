@@ -1,24 +1,24 @@
 {
-    "TAG": "PointAttN_INTE_mads_scale5",
-    "Description" : "model: PointAttN, dataset: INTE_norm, loss: mads",
+    "TAG": "TopNet_INTE",
+    "Description" : "model: TopNet, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
     "TensorboardLogDir" : "tensorboard_logs/INTE",
     "LogDir" : "logs/train",
-    "Device" : 0,
+    "Device" : 1,
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "PreTrain": true,
-        "PreTrainModel": "model_paras/PointAttN_C3d/epoch_53.pth",
+        "PreTrain": false,
+        "PreTrainModel": "",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
-            "InitLearningRate": 1e-5,
+            "InitLearningRate": 1e-3,
             "StepSize": 20,
             "Gamma": 0.7
         }
@@ -31,7 +31,7 @@
     },
     "MADSLossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 5,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },

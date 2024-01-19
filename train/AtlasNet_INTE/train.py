@@ -13,10 +13,10 @@ import time
 import torch
 import random
 
-from models.FoldingNet import FoldingNet
+from models.AtlasNet import AtlasNet
 from utils import path_utils, log_utils
-from utils.loss import cd_loss_L1
-from dataset import dataset_C3d
+from utils.loss import cd_loss_L1, medial_axis_interaction_loss, medial_axis_surface_loss, ibs_angle_loss
+from dataset import data_INTE
 
 logger = None
 
@@ -37,8 +37,8 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    train_dataset = dataset_C3d.C3dDataset(data_source, train_split)
-    test_dataset = dataset_C3d.C3dDataset(data_source, test_split)
+    train_dataset = data_INTE.INTEDataset(data_source, train_split)
+    test_dataset = data_INTE.INTEDataset(data_source, test_split)
 
     logger.info("length of train_dataset: {}".format(train_dataset.__len__()))
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
@@ -66,24 +66,31 @@ def get_dataloader(specs):
 
 def get_checkpoint(specs):
     device = specs.get("Device")
+    pre_train = specs.get("TrainOptions").get("PreTrain")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    assert not (pre_train and continue_train)
 
-    if not continue_train:
-        return None
-    
-    continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
-    para_save_dir = specs.get("ParaSaveDir")
-    para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
-    checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
-    logger.info("load checkpoint from {}".format(checkpoint_path))
-    checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
+    checkpoint = None
+    if pre_train:
+        logger.info("pretrain mode")
+        pretrain_model_path = specs.get("TrainOptions").get("PreTrainModel")
+        logger.info("load checkpoint from {}".format(pretrain_model_path))
+        checkpoint = torch.load(pretrain_model_path, map_location="cuda:{}".format(device))
+    elif continue_train:
+        logger.info("continue train mode")
+        continue_from_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
+        para_save_dir = specs.get("ParaSaveDir")
+        para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
+        checkpoint_path = os.path.join(para_save_path, "epoch_{}.pth".format(continue_from_epoch))
+        logger.info("load checkpoint from {}".format(checkpoint_path))
+        checkpoint = torch.load(checkpoint_path, map_location="cuda:{}".format(device))
     return checkpoint
     
 
 def get_network(specs, checkpoint):
     device = specs.get("Device")
 
-    network = FoldingNet(input_num=2048).to(device)
+    network = AtlasNet(num_points=2048, nb_primitives=4, device=device).to(device)
 
     if checkpoint:
         logger.info("load model parameter from epoch {}".format(checkpoint["epoch"]))
@@ -98,7 +105,9 @@ def get_optimizer(specs, network, checkpoint):
     gamma = specs.get("TrainOptions").get("LearningRateOptions").get("Gamma")
     logger.info("init_lr: {}, step_size: {}, gamma: {}".format(init_lr, step_size, gamma))
 
+    pre_train = specs.get("TrainOptions").get("PreTrain")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
+    assert not (pre_train and continue_train)
     
     if continue_train:
         last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
@@ -151,6 +160,16 @@ def save_model(specs, model, lr_schedule, optimizer, epoch):
     torch.save(checkpoint, checkpoint_filename)
 
 
+def get_loss_weight(loss_options, epoch):
+    begin_epoch = loss_options.get("BeginEpoch")
+    init_ratio = loss_options.get("InitRatio")
+    step_size = loss_options.get("StepSize")
+    gamma = loss_options.get("Gamma")
+    if epoch < begin_epoch:
+        return 0
+    return init_ratio * pow(gamma, int((epoch - begin_epoch) / step_size))
+
+
 def record_loss_info(tag: str, avrg_loss, epoch, tensorboard_writer: SummaryWriter):
     tensorboard_writer.add_scalar("{}".format(tag), avrg_loss, epoch)
     logger.info('{}: {}'.format(tag, avrg_loss))
@@ -163,28 +182,60 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     logger.info("")
     logger.info('epoch: {}, learning rate: {}'.format(epoch, optimizer.param_groups[0]["lr"]))
 
+    mads_loss_weight = get_loss_weight(specs.get("MADSLossOptions"), epoch)
+    madi_loss_weight = get_loss_weight(specs.get("MADILossOptions"), epoch)
+    ibsa_loss_weight = get_loss_weight(specs.get("IBSALossOptions"), epoch)
+
+    logger.info("mads_loss_weight: {}".format(mads_loss_weight))
+    logger.info("madi_loss_weight: {}".format(madi_loss_weight))
+    logger.info("ibsa_loss_weight: {}".format(ibsa_loss_weight))
+
     train_total_loss_dense = 0
-    for pcd_partial, pcd_gt, idx in train_dataloader:
+    train_total_loss_medial_axis_surface = 0
+    train_total_loss_medial_axis_interaction = 0
+    train_total_loss_ibs_angle = 0
+    for data, idx in train_dataloader:
+        center, radius, direction, pcd_partial, pcd_gt = data
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
+        pcd_pred_dense = network(pcd_partial)
+        index = torch.LongTensor(random.sample(range(2116), 2048)).to(device)
+        pcd_pred_dense = torch.index_select(pcd_pred_dense, 1, index)
+
         pcd_gt = pcd_gt.to(device)
+        center = center.to(device)
+        radius = radius.to(device)
+        direction = direction.to(device)
 
-        dense_pred = network(pcd_partial)
-        index = torch.LongTensor(random.sample(range(46 * 46), 2048)).to(device)
-        dense_pred = torch.index_select(dense_pred, 1, index)
+        loss_dense = cd_loss_L1(pcd_pred_dense, pcd_gt)
+        loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
+        loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
+        loss_ibs_angle = ibs_angle_loss(center, pcd_pred_dense, direction)
 
-        loss_dense = cd_loss_L1(dense_pred, pcd_gt)
-        loss = loss_dense
+        loss_total = loss_dense + \
+                    mads_loss_weight * loss_medial_axis_surface + \
+                    madi_loss_weight * loss_medial_axis_interaction + \
+                    ibsa_loss_weight * loss_ibs_angle
+                    
 
         train_total_loss_dense += loss_dense.item()
+        train_total_loss_medial_axis_surface += loss_medial_axis_surface.item()
+        train_total_loss_medial_axis_interaction += loss_medial_axis_interaction.item()
+        train_total_loss_ibs_angle += loss_ibs_angle.item()
 
-        loss.backward()
+        loss_total.backward()
         optimizer.step()
 
     lr_schedule.step()
 
     record_loss_info("train_loss_dense", train_total_loss_dense / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_medial_axis_surface",
+                     train_total_loss_medial_axis_surface / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_medial_axis_interaction",
+                     train_total_loss_medial_axis_interaction / train_dataloader.__len__(), epoch, tensorboard_writer)
+    record_loss_info("train_loss_ibs_angle",
+                     train_total_loss_ibs_angle / train_dataloader.__len__(), epoch, tensorboard_writer)
 
 
 def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch):
@@ -193,20 +244,40 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
     network.eval()
     with torch.no_grad():
         test_total_dense = 0
-        for pcd_partial, pcd_gt, idx in test_dataloader:
+        test_total_medial_axis_surface = 0
+        test_total_medial_axis_interaction = 0
+        test_total_ibs_angle = 0
+        for data, idx in test_dataloader:
+            center, radius, direction, pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
-            pcd_gt = pcd_gt.to(device)
 
-            dense_pred = network(pcd_partial)
-            index = torch.LongTensor(random.sample(range(46 * 46), 2048)).to(device)
-            dense_pred = torch.index_select(dense_pred, 1, index)
+            pcd_pred_dense = network(pcd_partial)
+            index = torch.LongTensor(random.sample(range(2116), 2048)).to(device)
+            pcd_pred_dense = torch.index_select(pcd_pred_dense, 1, index)
             
-            loss_cd = cd_loss_L1(dense_pred, pcd_gt)
+            pcd_gt = pcd_gt.to(device)
+            center = center.to(device)
+            radius = radius.to(device)
+            direction = direction.to(device)
 
-            test_total_dense += loss_cd.item()
+            loss_dense = cd_loss_L1(pcd_pred_dense, pcd_gt)
+            loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
+            loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
+            loss_ibs_angle = ibs_angle_loss(center, pcd_pred_dense, direction)
+
+            test_total_dense += loss_dense.item()
+            test_total_medial_axis_surface += loss_medial_axis_surface.item()
+            test_total_medial_axis_interaction += loss_medial_axis_interaction.item()
+            test_total_ibs_angle += loss_ibs_angle.item()
 
         test_avrg_dense = test_total_dense / test_dataloader.__len__()
         record_loss_info("test_loss_dense", test_total_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_medial_axis_surface", test_total_medial_axis_surface / test_dataloader.__len__(),
+                         epoch, tensorboard_writer)
+        record_loss_info("test_loss_medial_axis_interaction",
+                         test_total_medial_axis_interaction / test_dataloader.__len__(), epoch, tensorboard_writer)
+        record_loss_info("test_loss_ibs_angle",
+                         test_total_ibs_angle / test_dataloader.__len__(), epoch, tensorboard_writer)
 
         if test_avrg_dense < best_cd:
             best_epoch = epoch
@@ -260,7 +331,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/C3d/train/specs_train_FoldingNet_C3d.json",
+        default="configs/INTE/train/specs_train_AtlasNet_INTE.json",
         required=False,
         help="The experiment config file."
     )

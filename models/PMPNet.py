@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-
-from pointnet2_ops.pointnet2_utils import furthest_point_sample, \
-    gather_operation, ball_query, three_nn, three_interpolate, grouping_operation, sample_and_group, sample_and_group_all
+from models.pn2_utils import PointNet_SA_Module, PointNet_FP_Module, Conv1d
 
 
 class Unit(nn.Module):
@@ -36,143 +34,6 @@ class Unit(nn.Module):
         return h, h
 
 
-class Conv1d(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel_size=1, stride=1,  if_bn=True, activation_fn=torch.relu):
-        super(Conv1d, self).__init__()
-        self.conv = nn.Conv1d(in_channel, out_channel, kernel_size, stride=stride)
-        self.if_bn = if_bn
-        self.bn = nn.BatchNorm1d(out_channel)
-        self.activation_fn = activation_fn
-
-    def forward(self, input):
-        out = self.conv(input)
-        if self.if_bn:
-            out = self.bn(out)
-
-        if self.activation_fn is not None:
-            out = self.activation_fn(out)
-
-        return out
-
-
-class Conv2d(nn.Module):
-    def __init__(self, in_channel, out_channel, kernel_size=(1, 1), stride=(1, 1), if_bn=True, activation_fn=torch.relu):
-        super(Conv2d, self).__init__()
-        self.conv = nn.Conv2d(in_channel, out_channel, kernel_size, stride=stride)
-        self.if_bn = if_bn
-        self.bn = nn.BatchNorm2d(out_channel)
-        self.activation_fn = activation_fn
-
-    def forward(self, input):
-        out = self.conv(input)
-        if self.if_bn:
-            out = self.bn(out)
-
-        if self.activation_fn is not None:
-            out = self.activation_fn(out)
-
-        return out
-
-
-class PointNet_SA_Module(nn.Module):
-    def __init__(self, npoint, nsample, radius, in_channel, mlp, if_bn=True, group_all=False, use_xyz=True):
-        """
-        Args:
-            npoint: int, number of points to sample
-            nsample: int, number of points in each local region
-            radius: float
-            in_channel: int, input channel of features(points)
-            mlp: list of int,
-        """
-        super(PointNet_SA_Module, self).__init__()
-        self.npoint = npoint
-        self.nsample = nsample
-        self.radius = radius
-        self.mlp = mlp
-        self.group_all = group_all
-        self.use_xyz = use_xyz
-        if use_xyz:
-            in_channel += 3
-
-        last_channel = in_channel
-        self.mlp_conv = []
-        for out_channel in mlp:
-            self.mlp_conv.append(Conv2d(last_channel, out_channel, if_bn=if_bn))
-            last_channel = out_channel
-
-        self.mlp_conv = nn.Sequential(*self.mlp_conv)
-
-    def forward(self, xyz, points):
-        """
-        Args:
-            xyz: Tensor, (B, 3, N)
-            points: Tensor, (B, f, N)
-
-        Returns:
-            new_xyz: Tensor, (B, 3, npoint)
-            new_points: Tensor, (B, mlp[-1], npoint)
-        """
-        if self.group_all:
-            new_xyz, new_points, idx, grouped_xyz = sample_and_group_all(xyz, points, self.use_xyz)
-        else:
-            new_xyz, new_points, idx, grouped_xyz = sample_and_group(xyz, points, self.npoint, self.nsample, self.radius, self.use_xyz)
-
-        new_points = self.mlp_conv(new_points)
-        new_points = torch.max(new_points, 3)[0]
-
-        return new_xyz, new_points
-
-
-class PointNet_FP_Module(nn.Module):
-    def __init__(self, in_channel, mlp, use_points1=False, in_channel_points1=None, if_bn=True):
-        """
-        Args:
-            in_channel: int, input channel of points2
-            mlp: list of int
-            use_points1: boolean, if use points
-            in_channel_points1: int, input channel of points1
-        """
-        super(PointNet_FP_Module, self).__init__()
-        self.use_points1 = use_points1
-
-        if use_points1:
-            in_channel += in_channel_points1
-
-        last_channel = in_channel
-        self.mlp_conv = []
-        for out_channel in mlp:
-            self.mlp_conv.append(Conv1d(last_channel, out_channel, if_bn=if_bn))
-            last_channel = out_channel
-
-        self.mlp_conv = nn.Sequential(*self.mlp_conv)
-
-    def forward(self, xyz1, xyz2, points1, points2):
-        """
-        Args:
-            xyz1: Tensor, (B, 3, N)
-            xyz2: Tensor, (B, 3, M)
-            points1: Tensor, (B, in_channel, N)
-            points2: Tensor, (B, in_channel, M)
-
-        Returns:
-            new_points: Tensor, (B, mlp[-1], N)
-        """
-        dist, idx = three_nn(xyz1.permute(0, 2, 1).contiguous(), xyz2.permute(0, 2, 1).contiguous())
-        dist = torch.clamp_min(dist, 1e-10)  # (B, N, 3)
-        recip_dist = 1.0/dist
-        norm = torch.sum(recip_dist, 2, keepdim=True).repeat((1, 1, 3))
-        weight = recip_dist / norm
-        interpolated_points = three_interpolate(points2, idx, weight) # B, in_channel, N
-
-        if self.use_points1:
-            new_points = torch.cat([interpolated_points, points1], 1)
-        else:
-            new_points = interpolated_points
-
-        new_points = self.mlp_conv(new_points)
-        return new_points
-
-
 class StepModel(nn.Module):
     def __init__(self, step=1):
         super(StepModel, self).__init__()
@@ -204,23 +65,17 @@ class StepModel(nn.Module):
         l0_points = point_cloud
 
         l1_xyz, l1_points = self.sa_module_1(l0_xyz, l0_points)  # (B, 3, 512), (B, 128, 512)
-        # print('l1_xyz, l1_points', l1_xyz.shape, l1_points.shape)
         l2_xyz, l2_points = self.sa_module_2(l1_xyz, l1_points)  # (B, 3, 128), (B, 256, 512)
-        # print('l2_xyz, l2_points', l2_xyz.shape, l2_points.shape)
         l3_xyz, l3_points = self.sa_module_3(l2_xyz, l2_points)  # (B, 3, 1), (B, 1024, 1)
-        # print('l3_xyz, l3_points', l3_xyz.shape, l3_points.shape)
 
         l2_points = self.fp_module_3(l2_xyz, l3_xyz, l2_points, l3_points)
         l2_points, prev_s['l2'] = self.unit_3(l2_points, prev_s['l2'])
-        # print('l2_points, prev_s[l2]', l2_points.shape, prev_s['l2'].shape)
 
         l1_points = self.fp_module_2(l1_xyz, l2_xyz, l1_points, l2_points)
         l1_points, prev_s['l1'] = self.unit_2(l1_points, prev_s['l1'])
-        # print('l1_points, prev_s[l1]', l1_points.shape, prev_s['l1'].shape)
 
         l0_points = self.fp_module_1(l0_xyz, l1_xyz, torch.cat([l0_xyz, l0_points], 1), l1_points)
         l0_points, prev_s['l0'] = self.unit_1(l0_points, prev_s['l0'])  # (B, 128, 2048)
-        # print('l0_points, prev_s[l0]', l0_points.shape, prev_s['l0'].shape)
 
         b, _, n = l0_points.shape
         noise = torch.normal(mean=0, std=torch.ones((b, 32, n), device=device))

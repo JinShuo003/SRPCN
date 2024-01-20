@@ -2,106 +2,94 @@ import torch
 import numpy as np
 from torch import nn
 import torch.nn.functional as F
+import itertools
 
 
-class PCN_encoder(nn.Module):
-    def __init__(self, input_num):
-        super(PCN_encoder, self).__init__()
-        self.i_num = input_num
-        self.conv1 = torch.nn.Conv1d(3, 128, 1)  # [in_channels, out_channels, kernel_size]
-        self.conv2 = torch.nn.Conv1d(128, 256, 1)
-        self.conv3 = torch.nn.Conv1d(512, 512, 1)
-        self.conv4 = torch.nn.Conv1d(512, 512, 1)
+class Encoder(nn.Module):
+    def __init__(self, num_points):
+        super(Encoder, self).__init__()
+        self.num_points = num_points
+        self.conv1 = nn.Conv1d(3, 64, 1)
+        self.conv2 = nn.Conv1d(64, 128, 1)
+        self.conv3 = nn.Conv1d(128, 1024, 1)
+        self.bn1 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.bn3 = nn.BatchNorm1d(1024)
 
-    def forward(self, x):
-        """
-         input x is a batch of partial point clouds whose shapes are
-          [batch_size, 3(channels), partial_point_cloud_number]
-        """
-        x = F.relu(self.conv1(x))
-        x = self.conv2(x)
-        global_feature_1 = torch.max(x, dim=2, keepdim=True)[0].repeat(1, 1, self.i_num)
-        x = torch.cat([x, global_feature_1], dim=1)
-        x = F.relu(self.conv3(x))
-        x = self.conv4(x)
-        feature = torch.max(x, dim=2, keepdim=True)[0]
-        return feature
+        self.fc1 = nn.Linear(1024 + 64, 1024)
+        self.fc2 = nn.Linear(1024, 512)  # codeword dimension = 512
+        # self.bn4 = nn.BatchNorm1d(1024)
+        # self.bn5 = nn.BatchNorm1d(512)
 
+    def forward(self, input):
+        input = input.transpose(2, 1)
+        x = F.relu(self.bn1(self.conv1(input)))
+        local_feature = x  # save the  low level features to concatenate this global feature.
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = torch.max(x, 2, keepdim=True)[0]
+        global_feature = x.view(-1, 1024, 1).repeat(1, 1, self.num_points)
+        feature = torch.cat([local_feature, global_feature], 1)  # [bs, 1088, 2048]
 
-class Folding_layer(nn.Module):
-    """
-    The folding operation of FoldingNet
-    """
-    def __init__(self, in_channel: int, out_channels: list):
-        super(Folding_layer, self).__init__()
+        # TODO: add batch_norm or not?
+        x = F.relu(self.fc1(feature.transpose(1, 2)))
+        x = F.relu(self.fc2(x))
 
-        layers = []
-        for oc in out_channels[:-1]:
-            conv = nn.Conv1d(in_channel, oc, 1)
-            bn = nn.BatchNorm1d(oc)
-            active = nn.ReLU(inplace=True)
-            layers.extend([conv, bn, active])
-            in_channel = oc
-        out_layer = nn.Conv1d(in_channel, out_channels[-1], 1)
-        layers.append(out_layer)
-
-        self.layers = nn.Sequential(*layers)
-
-    def forward(self, grids, codewords):
-        """
-        Parameters
-        ----------
-            grids: reshaped 2D grids or intermediam reconstructed point clouds
-        """
-        x = torch.cat([grids, codewords], dim=1)
-        x = self.layers(x)
-
-        return x
+        # TODO: the actual output should be [bs, 1, 512] by max pooling ??
+        return torch.max(x, 1, keepdim=True)[0]  # [bs, 1, 512]
 
 
-class FoldingNet_decoder(nn.Module):
-    """
-    Decoder Module of FoldingNet
-    """
-    def __init__(self, in_channel=512):
-        super(FoldingNet_decoder, self).__init__()
+class Decoder(nn.Module):
+    def __init__(self, num_points=2048, m=2116):
+        super(Decoder, self).__init__()
+        self.n = num_points  # input point cloud size.
+        self.m = m  # 45 * 45.
+        self.meshgrid = [[-0.3, 0.3, 46], [-0.3, 0.3, 46]]
+        self.mlp1 = nn.Sequential(
+            nn.Conv1d(514, 256, 1),
+            nn.ReLU(),
+            nn.Conv1d(256, 64, 1),
+            nn.ReLU(),
+            nn.Conv1d(64, 3, 1),
+            # nn.ReLU(),
+        )
 
-        xx = np.linspace(-0.3, 0.3, 46, dtype=np.float32)
-        yy = np.linspace(-0.3, 0.3, 46, dtype=np.float32)
-        self.grid = np.meshgrid(xx, yy)  # (2, 46, 46)
+        self.mlp2 = nn.Sequential(
+            nn.Conv1d(515, 256, 1),
+            nn.ReLU(),
+            nn.Conv1d(256, 64, 1),
+            nn.ReLU(),
+            nn.Conv1d(64, 3, 1),
+            # nn.ReLU(),
+        )
 
-        self.grid = torch.Tensor(self.grid).view(2, -1)  # (2, 46, 46) -> (2, 46 * 46)
+    def build_grid(self, batch_size):
+        x = np.linspace(*self.meshgrid[0])
+        y = np.linspace(*self.meshgrid[1])
+        grid = np.array(list(itertools.product(x, y)))
+        grid = np.repeat(grid[np.newaxis, ...], repeats=batch_size, axis=0)
+        grid = torch.tensor(grid)
+        return grid.float()
 
-        self.m = self.grid.shape[1]
-
-        self.fold1 = Folding_layer(in_channel + 2, [512, 512, 3])
-        self.fold2 = Folding_layer(in_channel + 3, [512, 512, 3])
-
-    def forward(self, x):
-        """
-        x: (B, C)
-        """
-        batch_size = x.shape[0]
-
-        grid = self.grid.to(x.device)  # (2, 45 * 45)
-        grid = grid.unsqueeze(0).repeat(batch_size, 1, 1)  # (B, 2, 45 * 45)
-
-        x = x.repeat(1, 1, self.m)  # (B, 512, 45 * 45)
-
-        recon1 = self.fold1(grid, x)
-        recon2 = self.fold2(recon1, x)
-
-        return recon2
+    def forward(self, input):
+        input = input.transpose(1, 2).repeat(1, 1, self.m)  # [bs, 512, m]
+        grid = self.build_grid(input.shape[0]).transpose(1, 2)  # [bs, 2, m]
+        grid = grid.to(input.device)
+        concate1 = torch.cat((input, grid), dim=1)  # [bs, 514, m]
+        after_folding1 = self.mlp1(concate1)  # [bs, 3, m]
+        concate2 = torch.cat((input, after_folding1), dim=1)  # [bs, 515, m]
+        after_folding2 = self.mlp2(concate2)  # [bs, 3, m]
+        return after_folding2.transpose(1, 2)  # [bs, m ,3]
 
 
 class FoldingNet(nn.Module):
     def __init__(self, input_num):
         super(FoldingNet, self).__init__()
-        self.encoder = PCN_encoder(input_num)
-        self.decoder = FoldingNet_decoder()
 
-    def forward(self, x: torch.Tensor):
-        x = x.transpose(1, 2).contiguous()
-        feat = self.encoder(x)
-        pcd = self.decoder(feat).transpose(2, 1).contiguous()
-        return pcd
+        self.encoder = Encoder(num_points=input_num)
+        self.decoder = Decoder(num_points=input_num)
+
+    def forward(self, input):
+        codeword = self.encoder(input)
+        output = self.decoder(codeword)
+        return output

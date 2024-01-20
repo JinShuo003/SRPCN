@@ -1,7 +1,7 @@
 {
     "TAG": "PCN_INTE",
     "DataSource" : "data",
-    "TestSplit" : "configs/test_INTE_norm/test.json",
+    "TestSplit" : "dataset/test_INTE/test.json",
     "ScenePatten": "scene\\d+.\\d+",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "LogDir" : "logs/test",

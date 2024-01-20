@@ -7,18 +7,18 @@
     "ParaSaveDir" : "model_paras",
     "TensorboardLogDir" : "tensorboard_logs/INTE",
     "LogDir" : "logs/train",
-    "Device" : 1,
+    "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "PreTrain": false,
-        "PreTrainModel": "",
+        "PreTrain": true,
+        "PreTrainModel": "model_paras/TopNet_C3d/epoch_38.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
-            "InitLearningRate": 1e-3,
+            "InitLearningRate": 1e-4,
             "StepSize": 20,
             "Gamma": 0.7
         }

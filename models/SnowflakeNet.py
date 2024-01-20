@@ -223,7 +223,7 @@ class Decoder(nn.Module):
 
 
 class SnowflakeNet(nn.Module):
-    def __init__(self, **kwargs):
+    def __init__(self):
 
         """
         Args:
@@ -235,12 +235,19 @@ class SnowflakeNet(nn.Module):
             up_factors: list of int
         """
 
-        dim_feat = kwargs.get('dim_feat', 512)
-        num_pc = kwargs.get('num_pc', 256)
-        num_p0 = kwargs.get('num_p0', 512)
-        radius = kwargs.get('radius', 1)
-        bounding = kwargs.get('bounding', True)
-        up_factors = kwargs.get('up_factors', None)
+        # dim_feat = kwargs.get('dim_feat', 512)
+        # num_pc = kwargs.get('num_pc', 256)
+        # num_p0 = kwargs.get('num_p0', 512)
+        # radius = kwargs.get('radius', 1)
+        # bounding = kwargs.get('bounding', True)
+        # up_factors = kwargs.get('up_factors', [1, 2, 2])
+
+        dim_feat = 512
+        num_pc = 256
+        num_p0 = 512
+        radius = 1
+        bounding = True
+        up_factors = [1, 2, 2]
 
         super(SnowflakeNet, self).__init__()
         self.feat_extractor = FeatureExtractor(out_dim=dim_feat)

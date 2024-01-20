@@ -1,0 +1,24 @@
+{
+    "TAG": "SnowflakeNet_C3d",
+    "Description" : "model: SnowflakeNet, dataset: C3d",
+    "DataSource" : "data",
+    "TrainSplit" : "dataset/train_C3d/train.json",
+    "TestSplit" : "dataset/test_C3d/test.json",
+    "ParaSaveDir" : "model_paras",
+    "TensorboardLogDir" : "tensorboard_logs/C3d",
+    "LogDir" : "logs/train",
+    "Device" : 0,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8,
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "InitLearningRate": 1e-3,
+            "StepSize": 50,
+            "Gamma": 0.5
+        }
+    }
+}

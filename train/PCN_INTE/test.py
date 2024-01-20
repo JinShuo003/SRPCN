@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
+os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 
 import torch.utils.data as data_utils
 import json

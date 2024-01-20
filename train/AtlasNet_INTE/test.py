@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
+os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 
 import torch.utils.data as data_utils
 import json
@@ -12,8 +13,9 @@ import time
 import open3d as o3d
 import numpy as np
 import shutil
+import random
 
-from models.PointAttN import PointAttN
+from models.AtlasNet import AtlasNet
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
@@ -155,8 +157,10 @@ def test(network, test_dataloader, specs):
             radius = radius.to(device)
             direction = direction.to(device)
 
-            coarse, fine, pcd_pred = network(pcd_partial)
-
+            pcd_pred = network(pcd_partial)
+            index = torch.LongTensor(random.sample(range(2116), 2048)).to(device)
+            pcd_pred = torch.index_select(pcd_pred, 1, index)
+            
             cd_l1 = l1_cd(pcd_pred, pcd_gt)
             cd_l2 = l2_cd(pcd_pred, pcd_gt)
             emd_ = emd(pcd_pred, pcd_gt)
@@ -198,7 +202,7 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    model = PointAttN().to(device)
+    model = AtlasNet(num_points=2048, nb_primitives=4, device=device).to(device)
     checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
     model.load_state_dict(checkpoint["model"])
     logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
@@ -220,7 +224,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/test/specs_test_PointAttN_INTE.json",
+        default="configs/INTE/test/specs_test_AtlasNet_INTE.json",
         required=False,
         help="The experiment config file."
     )
@@ -228,7 +232,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="model_paras/PointAttN_INTE/epoch_23.pth",
+        default="model_paras/AtlasNet_INTE/epoch_183.pth",
         required=False,
         help="The network para"
     )

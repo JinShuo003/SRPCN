@@ -2,7 +2,7 @@ import sys
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 
 from datetime import datetime, timedelta
 from torch.utils.tensorboard import SummaryWriter
@@ -12,7 +12,6 @@ import json
 import argparse
 import time
 import torch
-import random
 
 from models.pn2_utils import fps_subsample
 from models.SnowflakeNet import SnowflakeNet

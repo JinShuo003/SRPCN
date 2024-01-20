@@ -7,7 +7,7 @@
     "LogDir" : "logs/test",
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
     "ResultSaveDir": "test_result/PCN_INTE",
-    "Device" : 1,
-    "BatchSize" : 128,
+    "Device" : 0,
+    "BatchSize" : 256,
     "DataLoaderThreads" : 8
 }

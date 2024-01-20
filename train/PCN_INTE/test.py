@@ -15,7 +15,6 @@ import numpy as np
 import shutil
 
 from models.PCN import PCN
-from utils.loss import *
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
@@ -35,7 +34,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = data_INTE.INTENormDataset(data_source, test_split)
+    test_dataset = data_INTE.INTEDataset(data_source, test_split)
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader
@@ -142,25 +141,38 @@ def test(network, test_dataloader, specs):
         "cd_l1": {},
         "cd_l2": {},
         "emd": {},
-        "fscore": {}
+        "fscore": {},
+        "mad_s": {},
+        "mad_i": {},
+        "ibs_a": {}
     }
     network.eval()
     with torch.no_grad():
-        for _, _, pcd_partial, pcd_gt, idx in test_dataloader:
+        for data, idx in test_dataloader:
+            center, radius, direction, pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
-
+            center = center.to(device)
+            radius = radius.to(device)
+            direction = direction.to(device)
+            
             coarse_pred, dense_pred = network(pcd_partial)
 
             cd_l1 = l1_cd(dense_pred, pcd_gt)
             cd_l2 = l2_cd(dense_pred, pcd_gt)
             emd_ = emd(dense_pred, pcd_gt)
             fscore = f_score(dense_pred, pcd_gt)
+            mad_s = medial_axis_surface_dist(center, radius, dense_pred)
+            mad_i = medial_axis_interaction_dist(center, radius, dense_pred)
+            ibs_a = ibs_angle_dist(center, dense_pred, direction)
 
             update_loss_dict(dist_dict, cd_l1.detach().cpu().numpy(), test_dataloader, idx, "cd_l1")
             update_loss_dict(dist_dict, cd_l2.detach().cpu().numpy(), test_dataloader, idx, "cd_l2")
             update_loss_dict(dist_dict, emd_.detach().cpu().numpy(), test_dataloader, idx, "emd")
             update_loss_dict(dist_dict, fscore.detach().cpu().numpy(), test_dataloader, idx, "fscore")
+            update_loss_dict(dist_dict, mad_s.detach().cpu().numpy(), test_dataloader, idx, "mad_s")
+            update_loss_dict(dist_dict, mad_i.detach().cpu().numpy(), test_dataloader, idx, "mad_i")
+            update_loss_dict(dist_dict, ibs_a.detach().cpu().numpy(), test_dataloader, idx, "ibs_a")
 
             save_result(test_dataloader, dense_pred, idx, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))
@@ -169,6 +181,9 @@ def test(network, test_dataloader, specs):
         cal_avrg_dist(dist_dict, "cd_l2")
         cal_avrg_dist(dist_dict, "emd")
         cal_avrg_dist(dist_dict, "fscore")
+        cal_avrg_dist(dist_dict, "mad_s")
+        cal_avrg_dist(dist_dict, "mad_i")
+        cal_avrg_dist(dist_dict, "ibs_a")
 
         logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
         csv_file_dir = os.path.join(specs.get("LogDir"), specs.get("TAG"))
@@ -206,7 +221,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_PCN_INTE.json",
+        default="configs/INTE/test/specs_test_PCN_INTE.json",
         required=False,
         help="The experiment config file."
     )
@@ -214,7 +229,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN_INTE/epoch_190.pth",
+        default="model_paras/PCN_INTE/epoch_58.pth",
         required=False,
         help="The network para"
     )

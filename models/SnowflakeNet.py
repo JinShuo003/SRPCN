@@ -60,7 +60,7 @@ class SkipTransformer(nn.Module):
 
         value = value.reshape((b, -1, n, 1)) + pos_embedding  #
 
-        agg = einsum('b c i j, b c i j -> b c i', attention, value)  # b, dim, n
+        agg = torch.einsum('b c i j, b c i j -> b c i', attention, value)  # b, dim, n
         y = self.conv_end(agg)
 
         return y + identity

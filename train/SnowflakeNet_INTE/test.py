@@ -1,4 +1,5 @@
 import sys
+from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
@@ -9,16 +10,16 @@ import json
 import re
 import argparse
 import time
-import numpy as np
 import open3d as o3d
+import numpy as np
 import shutil
 
-from models.PCN import *
+from models.SnowflakeNet import SnowflakeNet
 from utils.metric import *
 
 from utils.geometry_utils import get_pcd_from_np
 from utils import log_utils, path_utils, statistics_utils
-from dataset import dataset_C3d
+from dataset import data_INTE
 
 logger = None
 
@@ -33,7 +34,7 @@ def get_dataloader(specs):
         test_split = json.load(f)
 
     # get dataset
-    test_dataset = dataset_C3d.PcdDataset(data_source, test_split)
+    test_dataset = data_INTE.INTEDataset(data_source, test_split)
     logger.info("length of test_dataset: {}".format(test_dataset.__len__()))
 
     # get dataloader
@@ -49,27 +50,54 @@ def get_dataloader(specs):
     return test_dataloader
 
 
+def get_normalize_para(file_path):
+    with open(file_path, "r") as file:
+        content = file.read()
+        data = list(map(float, content.split(",")))
+        translate = data[0:3]
+        scale = data[-1]
+    return translate, scale
+
+
 def save_result(test_dataloader, pcd, indices, specs):
     save_dir = specs.get("ResultSaveDir")
+    normalize_para_dir = specs.get("NormalizeParaDir")
 
-    # 将udf数据拆分开，并且转移到cpu
+    filename_patten = specs.get("FileNamePatten")
+    scene_patten = specs.get("ScenePatten")
+
     pcd_np = pcd.cpu().detach().numpy()
 
     filename_list = [test_dataloader.dataset.pcd_partial_filenames[index] for index in indices]
     for index, filename_abs in enumerate(filename_list):
         # [dataset, category, filename], example:[MVP, scene1, scene1.1000_view0_0.ply]
         dataset, category, filename = filename_abs.split('/')
+        filename = re.match(filename_patten, filename).group()
+        scene = re.match(scene_patten, filename).group()
 
+        # normalize parameters
+        normalize_para_filename = "{}_{}.txt".format(scene, re.findall(r'\d+', filename)[-1])
+        normalize_para_path = os.path.join(normalize_para_dir, category, normalize_para_filename)
+        translate, scale = get_normalize_para(normalize_para_path)
+
+        # the real directory is save_dir/dataset/category
         save_path = os.path.join(save_dir, dataset, category)
         if not os.path.isdir(save_path):
             os.makedirs(save_path)
 
-        pcd_save_absolute_path = os.path.join(save_path, filename)
+        # get final filename
+        filename_final = "{}.ply".format(filename)
+        absolute_path = os.path.join(save_path, filename_final)
+        pcd = get_pcd_from_np(pcd_np[index])
 
-        o3d.io.write_point_cloud(pcd_save_absolute_path, get_pcd_from_np(pcd_np[index]))
+        # transform to origin coordinate
+        pcd.scale(scale, np.array([0, 0, 0]))
+        pcd.translate(translate)
+
+        o3d.io.write_point_cloud(absolute_path, pcd)
 
 
-def create_zip(dataset="MVP"):
+def create_zip(dataset: str = None):
     save_dir = specs.get("ResultSaveDir")
 
     output_archive = os.path.join(save_dir, dataset)
@@ -98,12 +126,12 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
     dist_dict = dist_dict_total.get(tag)
     dist_total = 0
     num = 0
-    for i in range(1, 17):
+    for i in range(1, 10):
         category = "scene{}".format(i)
         dist_dict[category]["avrg_dist"] = dist_dict[category]["dist_total"] / dist_dict[category]["num"]
         dist_total += dist_dict[category]["dist_total"]
         num += dist_dict[category]["num"]
-    dist_dict["avrg_dist"] = dist_total/num
+    dist_dict["avrg_dist"] = dist_total / num
 
 
 def test(network, test_dataloader, specs):
@@ -113,39 +141,56 @@ def test(network, test_dataloader, specs):
         "cd_l1": {},
         "cd_l2": {},
         "emd": {},
-        "fscore": {}
+        "fscore": {},
+        "mad_s": {},
+        "mad_i": {},
+        "ibs_a": {}
     }
     network.eval()
     with torch.no_grad():
-        for pcd_partial, pcd_gt, idx in test_dataloader:
+        for data, idx in test_dataloader:
+            center, radius, direction, pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
+            center = center.to(device)
+            radius = radius.to(device)
+            direction = direction.to(device)
 
-            coarse_pred, dense_pred = network(pcd_partial)
+            Pc, P1, P2, P3 = network(pcd_partial)
+            pcd_pred = P3
 
-            cd_l1 = l1_cd(dense_pred, pcd_gt)
-            cd_l2 = l2_cd(dense_pred, pcd_gt)
-            emd_ = emd(dense_pred, pcd_gt)
-            fscore = f_score(dense_pred, pcd_gt)
+            cd_l1 = l1_cd(pcd_pred, pcd_gt)
+            cd_l2 = l2_cd(pcd_pred, pcd_gt)
+            emd_ = emd(pcd_pred, pcd_gt)
+            fscore = f_score(pcd_pred, pcd_gt)
+            mad_s = medial_axis_surface_dist(center, radius, pcd_pred)
+            mad_i = medial_axis_interaction_dist(center, radius, pcd_pred)
+            ibs_a = ibs_angle_dist(center, pcd_pred, direction)
 
             update_loss_dict(dist_dict, cd_l1.detach().cpu().numpy(), test_dataloader, idx, "cd_l1")
             update_loss_dict(dist_dict, cd_l2.detach().cpu().numpy(), test_dataloader, idx, "cd_l2")
             update_loss_dict(dist_dict, emd_.detach().cpu().numpy(), test_dataloader, idx, "emd")
             update_loss_dict(dist_dict, fscore.detach().cpu().numpy(), test_dataloader, idx, "fscore")
+            update_loss_dict(dist_dict, mad_s.detach().cpu().numpy(), test_dataloader, idx, "mad_s")
+            update_loss_dict(dist_dict, mad_i.detach().cpu().numpy(), test_dataloader, idx, "mad_i")
+            update_loss_dict(dist_dict, ibs_a.detach().cpu().numpy(), test_dataloader, idx, "ibs_a")
 
-            save_result(test_dataloader, dense_pred, idx, specs)
+            save_result(test_dataloader, pcd_pred, idx, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))
 
         cal_avrg_dist(dist_dict, "cd_l1")
         cal_avrg_dist(dist_dict, "cd_l2")
         cal_avrg_dist(dist_dict, "emd")
         cal_avrg_dist(dist_dict, "fscore")
+        cal_avrg_dist(dist_dict, "mad_s")
+        cal_avrg_dist(dist_dict, "mad_i")
+        cal_avrg_dist(dist_dict, "ibs_a")
 
         logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
         csv_file_dir = os.path.join(specs.get("LogDir"), specs.get("TAG"))
         csv_file_path = os.path.join(csv_file_dir, "evaluate_result.csv")
-        statistics_utils.save_json_as_csv(csv_file_path, dist_dict, "MVP")
-        
+        statistics_utils.save_json_as_csv(csv_file_path, dist_dict, "INTE")
+
 
 def main_function(specs, model_path):
     device = specs.get("Device")
@@ -155,10 +200,10 @@ def main_function(specs, model_path):
     test_dataloader = get_dataloader(specs)
     logger.info("init dataloader succeed")
 
-    model = PCN(num_dense=2048, device=device).to(device)
-    state_dict = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(state_dict)
-    logger.info("load trained model succeed")
+    model = SnowflakeNet().to(device)
+    checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
+    model.load_state_dict(checkpoint["model"])
+    logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()
     test(model, test_dataloader, specs)
@@ -166,7 +211,7 @@ def main_function(specs, model_path):
     logger.info("use {} to test".format(time_end_test - time_begin_test))
 
     time_begin_zip = time.time()
-    create_zip(dataset="MVP")
+    create_zip(dataset="INTE_norm")
     time_end_zip = time.time()
     logger.info("use {} to zip".format(time_end_zip - time_begin_zip))
 
@@ -177,7 +222,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/specs/specs_test_PCN_MVP.json",
+        default="configs/INTE/test/specs_test_SnowflakeNet_INTE.json",
         required=False,
         help="The experiment config file."
     )
@@ -185,7 +230,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="trained_models/PCN_MVP/epoch_277.pth",
+        default="model_paras/SnowflakeNet_INTE/epoch_19.pth",
         required=False,
         help="The network para"
     )

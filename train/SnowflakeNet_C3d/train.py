@@ -2,6 +2,7 @@ import sys
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
+os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 
 from datetime import datetime, timedelta
 from torch.utils.tensorboard import SummaryWriter
@@ -11,7 +12,6 @@ import json
 import argparse
 import time
 import torch
-import random
 
 from models.pn2_utils import fps_subsample
 from models.SnowflakeNet import SnowflakeNet
@@ -209,8 +209,9 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             pcd_gt = pcd_gt.to(device)
 
             Pc, P1, P2, P3 = network(pcd_partial)
-            
-            loss_cd = cd_loss_L1(P3, pcd_gt)
+            pcd_pred_dense = P3
+
+            loss_cd = cd_loss_L1(pcd_pred_dense, pcd_gt)
 
             test_total_dense += loss_cd.item()
 

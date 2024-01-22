@@ -11,10 +11,10 @@
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 8,
+        "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "PreTrain": false,
-        "PreTrainModel": "",
+        "PreTrain": true,
+        "PreTrainModel": "model_paras/SnowflakeNet_C3d/epoch_142.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {

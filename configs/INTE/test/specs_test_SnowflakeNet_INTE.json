@@ -1,12 +1,12 @@
 {
-    "TAG": "PointAttN_INTE_ibsa_scale01",
+    "TAG": "SnowflakeNet_INTE",
     "DataSource" : "data",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ScenePatten": "scene\\d+.\\d+",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "LogDir" : "logs/test",
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
-    "ResultSaveDir": "test_result/PointAttN_INTE_ibsa_scale01",
+    "ResultSaveDir": "test_result/SnowflakeNet_INTE",
     "Device" : 0,
     "BatchSize" : 256,
     "DataLoaderThreads" : 8

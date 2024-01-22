@@ -1,6 +1,6 @@
 {
-    "TAG": "PointAttN_INTE_ibsa_scale005",
-    "Description" : "model: PointAttN, dataset: INTE_norm, loss: ibsa",
+    "TAG": "PointAttN_INTE_pretrain235",
+    "Description" : "model: PointAttN, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
@@ -14,7 +14,7 @@
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
         "PreTrain": true,
-        "PreTrainModel": "model_paras/PointAttN_C3d/epoch_53.pth",
+        "PreTrainModel": "model_paras/PointAttN_C3d/epoch_235.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
@@ -25,7 +25,7 @@
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0.05,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },

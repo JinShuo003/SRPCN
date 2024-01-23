@@ -8,10 +8,11 @@ models_paras/**
 tensorboard_logs/**
 test_result/**
 data/**
-build/**
-ChamferDistancePytorch/*/dist
-emd/dist
-/.egg-info
+utils/ChamferDistancePytorch/*/dist
+utils/emd/dist
+**/build
+**/*.egg-info
+
 
 *.log
 *.pth

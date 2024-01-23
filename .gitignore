@@ -8,6 +8,9 @@
 /tensorboard_logs
 /test_result
 /data
+/build
+#utils/emd/emd.egg-info/**
+**/*.egg-info
 
 *.log
 *.pth

@@ -1,16 +1,17 @@
 .idea/
 .vscode/
-*/__pycache__
-*/sftp.json
+__pycache__
+sftp.json
 
-/logs
-/models_paras
-/tensorboard_logs
-/test_result
-/data
-/build
-#utils/emd/emd.egg-info/**
-**/*.egg-info
+logs/**
+models_paras/**
+tensorboard_logs/**
+test_result/**
+data/**
+build/**
+ChamferDistancePytorch/*/dist
+emd/dist
+/.egg-info
 
 *.log
 *.pth

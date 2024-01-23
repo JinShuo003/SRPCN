@@ -2,7 +2,7 @@ import sys
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 from datetime import datetime, timedelta
 from torch.utils.tensorboard import SummaryWriter

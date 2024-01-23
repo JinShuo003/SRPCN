@@ -229,7 +229,7 @@ if __name__ == '__main__':
         "--model",
         "-m",
         dest="model",
-        default="model_paras/PointAttN_INTE_ibsa_scale01/epoch_90.pth",
+        default="model_paras/PointAttN_INTE_mads_old_madi/epoch_33.pth",
         required=False,
         help="The network para"
     )

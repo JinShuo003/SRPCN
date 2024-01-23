@@ -25,6 +25,14 @@ def medial_axis_interaction_dist(center, radius, pcd):
     return torch.mean(loss, dim=[1, 2])
 
 
+    # cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    # dist1, _, _, _ = cham_loss(center, pcd)
+    # dist1 = torch.sqrt(dist1)
+    # loss = torch.where(radius > dist1, radius - dist1, 0)
+
+    # return torch.mean(loss, 1)
+
+
 def ibs_angle_dist(center, pcd, direction):
     # distances = torch.cdist(center, pcd, p=2)
     # min_indices = torch.argmin(distances, dim=2)

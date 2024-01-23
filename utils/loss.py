@@ -49,6 +49,13 @@ def medial_axis_interaction_loss(center, radius, pcd):
     loss = torch.where(radius > distances, radius - distances, 0)
     return torch.mean(loss)
 
+    # cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    # dist1, _, _, _ = cham_loss(center, pcd)
+    # dist1 = torch.sqrt(dist1)
+    # loss = torch.where(radius > dist1, radius - dist1, 0)
+
+    # return torch.mean(loss)
+
 
 def ibs_angle_loss(center, pcd, direction):
     """

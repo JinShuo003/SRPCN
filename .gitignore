@@ -9,7 +9,10 @@ tensorboard_logs/**
 test_result/**
 data/**
 utils/ChamferDistancePytorch/*/dist
+utils/ChamferDistancePytorch/*/build
 utils/emd/dist
+utils/emd/build
+
 **/build
 **/*.egg-info
 

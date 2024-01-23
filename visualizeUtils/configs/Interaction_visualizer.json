@@ -3,9 +3,10 @@
     "geometries_dir": {
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
-      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\origin",
-      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\mads_new_madi_pretrain_epoch30",
-      "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh"
+      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\mads_new_madi_pretrain_epoch30",
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN",
+      "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
+      "medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE_norm"
     },
     "format_info": {
       "category_re": "scene\\d",
@@ -18,10 +19,12 @@
     "filename_tree_dir": "pcd_pred1_dir"
   },
   "window_size_options": {
-    "sub_window_width": 800,
+    "sub_window_width": 700,
     "sub_window_height": 500,
-    "tool_bar_width": 300
+    "tool_bar_width": 300,
+    "metrics_layout_width": 200,
+    "metrics_latout_height": 200
   },
-  "sub_window_3_name": "PointAttN",
-  "sub_window_4_name": "PointAttN_mads_madi"
+  "sub_window_3_name": "mads_new_madi_pretrain_epoch30",
+  "sub_window_4_name": "PointAttN"
 }

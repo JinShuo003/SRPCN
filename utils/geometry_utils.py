@@ -2,6 +2,7 @@ import copy
 
 import open3d as o3d
 import numpy as np
+import torch
 import trimesh
 import pyvista as pv
 from scipy.spatial.transform import Rotation
@@ -209,3 +210,12 @@ def o3d2pyvista(o3d_mesh):
 
 def visualize_geometries(geometries: list):
     o3d.visualization.draw_geometries(geometries, mesh_show_wireframe=True, mesh_show_back_face=True)
+
+
+def pcd2tensor(pcd: o3d.geometry.PointCloud):
+    points = np.asarray(pcd.points, dtype=np.float32)
+    return torch.from_numpy(points)
+
+
+def np2tensor(array: np.ndarray):
+    return torch.from_numpy(array)

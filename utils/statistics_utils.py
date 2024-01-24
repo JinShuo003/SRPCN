@@ -1,5 +1,6 @@
 import csv
 import re
+import os
 import pandas as pd
 
 INTE_name_dict = {
@@ -41,7 +42,8 @@ INTE_indicators = [
     "fscore",
     "mad_s",
     "mad_i",
-    "ibs_a"
+    "ibs_a",
+    "interact_num"
 ]
 
 C3d_indicators = [
@@ -58,7 +60,8 @@ indicator_scale = {
     "fscore": 1,
     "mad_s": 1000,
     "mad_i": 1000000,
-    "ibs_a": 100
+    "ibs_a": 100,
+    "interact_num": 1
 }
 
 
@@ -90,13 +93,15 @@ def write_avrg_csv_file(csv_path, json_data, dataset: str):
             csv_writer.writerow([indicator] + avrg_dist_values)
 
 
-def append_csv_data(csv_data: dict, data_name: list, *args):
+def append_csv_data(csv_data: dict, filename_list: list, *args):
     assert len(args) > 0
-    assert len(data_name) == len(args[0])
-
-    for i, data in enumerate(zip(args)):
-        csv_data[data_name[i]] = list(data)
-
+    assert len(filename_list) == len(args[0])
+    
+    lists = [tensor.tolist() for tensor in args]
+    for i, data in enumerate(zip(*lists)):
+        filename = os.path.splitext(os.path.basename(filename_list[i]))[0]
+        csv_data[filename] = list(data)
+    
 
 def write_single_csv_file(save_path: str, csv_data: dict):
     df = pd.DataFrame(csv_data)

@@ -1,22 +1,21 @@
 {
-    "TAG": "PointAttN_INTE_mads_madi_lr5e5_begin0",
+    "TAG": "PointAttN_INTE_mads_madi_lr5e5_begin10",
     "Description" : "model: PointAttN, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
     "TensorboardLogDir" : "tensorboard_logs/INTE",
-    "LogDir" : "logs/train",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "PreTrain": false,
+        "PreTrain": true,
         "PreTrainModel": "model_paras/PointAttN_C3d/epoch_235.pth",
-        "ContinueTrain": true,
-        "ContinueFromEpoch": 7,
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
         "LearningRateOptions": {
             "InitLearningRate": 5e-5,
             "StepSize": 10,
@@ -30,15 +29,24 @@
         "Gamma": 1
     },
     "MADSLossOptions": {
-        "BeginEpoch": 0,
+        "BeginEpoch": 10,
         "InitRatio": 1,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
-        "BeginEpoch": 0,
+        "BeginEpoch": 10,
         "InitRatio": 1,
         "StepSize": 10,
         "Gamma": 1
+    },
+    "LogOptions": {
+        "TAG": "PointAttN_INTE_mads_madi_lr5e5_begin10",
+        "Type": "train",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
     }
 }

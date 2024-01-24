@@ -1,5 +1,6 @@
 import csv
 import re
+import pandas as pd
 
 INTE_name_dict = {
     "scene1": "desk-chair",
@@ -61,7 +62,7 @@ indicator_scale = {
 }
 
 
-def save_json_as_csv(csv_path, json_data, dataset: str):
+def write_avrg_csv_file(csv_path, json_data, dataset: str):
     if dataset == "C3d":
         name_dict = C3d_name_dict
         indicators = C3d_indicators
@@ -87,3 +88,16 @@ def save_json_as_csv(csv_path, json_data, dataset: str):
                                 scenes]
             avrg_dist_values.append(json_data[indicator]["avrg_dist"] * indicator_scale[indicator])
             csv_writer.writerow([indicator] + avrg_dist_values)
+
+
+def append_csv_data(csv_data: dict, data_name: list, *args):
+    assert len(args) > 0
+    assert len(data_name) == len(args[0])
+
+    for i, data in enumerate(zip(args)):
+        csv_data[data_name[i]] = list(data)
+
+
+def write_single_csv_file(save_path: str, csv_data: dict):
+    df = pd.DataFrame(csv_data)
+    df.to_csv(save_path, index=False)

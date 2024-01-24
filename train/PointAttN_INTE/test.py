@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 import os.path
+
 os.environ['CUDA_VISIBLE_DEVICES'] = "2"
 
 import torch.utils.data as data_utils
@@ -59,7 +60,7 @@ def get_normalize_para(file_path):
     return translate, scale
 
 
-def save_result(test_dataloader, pcd, indices, specs):
+def save_result(filename_list, pcd, specs):
     save_dir = specs.get("ResultSaveDir")
     normalize_para_dir = specs.get("NormalizeParaDir")
 
@@ -68,7 +69,6 @@ def save_result(test_dataloader, pcd, indices, specs):
 
     pcd_np = pcd.cpu().detach().numpy()
 
-    filename_list = [test_dataloader.dataset.pcd_partial_filenames[index] for index in indices]
     for index, filename_abs in enumerate(filename_list):
         # [dataset, category, filename], example:[MVP, scene1, scene1.1000_view0_0.ply]
         dataset, category, filename = filename_abs.split('/')
@@ -136,6 +136,7 @@ def cal_avrg_dist(dist_dict_total: dict, tag: str):
 
 def test(network, test_dataloader, specs):
     device = specs.get("Device")
+    csv_file_dir = os.path.join(specs.get("LogDir"), specs.get("TAG"))
 
     dist_dict = {
         "cd_l1": {},
@@ -146,9 +147,11 @@ def test(network, test_dataloader, specs):
         "mad_i": {},
         "ibs_a": {}
     }
+    single_csv_data = {}
     network.eval()
     with torch.no_grad():
         for data, idx in test_dataloader:
+            filenames = test_dataloader.dataset.pcd_partial_filenames[idx]
             center, radius, direction, pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
@@ -174,7 +177,9 @@ def test(network, test_dataloader, specs):
             update_loss_dict(dist_dict, mad_i.detach().cpu().numpy(), test_dataloader, idx, "mad_i")
             update_loss_dict(dist_dict, ibs_a.detach().cpu().numpy(), test_dataloader, idx, "ibs_a")
 
-            save_result(test_dataloader, pcd_pred, idx, specs)
+            statistics_utils.append_csv_data(single_csv_data, filenames, cd_l1, cd_l2, emd_, fscore, mad_s, mad_i, ibs_a)
+
+            save_result(filenames, pcd_pred, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))
 
         cal_avrg_dist(dist_dict, "cd_l1")
@@ -186,9 +191,11 @@ def test(network, test_dataloader, specs):
         cal_avrg_dist(dist_dict, "ibs_a")
 
         logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
-        csv_file_dir = os.path.join(specs.get("LogDir"), specs.get("TAG"))
-        csv_file_path = os.path.join(csv_file_dir, "evaluate_result.csv")
-        statistics_utils.save_json_as_csv(csv_file_path, dist_dict, "INTE")
+        avrg_csv_file_path = os.path.join(csv_file_dir, "avrg_result.csv")
+        statistics_utils.write_avrg_csv_file(avrg_csv_file_path, dist_dict, "INTE")
+
+        single_csv_file_path = os.path.join(csv_file_dir, "single_result.csv")
+        statistics_utils.write_single_csv_file(single_csv_file_path)
 
 
 def main_function(specs, model_path):

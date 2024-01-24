@@ -189,7 +189,7 @@ def test(network, test_dataloader, specs):
         logger.info("dist result: \n{}".format(json.dumps(dist_dict, sort_keys=False, indent=4)))
         csv_file_dir = os.path.join(specs.get("LogDir"), specs.get("TAG"))
         csv_file_path = os.path.join(csv_file_dir, "evaluate_result.csv")
-        statistics_utils.save_json_as_csv(csv_file_path, dist_dict, "INTE")
+        statistics_utils.write_avrg_csv_file(csv_file_path, dist_dict, "INTE")
 
 
 def main_function(specs, model_path):

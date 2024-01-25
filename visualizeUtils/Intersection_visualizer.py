@@ -77,7 +77,10 @@ def visualize_intersection(geometries_path: dict, tag: str):
     pcd_pred_tensor = torch.from_numpy(np.asarray(pcd_pred.points)).unsqueeze(0)
     distances = torch.cdist(pcd_pred_tensor, center_tensor, p=2)
     min_indices = torch.argmin(distances, dim=2)
-    closest_center = torch.gather(center_tensor, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
+    # closest_center = center_tensor[min_indices]
+    closest_center = center_tensor[torch.arange(1).unsqueeze(1), min_indices, :]
+
+    # closest_center = torch.gather(center_tensor, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
     closest_center_direction = torch.gather(direction_tensor, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
 
     direction_pred = pcd_pred_tensor - closest_center

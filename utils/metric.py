@@ -48,9 +48,9 @@ def ibs_angle_dist(center, pcd, direction):
     direction_pred = pcd - closest_center
     cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
     loss = torch.clamp(-cosine_sim, min=0)
-    interact_points_num = torch.sum(loss != 0, dim=1).squeeze(0).float()  # (B)
+    intersect_points_num = torch.sum(loss != 0, dim=1).squeeze(0).float()  # (B)
 
-    return torch.mean(loss, 1), interact_points_num
+    return torch.mean(loss, 1), intersect_points_num
 
 
 def l1_cd(pcd1, pcd2):

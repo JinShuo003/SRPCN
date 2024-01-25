@@ -40,7 +40,7 @@ def read_mesh(path):
     return mesh
 
 
-def read_medial_axis_sphere(path):
+def read_medial_axis_sphere_total(path):
     """
     读取中轴球
     Args:
@@ -50,6 +50,18 @@ def read_medial_axis_sphere(path):
     """
     data = np.load(path)
     return data["center"], data["radius"], data["direction1"], data["direction2"]
+
+
+def read_medial_axis_sphere_single(path):
+    """
+    读取归一化后的中轴球
+    Args:
+        path: 中轴球的路径
+    Returns:
+        center, radius
+    """
+    data = np.load(path)
+    return data["center"], data["radius"], data["direction"]
 
 
 def get_pcd_from_np(array: np.ndarray):
@@ -153,9 +165,9 @@ def get_coordinate(size=1):
     return coord_frame
 
 
-def get_arrow(direction=np.array([0, 0, 1]), location=np.array([0, 0, 0])):
-    arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=0.001, cone_radius=0.003, cylinder_height=0.01,
-                                                   cone_height=0.01)
+def get_arrow(direction=np.array([0, 0, 1]), location=np.array([0, 0, 0]), length=0.02):
+    arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=0.001, cone_radius=0.003, cylinder_height=length/2,
+                                                   cone_height=length/2)
 
     v = np.array([0, 0, 1])
     w = direction

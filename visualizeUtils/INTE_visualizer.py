@@ -5,6 +5,7 @@ import numpy as np
 import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
+import pandas as pd
 
 from utils import path_utils, metric
 from utils.geometry_utils import pcd2tensor, np2tensor
@@ -28,8 +29,6 @@ class App:
         self.key_pcd_pred2_1 = "pcd_pred2_1"
         self.key_pcd_pred2_2 = "pcd_pred2_2"
         self.key_IBS = "IBS"
-        self.key_medial_axis_sphere_1 = "medial_axis_sphere_1"
-        self.key_medial_axis_sphere_2 = "medial_axis_sphere_2"
 
         self.TAG_PCD1 = "pcd1"
         self.TAG_PCD2 = "pcd2"
@@ -42,12 +41,14 @@ class App:
         }
 
         self.metrics_scale = {
-            "cd": 1e3,
+            "cd1": 1e3,
+            "cd2": 1e4,
             "emd": 1e4,
             "fscore": 1e2,
             "mads": 1e3,
             "madi": 1e6,
-            "ibsa": 1e2
+            "ibsa": 1e2,
+            "inte": 1
         }
         gui.Application.instance.initialize()
 
@@ -189,12 +190,9 @@ class App:
         self.value_patten = "{:.2f}"
 
         # 指标信息
-        self.l1_cd_metrics_func = metric.l1_cd
-        self.emd_metrics_func = metric.emd
-        self.fscore_metrics_func = metric.f_score
-        self.mads_metrics_func = metric.medial_axis_surface_dist
-        self.madi_metrics_func = metric.medial_axis_interaction_dist
-        self.ibsa_metrics_func = metric.ibs_angle_dist
+        self.metrics1_dataframe = None
+        self.metrics2_dataframe = None
+        self.read_metrics_file()
         self.better_metric_color_obj1 = gui.Color(0.7, 0.3, 0.3)
         self.worse_metric_color_obj1 = gui.Color(0.5, 0.5, 0.5)
         self.better_metric_color_obj2 = gui.Color(0.3, 0.7, 0.3)
@@ -210,6 +208,12 @@ class App:
         self.l1_cd_value_obj1_area = None
         self.l1_cd_value_obj1_left = None
         self.l1_cd_value_obj1_right = None
+
+        self.l2_cd_info_obj1_area = None
+        self.l2_cd_info_obj1_text = None
+        self.l2_cd_value_obj1_area = None
+        self.l2_cd_value_obj1_left = None
+        self.l2_cd_value_obj1_right = None
 
         self.emd_info_obj1_area = None
         self.emd_info_obj1_text = None
@@ -241,11 +245,23 @@ class App:
         self.ibsa_value_obj1_left = None
         self.ibsa_value_obj1_right = None
 
+        self.inte_info_obj1_area = None
+        self.inte_info_obj1_text = None
+        self.inte_value_obj1_area = None
+        self.inte_value_obj1_left = None
+        self.inte_value_obj1_right = None
+
         self.l1_cd_info_obj2_area = None
         self.l1_cd_info_obj2_text = None
         self.l1_cd_value_obj2_area = None
         self.l1_cd_value_obj2_left = None
         self.l1_cd_value_obj2_right = None
+
+        self.l2_cd_info_obj2_area = None
+        self.l2_cd_info_obj2_text = None
+        self.l2_cd_value_obj2_area = None
+        self.l2_cd_value_obj2_left = None
+        self.l2_cd_value_obj2_right = None
 
         self.emd_info_obj2_area = None
         self.emd_info_obj2_text = None
@@ -276,6 +292,12 @@ class App:
         self.ibsa_value_obj2_area = None
         self.ibsa_value_obj2_left = None
         self.ibsa_value_obj2_right = None
+
+        self.inte_info_obj2_area = None
+        self.inte_info_obj2_text = None
+        self.inte_value_obj2_area = None
+        self.inte_value_obj2_left = None
+        self.inte_value_obj2_right = None
 
         self.init_data_dir_editor_area()
         self.init_geometry_select_area()
@@ -426,8 +448,6 @@ class App:
         self.pcd_pred2_1 = self.read_pcd(geometry_path_dict.get(self.key_pcd_pred2_1))
         self.pcd_pred2_2 = self.read_pcd(geometry_path_dict.get(self.key_pcd_pred2_2))
         self.IBS = self.read_mesh(geometry_path_dict.get(self.key_IBS))
-        self.center_1, self.radius_1, self.direction_1 = self.read_medial_axis_sphere(geometry_path_dict.get(self.key_medial_axis_sphere_1))
-        self.center_2, self.radius_2, self.direction_2 = self.read_medial_axis_sphere(geometry_path_dict.get(self.key_medial_axis_sphere_2))
 
         if self.pcd_pred1_1 is None and self.pcd_pred1_2 is None:
             self.flag_pcd_pred1_window_show = False
@@ -485,24 +505,15 @@ class App:
             print(e)
         return metrics.item()
 
-    def update_metrics_area(self, **kwargs):
-        metrics_tag = kwargs["metrics_tag"]
-        metrics_func = kwargs["metrics_func"]
-        metrics_args_l = kwargs["metrics_args_l"]
-        metrics_args_r = kwargs["metrics_args_r"]
-        metrics_l_container = kwargs["metrics_l_container"]
-        metrics_r_container = kwargs["metrics_r_container"]
-        metrics_compare_func = kwargs["metrics_compare_func"]
-        better_color = kwargs["better_color"]
-        worse_color = kwargs["worse_color"]
-
-        metrics_l = self.compute_metrics_single(metrics_func, *metrics_args_l)
-        metrics_r = self.compute_metrics_single(metrics_func, *metrics_args_r)
-        metrics_l_container.text = self.value_patten.format(self.metrics_scale[metrics_tag] * metrics_l)
-        metrics_r_container.text = self.value_patten.format(self.metrics_scale[metrics_tag] * metrics_r)
-        is_left_better = metrics_compare_func(metrics_l, metrics_r)
-        metrics_l_container.background_color = better_color if is_left_better else worse_color
-        metrics_r_container.background_color = better_color if not is_left_better else worse_color
+    def update_metrics_area(self, metrics_tag, metrics_l, metrics_r, metrics_l_container, metrics_r_container,
+                            metrics_compare_func, better_color, worse_color):
+        metrics_num = len(metrics_tag)
+        for i in range(metrics_num):
+            metrics_l_container[i].text = self.value_patten.format(self.metrics_scale[metrics_tag[i]] * metrics_l[i])
+            metrics_r_container[i].text = self.value_patten.format(self.metrics_scale[metrics_tag[i]] * metrics_r[i])
+            is_left_better = metrics_compare_func[i](metrics_l[i], metrics_r[i])
+            metrics_l_container[i].background_color = better_color if is_left_better else worse_color
+            metrics_r_container[i].background_color = better_color if not is_left_better else worse_color
 
     def greater_than(self, a, b):
         return a > b
@@ -515,142 +526,39 @@ class App:
             self.category_selector.get_item(self.selected_category))
         self.scene_info.text = self.scene_info_patten.format(self.scene_selector.get_item(self.selected_scene))
         self.view_info.text = self.view_info_patten.format(self.view_selector.get_item(self.selected_view))
+        metrics_obj1_l = self.metrics1_dataframe["{}_0".format(self.view_selector.get_item(self.selected_view))].to_numpy()
+        metrics_obj1_r = self.metrics2_dataframe["{}_0".format(self.view_selector.get_item(self.selected_view))].to_numpy()
+        metrics_obj2_l = self.metrics1_dataframe["{}_1".format(self.view_selector.get_item(self.selected_view))].to_numpy()
+        metrics_obj2_r = self.metrics2_dataframe["{}_1".format(self.view_selector.get_item(self.selected_view))].to_numpy()
 
-        # obj1 metrics
-        self.update_metrics_area(**{
-            "metrics_tag": "cd",
-            "metrics_func": self.l1_cd_metrics_func,
-            "metrics_args_l": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred1_1)),
-            "metrics_args_r": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred2_1)),
-            "metrics_l_container": self.l1_cd_value_obj1_left,
-            "metrics_r_container": self.l1_cd_value_obj1_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj1,
-            "worse_color": self.worse_metric_color_obj1
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "emd",
-            "metrics_func": self.emd_metrics_func,
-            "metrics_args_l": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred1_1)),
-            "metrics_args_r": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred2_1)),
-            "metrics_l_container": self.emd_value_obj1_left,
-            "metrics_r_container": self.emd_value_obj1_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj1,
-            "worse_color": self.worse_metric_color_obj1
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "fscore",
-            "metrics_func": self.fscore_metrics_func,
-            "metrics_args_l": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred1_1)),
-            "metrics_args_r": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred2_1)),
-            "metrics_l_container": self.fscore_value_obj1_left,
-            "metrics_r_container": self.fscore_value_obj1_right,
-            "metrics_compare_func": self.greater_than,
-            "better_color": self.better_metric_color_obj1,
-            "worse_color": self.worse_metric_color_obj1
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "mads",
-            "metrics_func": self.mads_metrics_func,
-            "metrics_args_l": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred1_1)),
-            "metrics_args_r": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred2_1)),
-            "metrics_l_container": self.mads_value_obj1_left,
-            "metrics_r_container": self.mads_value_obj1_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj1,
-            "worse_color": self.worse_metric_color_obj1
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "madi",
-            "metrics_func": self.madi_metrics_func,
-            "metrics_args_l": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred1_1)),
-            "metrics_args_r": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred2_1)),
-            "metrics_l_container": self.madi_value_obj1_left,
-            "metrics_r_container": self.madi_value_obj1_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj1,
-            "worse_color": self.worse_metric_color_obj1
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "ibsa",
-            "metrics_func": self.ibsa_metrics_func,
-            "metrics_args_l": (np2tensor(self.center_1), pcd2tensor(self.pcd_pred1_1), np2tensor(self.direction_1)),
-            "metrics_args_r": (np2tensor(self.center_1), pcd2tensor(self.pcd_pred2_1), np2tensor(self.direction_1)),
-            "metrics_l_container": self.ibsa_value_obj1_left,
-            "metrics_r_container": self.ibsa_value_obj1_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj1,
-            "worse_color": self.worse_metric_color_obj1
-        })
+        metrics_tag = ["cd1", "cd2", "emd", "fscore", "mads", "madi", "ibsa", "inte"]
+        metrics_l_container = [self.l1_cd_value_obj1_left, self.l2_cd_value_obj1_left, self.emd_value_obj1_left,
+                               self.fscore_value_obj1_left, self.mads_value_obj1_left, self.madi_value_obj1_left,
+                               self.ibsa_value_obj1_left, self.inte_value_obj1_left]
+        metrics_r_container = [self.l1_cd_value_obj1_right, self.l2_cd_value_obj1_right, self.emd_value_obj1_right,
+                               self.fscore_value_obj1_right, self.mads_value_obj1_right, self.madi_value_obj1_right,
+                               self.ibsa_value_obj1_right, self.inte_value_obj1_right]
+        metrics_compare_func = [self.less_than, self.less_than, self.less_than, self.greater_than,
+                                self.less_than, self.less_than, self.less_than, self.less_than]
+        better_color = self.better_metric_color_obj1
+        worse_color = self.worse_metric_color_obj1
 
-        # obj2 metrics
-        self.update_metrics_area(**{
-            "metrics_tag": "cd",
-            "metrics_func": self.l1_cd_metrics_func,
-            "metrics_args_l": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred1_2)),
-            "metrics_args_r": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred2_2)),
-            "metrics_l_container": self.l1_cd_value_obj2_left,
-            "metrics_r_container": self.l1_cd_value_obj2_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj2,
-            "worse_color": self.worse_metric_color_obj2
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "emd",
-            "metrics_func": self.emd_metrics_func,
-            "metrics_args_l": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred1_2)),
-            "metrics_args_r": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred2_2)),
-            "metrics_l_container": self.emd_value_obj2_left,
-            "metrics_r_container": self.emd_value_obj2_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj2,
-            "worse_color": self.worse_metric_color_obj2
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "fscore",
-            "metrics_func": self.fscore_metrics_func,
-            "metrics_args_l": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred1_2)),
-            "metrics_args_r": (pcd2tensor(self.pcd_complete_1), pcd2tensor(self.pcd_pred2_2)),
-            "metrics_l_container": self.fscore_value_obj2_left,
-            "metrics_r_container": self.fscore_value_obj2_right,
-            "metrics_compare_func": self.greater_than,
-            "better_color": self.better_metric_color_obj2,
-            "worse_color": self.worse_metric_color_obj2
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "mads",
-            "metrics_func": self.mads_metrics_func,
-            "metrics_args_l": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred1_2)),
-            "metrics_args_r": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred2_2)),
-            "metrics_l_container": self.mads_value_obj2_left,
-            "metrics_r_container": self.mads_value_obj2_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj2,
-            "worse_color": self.worse_metric_color_obj2
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "madi",
-            "metrics_func": self.madi_metrics_func,
-            "metrics_args_l": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred1_2)),
-            "metrics_args_r": (np2tensor(self.center_1), np2tensor(self.radius_1), pcd2tensor(self.pcd_pred2_2)),
-            "metrics_l_container": self.madi_value_obj2_left,
-            "metrics_r_container": self.madi_value_obj2_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj2,
-            "worse_color": self.worse_metric_color_obj2
-        })
-        self.update_metrics_area(**{
-            "metrics_tag": "ibsa",
-            "metrics_func": self.ibsa_metrics_func,
-            "metrics_args_l": (np2tensor(self.center_1), pcd2tensor(self.pcd_pred1_2), np2tensor(self.direction_1)),
-            "metrics_args_r": (np2tensor(self.center_1), pcd2tensor(self.pcd_pred2_2), np2tensor(self.direction_1)),
-            "metrics_l_container": self.ibsa_value_obj2_left,
-            "metrics_r_container": self.ibsa_value_obj2_right,
-            "metrics_compare_func": self.less_than,
-            "better_color": self.better_metric_color_obj2,
-            "worse_color": self.worse_metric_color_obj2
-        })
+        self.update_metrics_area(metrics_tag, metrics_obj1_l, metrics_obj1_r, metrics_l_container, metrics_r_container,
+                                 metrics_compare_func, better_color, worse_color)
+
+        metrics_l_container = [self.l1_cd_value_obj2_left, self.l2_cd_value_obj2_left, self.emd_value_obj2_left,
+                               self.fscore_value_obj2_left, self.mads_value_obj2_left, self.madi_value_obj2_left,
+                               self.ibsa_value_obj2_left, self.inte_value_obj2_left]
+        metrics_r_container = [self.l1_cd_value_obj2_right, self.l2_cd_value_obj2_right, self.emd_value_obj2_right,
+                               self.fscore_value_obj2_right, self.mads_value_obj2_right, self.madi_value_obj2_right,
+                               self.ibsa_value_obj2_right, self.inte_value_obj2_right]
+        metrics_compare_func = [self.less_than, self.less_than, self.less_than, self.greater_than,
+                                self.less_than, self.less_than, self.less_than, self.less_than]
+        better_color = self.better_metric_color_obj2
+        worse_color = self.worse_metric_color_obj2
+
+        self.update_metrics_area(metrics_tag, metrics_obj2_l, metrics_obj2_r, metrics_l_container, metrics_r_container,
+                                 metrics_compare_func, better_color, worse_color)
 
     def on_pre_category_btn_clicked(self):
         if self.selected_category <= 0:
@@ -770,21 +678,6 @@ class App:
             self.show_message_dialog("warning", "{} is not a pcd file".format(pcd_path))
             return None
         return pcd
-
-    def read_medial_axis_sphere(self, medial_axis_sphere_path):
-        if not os.path.exists(medial_axis_sphere_path):
-            return None
-        if not os.path.isfile(medial_axis_sphere_path):
-            self.show_message_dialog("warning", "{} is not a file".format(medial_axis_sphere_path))
-            return None
-        data = np.load(medial_axis_sphere_path)
-        center = data["center"]
-        radius = data["radius"]
-        direction = data["direction"]
-        center = np.asarray(center).astype(np.float32)
-        radius = np.asarray(radius).astype(np.float32)
-        direction = np.asarray(direction).astype(np.float32)
-        return center, radius, direction
 
     def remove_object(self, scene, name):
         if scene is None:
@@ -1069,7 +962,7 @@ class App:
         self.metrics_info_obj2_layout = gui.Vert(0, gui.Margins(0, 0, 0, 0))
 
         self.l1_cd_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
-        self.l1_cd_info_obj1_text = gui.Label("cd")
+        self.l1_cd_info_obj1_text = gui.Label("cd1")
         self.l1_cd_value_obj1_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
         self.l1_cd_value_obj1_left = gui.Button("0000.00")
         self.l1_cd_value_obj1_right = gui.Button("0000.00")
@@ -1077,6 +970,16 @@ class App:
         self.l1_cd_value_obj1_area.add_child(self.l1_cd_value_obj1_right)
         self.l1_cd_info_obj1_area.add_child(self.l1_cd_info_obj1_text)
         self.l1_cd_info_obj1_area.add_child(self.l1_cd_value_obj1_area)
+
+        self.l2_cd_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
+        self.l2_cd_info_obj1_text = gui.Label("cd2")
+        self.l2_cd_value_obj1_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
+        self.l2_cd_value_obj1_left = gui.Button("0000.00")
+        self.l2_cd_value_obj1_right = gui.Button("0000.00")
+        self.l2_cd_value_obj1_area.add_child(self.l2_cd_value_obj1_left)
+        self.l2_cd_value_obj1_area.add_child(self.l2_cd_value_obj1_right)
+        self.l2_cd_info_obj1_area.add_child(self.l2_cd_info_obj1_text)
+        self.l2_cd_info_obj1_area.add_child(self.l2_cd_value_obj1_area)
 
         self.emd_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
         self.emd_info_obj1_text = gui.Label("emd")
@@ -1128,15 +1031,27 @@ class App:
         self.ibsa_info_obj1_area.add_child(self.ibsa_info_obj1_text)
         self.ibsa_info_obj1_area.add_child(self.ibsa_value_obj1_area)
 
+        self.inte_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
+        self.inte_info_obj1_text = gui.Label("inte")
+        self.inte_value_obj1_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
+        self.inte_value_obj1_left = gui.Button("0000.00")
+        self.inte_value_obj1_right = gui.Button("0000.00")
+        self.inte_value_obj1_area.add_child(self.inte_value_obj1_left)
+        self.inte_value_obj1_area.add_child(self.inte_value_obj1_right)
+        self.inte_info_obj1_area.add_child(self.inte_info_obj1_text)
+        self.inte_info_obj1_area.add_child(self.inte_value_obj1_area)
+
         self.metrics_info_obj1_layout.add_child(self.l1_cd_info_obj1_area)
+        self.metrics_info_obj1_layout.add_child(self.l2_cd_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.emd_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.fscore_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.mads_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.madi_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.ibsa_info_obj1_area)
+        self.metrics_info_obj1_layout.add_child(self.inte_info_obj1_area)
 
         self.l1_cd_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
-        self.l1_cd_info_obj2_text = gui.Label("cd")
+        self.l1_cd_info_obj2_text = gui.Label("cd1")
         self.l1_cd_value_obj2_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
         self.l1_cd_value_obj2_left = gui.Button("0000.00")
         self.l1_cd_value_obj2_right = gui.Button("0000.00")
@@ -1144,6 +1059,16 @@ class App:
         self.l1_cd_value_obj2_area.add_child(self.l1_cd_value_obj2_right)
         self.l1_cd_info_obj2_area.add_child(self.l1_cd_info_obj2_text)
         self.l1_cd_info_obj2_area.add_child(self.l1_cd_value_obj2_area)
+
+        self.l2_cd_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
+        self.l2_cd_info_obj2_text = gui.Label("cd2")
+        self.l2_cd_value_obj2_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
+        self.l2_cd_value_obj2_left = gui.Button("0000.00")
+        self.l2_cd_value_obj2_right = gui.Button("0000.00")
+        self.l2_cd_value_obj2_area.add_child(self.l2_cd_value_obj2_left)
+        self.l2_cd_value_obj2_area.add_child(self.l2_cd_value_obj2_right)
+        self.l2_cd_info_obj2_area.add_child(self.l2_cd_info_obj2_text)
+        self.l2_cd_info_obj2_area.add_child(self.l2_cd_value_obj2_area)
 
         self.emd_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
         self.emd_info_obj2_text = gui.Label("emd")
@@ -1195,12 +1120,24 @@ class App:
         self.ibsa_info_obj2_area.add_child(self.ibsa_info_obj2_text)
         self.ibsa_info_obj2_area.add_child(self.ibsa_value_obj2_area)
 
+        self.inte_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
+        self.inte_info_obj2_text = gui.Label("inte")
+        self.inte_value_obj2_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
+        self.inte_value_obj2_left = gui.Button("0000.00")
+        self.inte_value_obj2_right = gui.Button("0000.00")
+        self.inte_value_obj2_area.add_child(self.inte_value_obj2_left)
+        self.inte_value_obj2_area.add_child(self.inte_value_obj2_right)
+        self.inte_info_obj2_area.add_child(self.inte_info_obj2_text)
+        self.inte_info_obj2_area.add_child(self.inte_value_obj2_area)
+
         self.metrics_info_obj2_layout.add_child(self.l1_cd_info_obj2_area)
+        self.metrics_info_obj2_layout.add_child(self.l2_cd_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.emd_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.fscore_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.mads_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.madi_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.ibsa_info_obj2_area)
+        self.metrics_info_obj2_layout.add_child(self.inte_info_obj2_area)
 
         self.metrics_info_layout.add_child(gui.Label("obj1"))
         self.metrics_info_layout.add_child(self.metrics_info_obj1_layout)
@@ -1214,7 +1151,6 @@ class App:
         pcd_pred1_dir = self.pcd_pred1_dir_editor.text_value
         pcd_pred2_dir = self.pcd_pred2_dir_editor.text_value
         IBS_dir = self.specs.get("path_options").get("geometries_dir").get("IBS_dir")
-        medial_axis_sphere_dir = self.specs.get("path_options").get("geometries_dir").get("medial_axis_sphere_dir")
 
         category = self.category_selector.get_item(self.selected_category)
         scene = self.scene_selector.get_item(self.selected_scene)
@@ -1229,8 +1165,6 @@ class App:
         pcd_pred2_1_filename = "{}_0.ply".format(view)
         pcd_pred2_2_filename = "{}_1.ply".format(view)
         IBS_filename = "{}.obj".format(scene)
-        medial_axis_sphere_1_filename = "{}_0.npz".format(scene)
-        medial_axis_sphere_2_filename = "{}_1.npz".format(scene)
 
         pcd_complete_1_path = os.path.join(pcd_complete_dir, category, pcd_complete_1_filename)
         pcd_complete_2_path = os.path.join(pcd_complete_dir, category, pcd_complete_2_filename)
@@ -1241,8 +1175,6 @@ class App:
         pcd_pred2_1_path = os.path.join(pcd_pred2_dir, category, pcd_pred2_1_filename)
         pcd_pred2_2_path = os.path.join(pcd_pred2_dir, category, pcd_pred2_2_filename)
         IBS_path = os.path.join(IBS_dir, category, IBS_filename)
-        medial_axis_sphere_1_path = os.path.join(medial_axis_sphere_dir, category, medial_axis_sphere_1_filename)
-        medial_axis_sphere_2_path = os.path.join(medial_axis_sphere_dir, category, medial_axis_sphere_2_filename)
 
         geometry_path_dict = {
             self.key_pcd_complete_1: pcd_complete_1_path,
@@ -1253,9 +1185,7 @@ class App:
             self.key_pcd_pred1_2: pcd_pred1_2_path,
             self.key_pcd_pred2_1: pcd_pred2_1_path,
             self.key_pcd_pred2_2: pcd_pred2_2_path,
-            self.key_IBS: IBS_path,
-            self.key_medial_axis_sphere_1: medial_axis_sphere_1_path,
-            self.key_medial_axis_sphere_2: medial_axis_sphere_2_path,
+            self.key_IBS: IBS_path
         }
 
         return geometry_path_dict
@@ -1283,10 +1213,16 @@ class App:
         except Exception as e:
             print(e)
 
+    def read_metrics_file(self):
+        metrics1_filepath = self.specs.get("path_options").get("geometries_dir").get("metrics1_filepath")
+        metrics2_filepath = self.specs.get("path_options").get("geometries_dir").get("metrics2_filepath")
+        self.metrics1_dataframe = pd.read_csv(metrics1_filepath)
+        self.metrics2_dataframe = pd.read_csv(metrics2_filepath)
+
 
 if __name__ == "__main__":
     # 获取配置参数
-    config_filepath = 'configs/Interaction_visualizer.json'
+    config_filepath = 'configs/INTE_visualizer.json'
     specs = path_utils.read_config(config_filepath)
 
     app = App(specs)

@@ -3,10 +3,11 @@
     "geometries_dir": {
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
-      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE\\mads_new_madi_pretrain_epoch30",
+      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads_madi_lr1e4",
       "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN",
       "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
-      "medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE_norm"
+      "metrics1_filepath": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads_madi_lr1e4\\single_result.csv",
+      "metrics2_filepath": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN\\single_result.csv"
     },
     "format_info": {
       "category_re": "scene\\d",

@@ -140,7 +140,7 @@ class TrainDataGenerator:
         pcd1_partial = geometry_utils.read_point_cloud(self.geometries_path.get("pcd1_partial"))
         pcd2_partial = geometry_utils.read_point_cloud(self.geometries_path.get("pcd2_partial"))
         IBS = geometry_utils.read_point_cloud(self.geometries_path.get("IBS"))
-        sphere_center, sphere_radius, direction1, direction2 = geometry_utils.read_medial_axis_sphere(self.geometries_path.get("Medial_axis_sphere"))
+        sphere_center, sphere_radius, direction1, direction2 = geometry_utils.read_medial_axis_sphere_total(self.geometries_path.get("Medial_axis_sphere"))
 
         translate1, scale1 = geometry_utils.get_pcd_normalize_para(pcd1_complete)
         scale1 /= normalize_scale

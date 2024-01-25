@@ -160,7 +160,8 @@ class medialAxisDirectionHandler(GeometryHandler):
     def read_geometry(self, medial_axis_sphere_path):
         data = np.load(medial_axis_sphere_path)
         if self.mode == "origin":
-            center, radius, direction1, direction2 = data["center"], data["radius"], data["direction1"], data["direction2"]
+            center, radius, direction1, direction2 = data["center"], data["radius"], data["direction1"], data[
+                "direction2"]
             if self.idx == 1:
                 direction = direction1
             elif self.idx == 2:
@@ -201,41 +202,23 @@ def visualize(specs, filename):
 
     mesh1 = meshHandler().get(geometry_path["mesh1"], geometry_color["mesh1"], geometry_option["mesh1"])
     mesh2 = meshHandler().get(geometry_path["mesh2"], geometry_color["mesh2"], geometry_option["mesh2"])
-    ibs_mesh_gt = meshHandler().get(geometry_path["ibs_mesh_gt"], geometry_color["ibs_mesh_gt"],
-                                    geometry_option["ibs_mesh_gt"])
-    ibs_pcd_gt = pcdHandler().get(geometry_path["ibs_pcd_gt"], geometry_color["ibs_pcd_gt"],
-                                  geometry_option["ibs_pcd_gt"])
-    ibs1_pcd_gt = pcdHandler().get(geometry_path["ibs1_pcd_gt"], geometry_color["ibs1_pcd_gt"],
-                                   geometry_option["ibs1_pcd_gt"])
-    ibs2_pcd_gt = pcdHandler().get(geometry_path["ibs2_pcd_gt"], geometry_color["ibs2_pcd_gt"],
-                                   geometry_option["ibs2_pcd_gt"])
+    ibs_mesh_gt = meshHandler().get(geometry_path["ibs_mesh_gt"], geometry_color["ibs_mesh_gt"], geometry_option["ibs_mesh_gt"])
+    ibs_pcd_gt = pcdHandler().get(geometry_path["ibs_pcd_gt"], geometry_color["ibs_pcd_gt"], geometry_option["ibs_pcd_gt"])
+    ibs1_pcd_gt = pcdHandler().get(geometry_path["ibs1_pcd_gt"], geometry_color["ibs1_pcd_gt"], geometry_option["ibs1_pcd_gt"])
+    ibs2_pcd_gt = pcdHandler().get(geometry_path["ibs2_pcd_gt"], geometry_color["ibs2_pcd_gt"], geometry_option["ibs2_pcd_gt"])
     pcd1_gt = pcdHandler().get(geometry_path['pcd1_gt'], geometry_color['pcd1_gt'], geometry_option["pcd1_gt"])
     pcd2_gt = pcdHandler().get(geometry_path['pcd2_gt'], geometry_color['pcd2_gt'], geometry_option["pcd2_gt"])
     pcd1_scan = pcdHandler().get(geometry_path['pcd1_scan'], geometry_color['pcd1_scan'], geometry_option["pcd1_scan"])
     pcd2_scan = pcdHandler().get(geometry_path['pcd2_scan'], geometry_color['pcd2_scan'], geometry_option["pcd2_scan"])
     pcd1_pred = pcdHandler().get(geometry_path['pcd1_pred'], geometry_color['pcd1_pred'], geometry_option["pcd1_pred"])
     pcd2_pred = pcdHandler().get(geometry_path['pcd2_pred'], geometry_color['pcd2_pred'], geometry_option["pcd2_pred"])
-    medial_axis_sphere = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere'],
-                                                       geometry_color['medial_axis_sphere'],
-                                                       geometry_option["medial_axis_sphere"])
-    medial_axis_sphere1 = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere1'],
-                                                        geometry_color['medial_axis_sphere1'],
-                                                        geometry_option["medial_axis_sphere1"])
-    medial_axis_sphere2 = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere2'],
-                                                        geometry_color['medial_axis_sphere2'],
-                                                        geometry_option["medial_axis_sphere2"])
-    medial_axis_origin_direction1 = medialAxisDirectionHandler("origin", 1).get(geometry_path['medial_axis_sphere'],
-                                                             geometry_color['medial_axis_direction1'],
-                                                             geometry_option["medial_axis_origin_direction1"])
-    medial_axis_origin_direction2 = medialAxisDirectionHandler("origin", 2).get(geometry_path['medial_axis_sphere'],
-                                                             geometry_color['medial_axis_direction2'],
-                                                             geometry_option["medial_axis_origin_direction2"])
-    medial_axis_direction1 = medialAxisDirectionHandler("norm", 1).get(geometry_path['medial_axis_sphere1'],
-                                                              geometry_color['medial_axis_direction1'],
-                                                              geometry_option["medial_axis_direction1"])
-    medial_axis_direction2 = medialAxisDirectionHandler("norm", 2).get(geometry_path['medial_axis_sphere2'],
-                                                              geometry_color['medial_axis_direction2'],
-                                                              geometry_option["medial_axis_direction2"])
+    medial_axis_sphere = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere'], geometry_color['medial_axis_sphere'], geometry_option["medial_axis_sphere"])
+    medial_axis_sphere1 = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere1'], geometry_color['medial_axis_sphere1'], geometry_option["medial_axis_sphere1"])
+    medial_axis_sphere2 = medialAxisSphereHandler().get(geometry_path['medial_axis_sphere2'], geometry_color['medial_axis_sphere2'], geometry_option["medial_axis_sphere2"])
+    medial_axis_origin_direction1 = medialAxisDirectionHandler("origin", 1).get(geometry_path['medial_axis_sphere'], geometry_color['medial_axis_direction1'], geometry_option["medial_axis_origin_direction1"])
+    medial_axis_origin_direction2 = medialAxisDirectionHandler("origin", 2).get(geometry_path['medial_axis_sphere'], geometry_color['medial_axis_direction2'], geometry_option["medial_axis_origin_direction2"])
+    medial_axis_direction1 = medialAxisDirectionHandler("norm", 1).get(geometry_path['medial_axis_sphere1'], geometry_color['medial_axis_direction1'], geometry_option["medial_axis_direction1"])
+    medial_axis_direction2 = medialAxisDirectionHandler("norm", 2).get(geometry_path['medial_axis_sphere2'], geometry_color['medial_axis_direction2'], geometry_option["medial_axis_direction2"])
 
     coord_frame = geometry_utils.get_coordinate(size=0.5)
     unit_sphere_pcd = geometry_utils.get_sphere_pcd(radius=0.5)

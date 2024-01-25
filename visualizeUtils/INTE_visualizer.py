@@ -7,8 +7,7 @@ import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import pandas as pd
 
-from utils import path_utils, metric
-from utils.geometry_utils import pcd2tensor, np2tensor
+from utils import path_utils
 
 
 class App:

@@ -61,7 +61,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         loss_coarse = cd_loss_L1(pcd_pred_dense, gt_coarse)
         loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
         loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
-        loss_ibs_angle, intersect_num = ibs_angle_loss(center, pcd_pred_dense, direction)
+        loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, pcd_pred_dense)
 
         loss_total = loss_dense + loss_sub_dense + loss_coarse + \
                     mads_loss_weight * loss_medial_axis_surface + \
@@ -121,7 +121,7 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             loss_coarse = cd_loss_L1(pcd_pred_coarse, pcd_gt)
             loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
             loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
-            loss_ibs_angle, intersect_num = ibs_angle_loss(center, pcd_pred_dense, direction)
+            loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, pcd_pred_dense)
             loss_emd = emd_loss(pcd_pred_dense, pcd_gt)
 
             test_total_dense += loss_dense.item()
@@ -166,7 +166,9 @@ def main_function(specs):
     train_loader, test_loader = get_dataloader(data_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
     network = get_network(specs, PointAttN, checkpoint)
-    lr_schedule, optimizer = get_optimizer(specs, network, checkpoint)
+    optimizer = get_optimizer(specs, network, checkpoint)
+    lr_scheduler_class, kwargs = get_lr_scheduler_info(specs)
+    lr_scheduler = get_lr_scheduler(specs, optimizer, checkpoint, lr_scheduler_class, **kwargs)
     tensorboard_writer = get_tensorboard_writer(specs)
 
     best_cd = 1e8
@@ -178,12 +180,12 @@ def main_function(specs):
         logger.info("continue train from epoch {}".format(epoch_begin))
     for epoch in range(epoch_begin, epoch_num + 1):
         time_begin_train = time.time()
-        train(network, train_loader, lr_schedule, optimizer, epoch, specs, tensorboard_writer)
+        train(network, train_loader, lr_scheduler, optimizer, epoch, specs, tensorboard_writer)
         time_end_train = time.time()
         logger.info("use {} to train".format(time_end_train - time_begin_train))
 
         time_begin_test = time.time()
-        best_cd, best_epoch = test(network, test_loader, lr_schedule, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch)
+        best_cd, best_epoch = test(network, test_loader, lr_scheduler, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch)
         time_end_test = time.time()
         logger.info("use {} to test".format(time_end_test - time_begin_test))
 

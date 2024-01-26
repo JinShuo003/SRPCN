@@ -1,11 +1,11 @@
 {
-    "TAG": "PointAttN_INTE_ibsa_begin10",
+    "TAG": "PointAttN_INTE_exp_lr1e4_gamma09",
     "Description" : "model: PointAttN, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs/INTE",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/lr",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
@@ -17,14 +17,15 @@
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
-            "InitLearningRate": 5e-5,
+            "LRScheduler": "ExponentialLR",
+            "InitLearningRate": 1e-4,
             "StepSize": 10,
-            "Gamma": 0.7
+            "Gamma": 0.9
         }
     },
     "IBSALossOptions": {
-        "BeginEpoch": 10,
-        "InitRatio": 0.1,
+        "BeginEpoch": 0,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },
@@ -41,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "PointAttN_INTE_ibsa",
+        "TAG": "PointAttN_INTE_exp_lr1e4_gamma09",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

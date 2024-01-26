@@ -89,27 +89,57 @@ def get_network(specs, model_class, checkpoint, *args):
 def get_optimizer(specs, network, checkpoint):
     logger = LogFactory.get_logger(specs.get("LogOptions"))
     init_lr = specs.get("TrainOptions").get("LearningRateOptions").get("InitLearningRate")
-    step_size = specs.get("TrainOptions").get("LearningRateOptions").get("StepSize")
-    gamma = specs.get("TrainOptions").get("LearningRateOptions").get("Gamma")
-    logger.info("init_lr: {}, step_size: {}, gamma: {}".format(init_lr, step_size, gamma))
-
-    pre_train = specs.get("TrainOptions").get("PreTrain")
     continue_train = specs.get("TrainOptions").get("ContinueTrain")
-    assert not (pre_train and continue_train)
     
     if continue_train:
-        last_epoch = specs.get("TrainOptions").get("ContinueFromEpoch")
         optimizer = torch.optim.Adam([{'params': network.parameters(), 'initial_lr': init_lr}], lr=init_lr, betas=(0.9, 0.999))
-        lr_schedule = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, last_epoch=last_epoch)
-
-        logger.info("load lr_schedule parameter from epoch {}".format(checkpoint["epoch"]))
-        lr_schedule.load_state_dict(checkpoint["lr_schedule"])
-        logger.info("load optimizer parameter from epoch {}".format(checkpoint["epoch"]))
         optimizer.load_state_dict(checkpoint["optimizer"])
+        logger.info("load optimizer parameter from epoch {}".format(checkpoint["epoch"]))
     else:
         optimizer = torch.optim.Adam(network.parameters(), lr=init_lr, betas=(0.9, 0.999))
-        lr_schedule = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
-    return lr_schedule, optimizer
+
+    return optimizer
+
+
+def get_lr_scheduler_info(specs: dict):
+    train_options = specs.get("TrainOptions")
+    lr_options = train_options.get("LearningRateOptions")
+    lr_scheduler_type = lr_options.get("LRScheduler")
+    continue_train = train_options.get("ContinueTrain")
+    last_epoch = train_options.get("ContinueFromEpoch")
+
+    lr_scheduler_class = None
+    kwargs = {}
+    if lr_scheduler_type == "StepLR":
+        lr_scheduler_class = torch.optim.lr_scheduler.StepLR
+        kwargs["step_size"] = lr_options.get("StepSize")
+        kwargs["gamma"] = lr_options.get("Gamma")
+    elif lr_scheduler_type == "ExponentialLR":
+        lr_scheduler_class = torch.optim.lr_scheduler.ExponentialLR
+        kwargs["gamma"] = lr_options.get("Gamma")
+    else:
+        raise Exception("lr scheduler type not support")
+    
+    if continue_train:
+        kwargs["last_epoch"] = last_epoch
+
+    return lr_scheduler_class, kwargs
+
+
+def get_lr_scheduler(specs: dict, optimizer: torch.optim.Optimizer, checkpoint, lr_scheduler_class, **kwargs):
+    logger = LogFactory.get_logger(specs.get("LogOptions"))
+    step_size = specs.get("TrainOptions").get("LearningRateOptions").get("StepSize")
+    gamma = specs.get("TrainOptions").get("LearningRateOptions").get("Gamma")
+    logger.info("step_size: {}, gamma: {}".format(step_size, gamma))
+    continue_train = specs.get("TrainOptions").get("ContinueTrain")
+
+    lr_scheduler = lr_scheduler_class(optimizer, **kwargs)
+    if continue_train:
+        # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, last_epoch=last_epoch)
+        lr_scheduler.load_state_dict(checkpoint["lr_schedule"])
+        logger.info("load lr_schedule parameter from epoch {}".format(checkpoint["epoch"]))
+    
+    return lr_scheduler
 
 
 def get_tensorboard_writer(specs):

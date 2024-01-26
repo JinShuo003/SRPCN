@@ -135,7 +135,6 @@ def get_lr_scheduler(specs: dict, optimizer: torch.optim.Optimizer, checkpoint, 
 
     lr_scheduler = lr_scheduler_class(optimizer, **kwargs)
     if continue_train:
-        # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma, last_epoch=last_epoch)
         lr_scheduler.load_state_dict(checkpoint["lr_schedule"])
         logger.info("load lr_schedule parameter from epoch {}".format(checkpoint["epoch"]))
     

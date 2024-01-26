@@ -57,7 +57,7 @@ def medial_axis_interaction_loss(center, radius, pcd):
     # return torch.mean(loss)
 
 
-def ibs_angle_loss(center, pcd, direction):
+def ibs_angle_loss(center, radius, direction, pcd):
     """
     ibs angle Loss.
     For each point in ibs, find the cloest point in pcd, let the vector from ibs point to pcd point close to direction(cosine distance)
@@ -78,11 +78,14 @@ def ibs_angle_loss(center, pcd, direction):
     min_indices = torch.argmin(distances, dim=2)
     closest_center = center[torch.arange(B).unsqueeze(1), min_indices, :]
     closest_direction = direction[torch.arange(B).unsqueeze(1), min_indices, :]
-    # closest_center = torch.gather(center, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
-    # closest_direction = torch.gather(direction, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
+    closest_radius = radius[torch.arange(1).unsqueeze(1), min_indices]
+    min_distances = torch.gather(distances, 2, min_indices.unsqueeze(-1)).squeeze(-1)
+
     direction_pred = pcd - closest_center
     cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
-    loss = torch.clamp(-cosine_sim, min=0)  # (B, points_num)
+    cosine_sim = torch.where(min_distances < 1.2 * closest_radius, cosine_sim, 0)
+
+    loss = torch.clamp(-cosine_sim-0.3, min=0)  # (B, points_num)
     intersect_points_num = torch.sum(loss != 0, dim=1).squeeze(0).float()  # (B)
 
     return torch.mean(loss), torch.mean(intersect_points_num)

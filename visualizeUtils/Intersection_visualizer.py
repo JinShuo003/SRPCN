@@ -77,19 +77,18 @@ def visualize_intersection(geometries_path: dict, tag: str):
     pcd_pred_tensor = torch.from_numpy(np.asarray(pcd_pred.points)).unsqueeze(0)
     distances = torch.cdist(pcd_pred_tensor, center_tensor, p=2)
     min_indices = torch.argmin(distances, dim=2)
-    # closest_center = center_tensor[min_indices]
     closest_center = center_tensor[torch.arange(1).unsqueeze(1), min_indices, :]
-
-    # closest_center = torch.gather(center_tensor, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
-    closest_center_direction = torch.gather(direction_tensor, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
-
+    closest_direction = direction_tensor[torch.arange(1).unsqueeze(1), min_indices, :]
+    closest_radius = radius_tensor[torch.arange(1).unsqueeze(1), min_indices]
+    min_distances = torch.gather(distances, 2, min_indices.unsqueeze(-1)).squeeze(-1)
     direction_pred = pcd_pred_tensor - closest_center
-    cosine_sim = F.cosine_similarity(direction_pred, closest_center_direction, dim=2)
-    loss = torch.clamp(-cosine_sim - 0.2, min=0)
+    cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
+    cosine_sim = torch.where(min_distances < 1 * closest_radius, cosine_sim, 0)
+    loss = torch.clamp(-cosine_sim, min=0)
     interact_points_num = torch.sum(loss != 0, dim=1).squeeze(0).float()  # (B)
     if interact_points_num == 0:
         print("no intersection")
-        # return
+        return
 
     interact_points = (loss != 0).squeeze(0).numpy()
     closest_center = closest_center.squeeze(0).numpy()

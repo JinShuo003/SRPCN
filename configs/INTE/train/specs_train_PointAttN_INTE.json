@@ -1,5 +1,5 @@
 {
-    "TAG": "PointAttN_INTE_exp_lr1e4_gamma09",
+    "TAG": "PointAttN_INTE_exp_lr1e4_gamma095",
     "Description" : "model: PointAttN, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -20,7 +20,7 @@
             "LRScheduler": "ExponentialLR",
             "InitLearningRate": 1e-4,
             "StepSize": 10,
-            "Gamma": 0.9
+            "Gamma": 0.95
         }
     },
     "IBSALossOptions": {
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "PointAttN_INTE_exp_lr1e4_gamma09",
+        "TAG": "PointAttN_INTE_exp_lr1e4_gamma095",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

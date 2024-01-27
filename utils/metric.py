@@ -24,7 +24,6 @@ def medial_axis_interaction_dist(center, radius, pcd):
     loss = torch.where(radius > distances, radius - distances, 0)
     return torch.mean(loss, dim=[1, 2])
 
-
     # cham_loss = dist_chamfer_3D.chamfer_3DDist()
     # dist1, _, _, _ = cham_loss(center, pcd)
     # dist1 = torch.sqrt(dist1)
@@ -33,7 +32,7 @@ def medial_axis_interaction_dist(center, radius, pcd):
     # return torch.mean(loss, 1)
 
 
-def ibs_angle_dist(center, pcd, direction):
+def ibs_angle_dist(center, radius, direction, pcd):
     # distances = torch.cdist(center, pcd, p=2)
     # min_indices = torch.argmin(distances, dim=2)
     # closest_points = torch.gather(pcd, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
@@ -46,11 +45,15 @@ def ibs_angle_dist(center, pcd, direction):
     min_indices = torch.argmin(distances, dim=2)
     closest_center = center[torch.arange(B).unsqueeze(1), min_indices, :]
     closest_direction = direction[torch.arange(B).unsqueeze(1), min_indices, :]
-    # closest_center = torch.gather(center, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
-    # closest_direction = torch.gather(direction, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
+    closest_radius = radius[torch.arange(1).unsqueeze(1), min_indices]
+    min_distances = torch.gather(distances, 2, min_indices.unsqueeze(-1)).squeeze(-1)
     direction_pred = pcd - closest_center
+    direction_pred /= torch.norm(direction_pred, dim=2, keepdim=True)
+
     cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
-    loss = torch.clamp(-cosine_sim, min=0)
+    loss = -cosine_sim + torch.cos(torch.deg2rad(120))
+    loss = torch.where(min_distances < 1.5 * closest_radius, loss, 0)
+    loss = torch.clamp(loss, min=0)
     intersect_points_num = torch.sum(loss != 0, dim=1).squeeze(0).float()  # (B)
 
     return torch.mean(loss, 1), intersect_points_num

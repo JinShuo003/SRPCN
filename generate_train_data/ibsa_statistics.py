@@ -10,7 +10,8 @@ import re
 import numpy as np
 import torch.nn.functional as F
 
-from utils.test_utils import get_normalize_para
+intersect_num_total = 0
+data_len = 0
 
 
 def get_geometry_path(specs, data_name):
@@ -33,8 +34,10 @@ def get_geometry_path(specs, data_name):
 
     geometries_path['pcd1'] = os.path.join(pcd_dir, category, pcd1_filename)
     geometries_path['pcd2'] = os.path.join(pcd_dir, category, pcd2_filename)
-    geometries_path['Medial_axis_sphere1'] = os.path.join(Medial_axis_sphere_dir, category, Medial_axis_sphere1_filename)
-    geometries_path['Medial_axis_sphere2'] = os.path.join(Medial_axis_sphere_dir, category, Medial_axis_sphere2_filename)
+    geometries_path['Medial_axis_sphere1'] = os.path.join(Medial_axis_sphere_dir, category,
+                                                          Medial_axis_sphere1_filename)
+    geometries_path['Medial_axis_sphere2'] = os.path.join(Medial_axis_sphere_dir, category,
+                                                          Medial_axis_sphere2_filename)
 
     return geometries_path
 
@@ -62,43 +65,99 @@ def visualize_intersection(geometries_path: dict):
     pcd2_tensor = torch.from_numpy(pcd2_np)
 
     center1, radius1, direction1 = geometry_utils.read_medial_axis_sphere_single(geometries_path["Medial_axis_sphere1"])
-    center_tensor, radius_tensor, direction1_tensor = torch.from_numpy(center1), torch.from_numpy(radius1), torch.from_numpy(direction1)
+    center2, radius2, direction2 = geometry_utils.read_medial_axis_sphere_single(geometries_path["Medial_axis_sphere2"])
+    center_tensor1, radius_tensor1, direction1_tensor = torch.from_numpy(center1), torch.from_numpy(
+        radius1), torch.from_numpy(direction1)
+    center_tensor2, radius_tensor2, direction2_tensor = torch.from_numpy(center2), torch.from_numpy(
+        radius2), torch.from_numpy(direction2)
 
-    distances = torch.cdist(pcd1_tensor, center_tensor, p=2)
-    min_indices = torch.argmin(distances, dim=1)
-    closest_center1 = center_tensor[min_indices, :]
-    closest_direction1 = direction1_tensor[min_indices, :]
-    closest_radius1 = radius_tensor[min_indices]
-    min_distances = distances[torch.arange(distances.shape[0]), min_indices]
-    direction_pred = pcd1_tensor - closest_center1
-    cosine_sim = F.cosine_similarity(direction_pred, closest_direction1, dim=1)
-    cosine_sim = torch.where(min_distances < 1.2 * closest_radius1, cosine_sim, 0)
-    loss = torch.clamp(-cosine_sim - 0.5, min=0)
-    interact_points_num = torch.sum(loss != 0, dim=0).float()
-    if interact_points_num == 0:
+    distances1 = torch.cdist(pcd1_tensor, center_tensor1, p=2)
+    distances2 = torch.cdist(pcd2_tensor, center_tensor2, p=2)
+    min_indices1 = torch.argmin(distances1, dim=1)
+    min_indices2 = torch.argmin(distances2, dim=1)
+    closest_center1 = center_tensor1[min_indices1, :]
+    closest_center2 = center_tensor2[min_indices2, :]
+    closest_direction1 = direction1_tensor[min_indices1, :]
+    closest_direction2 = direction2_tensor[min_indices2, :]
+    closest_radius1 = radius_tensor1[min_indices1]
+    closest_radius2 = radius_tensor2[min_indices2]
+    min_distances1 = distances1[torch.arange(distances1.shape[0]), min_indices1]
+    min_distances2 = distances2[torch.arange(distances2.shape[0]), min_indices2]
+    direction_pred1 = pcd1_tensor - closest_center1
+    direction_pred2 = pcd2_tensor - closest_center2
+    direction_pred1 /= torch.norm(direction_pred1, dim=1, keepdim=True)
+    direction_pred2 /= torch.norm(direction_pred2, dim=1, keepdim=True)
+    cosine_sim1 = -F.cosine_similarity(direction_pred1, closest_direction1, dim=1) + np.cos(np.deg2rad(120))
+    cosine_sim2 = -F.cosine_similarity(direction_pred2, closest_direction2, dim=1) + np.cos(np.deg2rad(120))
+    cosine_sim1 = torch.where(min_distances1 < 1.5 * closest_radius1, cosine_sim1, 0)
+    cosine_sim2 = torch.where(min_distances2 < 1.5 * closest_radius2, cosine_sim2, 0)
+    cosine_sim1 = torch.clamp(cosine_sim1, min=0)
+    cosine_sim2 = torch.clamp(cosine_sim2, min=0)
+    # cosine_sim1 = torch.where(cosine_sim1 > 0, cosine_sim1, 0)
+    # cosine_sim2 = torch.where(cosine_sim2 > 0, cosine_sim2, 0)
+    intersect_points_num1 = torch.sum(cosine_sim1 != 0, dim=0).int().item()
+    intersect_points_num2 = torch.sum(cosine_sim2 != 0, dim=0).int().item()
+    if intersect_points_num1 != 0 or intersect_points_num2 != 0:
+        global intersect_num_total
+        intersect_num_total += intersect_points_num1
+        intersect_num_total += intersect_points_num2
+        print("intersect_points_num1: {}".format(intersect_points_num1))
+        print("intersect_points_num2: {}".format(intersect_points_num2))
+
+    global data_len
+    data_len += 2
+    print("data_len: {}".format(data_len))
+
+    if not specs.get("visualize"):
         return
-    else:
-        print(interact_points_num)
 
-    interact_points = (loss != 0).numpy()
-    closest_center = closest_center1.numpy()
-    min_indices = min_indices.numpy()
-    direction_pred = direction_pred.numpy()
+    if intersect_points_num1 != 0:
+        interact_points1 = (cosine_sim1 != 0).numpy()
+        closest_center1 = closest_center1.numpy()
+        min_indices1 = min_indices1.numpy()
+        direction_pred1 = direction_pred1.numpy()
+        arrow_pred_list = []
+        arrow_prior_list = []
+        for i in range(interact_points1.shape[0]):
+            if interact_points1[i]:
+                print("direction pred: {}".format(direction_pred1[i]))
+                print("direction gt: {}".format(direction1[min_indices1[i]]))
+                print("angle: {}".format(get_angle_degree(direction_pred1[i], direction1[min_indices1[i]])))
+                pcd1.colors[i] = (0, 0, 1)
+                arrow_pred = geometry_utils.get_arrow(direction_pred1[i], closest_center1[i],
+                                                      np.linalg.norm(pcd1_np[i] - closest_center1[i]))
+                arrow_pred.paint_uniform_color((0, 0, 1))
+                arrow_pred_list.append(arrow_pred)
 
-    arrow_pred_list = []
-    arrow_prior_list = []
-    for i in range(interact_points.shape[0]):
-        if interact_points[i]:
-            pcd1.colors[i] = (0, 0, 1)
-            arrow_pred = geometry_utils.get_arrow(direction_pred[i], closest_center[i], np.linalg.norm(np.asarray(pcd1.points)[i] - closest_center[i]))
-            arrow_pred.paint_uniform_color((0, 0, 1))
-            arrow_pred_list.append(arrow_pred)
+                arrow_prior = geometry_utils.get_arrow(direction1[min_indices1[i]], center1[min_indices1[i]], 0.5)
+                arrow_prior.paint_uniform_color((1, 0, 0))
+                arrow_prior_list.append(arrow_prior)
 
-            arrow_prior = geometry_utils.get_arrow(direction1[min_indices[i]], center1[min_indices[i]], 0.5)
-            arrow_prior.paint_uniform_color((1, 0, 0))
-            arrow_prior_list.append(arrow_prior)
+        o3d.visualization.draw_geometries([pcd1] + arrow_pred_list + arrow_prior_list, mesh_show_back_face=True)
 
-    o3d.visualization.draw_geometries([pcd1] + arrow_pred_list + arrow_prior_list, mesh_show_back_face=True)
+    if intersect_points_num2 != 0:
+        interact_points2 = (cosine_sim2 != 0).numpy()
+        closest_center2 = closest_center2.numpy()
+        min_indices2 = min_indices2.numpy()
+        direction_pred2 = direction_pred2.numpy()
+        arrow_pred_list = []
+        arrow_prior_list = []
+        for i in range(interact_points2.shape[0]):
+            if interact_points2[i]:
+                print("direction pred: {}".format(direction_pred2[i]))
+                print("direction gt: {}".format(direction2[min_indices2[i]]))
+                print("angle: {}".format(get_angle_degree(direction_pred2[i], direction2[min_indices2[i]])))
+                pcd2.colors[i] = (0, 0, 1)
+                arrow_pred = geometry_utils.get_arrow(direction_pred2[i], closest_center2[i],
+                                                      np.linalg.norm(pcd2_np[i] - closest_center2[i]))
+                arrow_pred.paint_uniform_color((0, 0, 1))
+                arrow_pred_list.append(arrow_pred)
+
+                arrow_prior = geometry_utils.get_arrow(direction2[min_indices2[i]], center2[min_indices2[i]], 0.5)
+                arrow_prior.paint_uniform_color((1, 0, 0))
+                arrow_prior_list.append(arrow_prior)
+
+        o3d.visualization.draw_geometries([pcd2] + arrow_pred_list + arrow_prior_list, mesh_show_back_face=True)
 
 
 def visualize(specs, filename):
@@ -111,7 +170,8 @@ if __name__ == '__main__':
     config_filepath = 'configs/ibsa_statistics.json'
     specs = path_utils.read_config(config_filepath)
     filename_tree_dir = specs.get("path_options").get("filename_tree_dir")
-    filename_tree = path_utils.get_filename_tree(specs, specs.get("path_options").get("geometries_dir").get(filename_tree_dir))
+    filename_tree = path_utils.get_filename_tree(specs,
+                                                 specs.get("path_options").get("geometries_dir").get(filename_tree_dir))
 
     for category in filename_tree:
         for scene in filename_tree[category]:
@@ -121,3 +181,7 @@ if __name__ == '__main__':
                     visualize(specs, filename)
                 except Exception as e:
                     print(e)
+
+    print(intersect_num_total)
+    print(data_len)
+    print(intersect_num_total / (data_len * 2048))

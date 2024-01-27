@@ -80,12 +80,13 @@ def ibs_angle_loss(center, radius, direction, pcd):
     closest_direction = direction[torch.arange(B).unsqueeze(1), min_indices, :]
     closest_radius = radius[torch.arange(1).unsqueeze(1), min_indices]
     min_distances = torch.gather(distances, 2, min_indices.unsqueeze(-1)).squeeze(-1)
-
     direction_pred = pcd - closest_center
-    cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
-    cosine_sim = torch.where(min_distances < 1.2 * closest_radius, cosine_sim, 0)
+    direction_pred /= torch.norm(direction_pred, dim=2, keepdim=True)
 
-    loss = torch.clamp(-cosine_sim-0.3, min=0)  # (B, points_num)
+    cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
+    loss = -cosine_sim + torch.cos(torch.deg2rad(120))
+    loss = torch.where(min_distances < 1.5 * closest_radius, loss, 0)
+    loss = torch.clamp(loss, min=0)
     intersect_points_num = torch.sum(loss != 0, dim=1).squeeze(0).float()  # (B)
 
     return torch.mean(loss), torch.mean(intersect_points_num)

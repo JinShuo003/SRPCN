@@ -166,6 +166,7 @@ def get_coordinate(size=1):
 
 
 def get_arrow(direction=np.array([0, 0, 1]), location=np.array([0, 0, 0]), length=0.02):
+    epsilon = 1e-8
     arrow = o3d.geometry.TriangleMesh.create_arrow(cylinder_radius=0.001, cone_radius=0.003, cylinder_height=length/2,
                                                    cone_height=length/2)
 
@@ -175,7 +176,9 @@ def get_arrow(direction=np.array([0, 0, 1]), location=np.array([0, 0, 0]), lengt
     v_normalized = v / np.linalg.norm(v)
     w_normalized = w / np.linalg.norm(w)
     rotation_axis = np.cross(v_normalized, w_normalized)
-    rotation_axis_normalized = rotation_axis / np.linalg.norm(rotation_axis)
+    rotation_axis_norm = np.linalg.norm(rotation_axis)
+    rotation_axis_norm = rotation_axis_norm if rotation_axis_norm != 0 else epsilon
+    rotation_axis_normalized = rotation_axis / rotation_axis_norm
     dot_product = np.dot(v_normalized, w_normalized)
     rotation_angle = np.arccos(dot_product)
 

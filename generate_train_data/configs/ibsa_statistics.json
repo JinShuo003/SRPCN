@@ -13,5 +13,6 @@
       "handle_filename": "scene\\d+.\\d+"
     },
     "filename_tree_dir": "pcd_dir"
-  }
+  },
+  "visualize": true
 }

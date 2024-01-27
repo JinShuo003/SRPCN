@@ -78,7 +78,7 @@ def compute_intersection(pcd: torch.Tensor, center: torch.Tensor, radius: torch.
     direction_pred = pcd - closest_center
     direction_pred /= torch.norm(direction_pred, dim=1, keepdim=True)
     cosine_sim = -F.cosine_similarity(direction_pred, closest_direction, dim=1) + np.cos(np.deg2rad(angle_threshold))
-    cosine_sim = torch.where(min_distances < distance_ratio_threhold * closest_radius, cosine_sim, 0)
+    # cosine_sim = torch.where(min_distances < distance_ratio_threhold * closest_radius, cosine_sim, 0)
     cosine_sim = torch.clamp(cosine_sim, min=0)
     intersect_points_num = torch.sum(cosine_sim != 0, dim=0).int().item()
     if intersect_points_num != 0:
@@ -134,7 +134,7 @@ def handle_data_FP(geometries_path: dict, tag: str):
         radius), torch.from_numpy(direction)
 
     closest_center, closest_direction, closest_radius, direction_pred, cosine_sim, intersect_points_num = compute_intersection(
-        pcd_tensor, center_tensor, radius_tensor, direction_tensor, 120, 1.5
+        pcd_tensor, center_tensor, radius_tensor, direction_tensor, 150, 1.5
     )
     if intersect_points_num != 0:
         global intersect_num_category

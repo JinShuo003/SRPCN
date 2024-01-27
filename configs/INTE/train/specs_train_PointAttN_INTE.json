@@ -1,5 +1,5 @@
 {
-    "TAG": "PointAttN_INTE_ibsa1_begin0",
+    "TAG": "PointAttN_INTE_ibsa1_begin10",
     "Description" : "model: PointAttN, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -24,7 +24,7 @@
         }
     },
     "IBSALossOptions": {
-        "BeginEpoch": 0,
+        "BeginEpoch": 10,
         "InitRatio": 1,
         "StepSize": 10,
         "Gamma": 1
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "PointAttN_INTE_ibsa1_begin0",
+        "TAG": "PointAttN_INTE_ibsa1_begin10",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

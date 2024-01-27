@@ -33,13 +33,6 @@ def medial_axis_interaction_dist(center, radius, pcd):
 
 
 def ibs_angle_dist(center, radius, direction, pcd):
-    # distances = torch.cdist(center, pcd, p=2)
-    # min_indices = torch.argmin(distances, dim=2)
-    # closest_points = torch.gather(pcd, 1, min_indices.unsqueeze(-1).expand(-1, -1, 3))
-    # direction_pred = closest_points - center
-    # loss = 1 - F.cosine_similarity(direction_pred, direction, dim=2)
-    # return torch.mean(loss, 1)
-
     B, N, _ = center.shape
     distances = torch.cdist(pcd, center, p=2)
     min_indices = torch.argmin(distances, dim=2)
@@ -48,7 +41,7 @@ def ibs_angle_dist(center, radius, direction, pcd):
     closest_radius = radius[torch.arange(1).unsqueeze(1), min_indices]
     min_distances = torch.gather(distances, 2, min_indices.unsqueeze(-1)).squeeze(-1)
     direction_pred = pcd - closest_center
-    direction_pred /= torch.norm(direction_pred, dim=2, keepdim=True)
+    direction_pred = F.normalize(direction_pred, p=2, dim=2)
 
     cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
     loss = -cosine_sim + torch.cos(torch.deg2rad(120))

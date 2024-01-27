@@ -52,7 +52,7 @@ def test(network, test_dataloader, specs):
             fscore = f_score(pcd_pred, pcd_gt)
             mad_s = medial_axis_surface_dist(center, radius, pcd_pred)
             mad_i = medial_axis_interaction_dist(center, radius, pcd_pred)
-            ibs_a, interact_num = ibs_angle_dist(center, pcd_pred, direction)
+            ibs_a, interact_num = ibs_angle_dist(center, radius, direction, pcd_pred)
 
             update_loss_dict(dist_dict, filename_list, cd_l1.detach().cpu().numpy(), "cd_l1")
             update_loss_dict(dist_dict, filename_list, cd_l2.detach().cpu().numpy(), "cd_l2")

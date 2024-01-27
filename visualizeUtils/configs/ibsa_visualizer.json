@@ -1,18 +1,21 @@
 {
   "path_options": {
     "geometries_dir": {
-      "pcd_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE_norm",
-      "Medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE_norm"
+      "pcd_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
+      "IBS_mesh_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
+      "Medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE",
+      "Normalize_data_dir" : "D:\\dataset\\IBPCDC\\normalizePara\\INTE_norm"
     },
     "format_info": {
       "category_re": "scene\\d+",
       "scene_re": "scene\\d+.\\d+",
       "filename_re": "scene\\d+.\\d+",
-      "handle_category": "scene\\d",
+      "handle_category": "scene3",
       "handle_scene": "scene\\d+.\\d+",
       "handle_filename": "scene\\d+.\\d+"
     },
     "filename_tree_dir": "pcd_dir"
   },
+  "mode": "FN",
   "visualize": true
 }

@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.autograd import Function
 import torch.nn.functional as F
+import numpy as np
 
 import emd
 
@@ -81,10 +82,9 @@ def ibs_angle_loss(center, radius, direction, pcd):
     closest_radius = radius[torch.arange(1).unsqueeze(1), min_indices]
     min_distances = torch.gather(distances, 2, min_indices.unsqueeze(-1)).squeeze(-1)
     direction_pred = pcd - closest_center
-    direction_pred /= torch.norm(direction_pred, dim=2, keepdim=True)
-
+    direction_pred = F.normalize(direction_pred, p=2, dim=2)
     cosine_sim = F.cosine_similarity(direction_pred, closest_direction, dim=2)
-    loss = -cosine_sim + torch.cos(torch.deg2rad(120))
+    loss = -cosine_sim + np.cos(np.deg2rad(120))
     loss = torch.where(min_distances < 1.5 * closest_radius, loss, 0)
     loss = torch.clamp(loss, min=0)
     intersect_points_num = torch.sum(loss != 0, dim=1).squeeze(0).float()  # (B)

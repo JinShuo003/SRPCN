@@ -19,3 +19,5 @@ utils/emd/build
 
 *.log
 *.pth
+*.pyc
+*.egg

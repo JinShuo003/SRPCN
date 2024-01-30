@@ -1,6 +1,8 @@
 import sys
+import os
 
-sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
+sys.path.insert(0, os.path.abspath("."))
+
 import os.path
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 

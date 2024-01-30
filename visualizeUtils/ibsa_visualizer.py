@@ -26,11 +26,14 @@ def get_geometry_path(specs, data_name):
 
     geometries_path = dict()
 
+    mesh_dir = specs.get("path_options").get("geometries_dir").get("mesh_dir")
     pcd_dir = specs.get("path_options").get("geometries_dir").get("pcd_dir")
     IBS_mesh_dir = specs.get("path_options").get("geometries_dir").get("IBS_mesh_dir")
     Medial_axis_sphere_dir = specs.get("path_options").get("geometries_dir").get("Medial_axis_sphere_dir")
     Normalize_data_dir = specs.get("path_options").get("geometries_dir").get("Normalize_data_dir")
 
+    mesh1_filename = '{}_{}.obj'.format(scene, 0)
+    mesh2_filename = '{}_{}.obj'.format(scene, 1)
     pcd1_filename = '{}_{}.ply'.format(filename, 0)
     pcd2_filename = '{}_{}.ply'.format(filename, 1)
     IBS_mesh_filename = '{}.obj'.format(scene)
@@ -40,6 +43,8 @@ def get_geometry_path(specs, data_name):
     normalize_data1_filename = '{}_0.txt'.format(scene, 0)
     normalize_data2_filename = '{}_1.txt'.format(scene, 1)
 
+    geometries_path['mesh1'] = os.path.join(mesh_dir, category, mesh1_filename)
+    geometries_path['mesh2'] = os.path.join(mesh_dir, category, mesh2_filename)
     geometries_path['pcd1'] = os.path.join(pcd_dir, category, pcd1_filename)
     geometries_path['pcd2'] = os.path.join(pcd_dir, category, pcd2_filename)
     geometries_path['IBS_mesh'] = os.path.join(IBS_mesh_dir, category, IBS_mesh_filename)
@@ -78,8 +83,8 @@ def compute_intersection(pcd: torch.Tensor, center: torch.Tensor, radius: torch.
     direction_pred = pcd - closest_center
     direction_pred /= torch.norm(direction_pred, dim=1, keepdim=True)
     cosine_sim = -F.cosine_similarity(direction_pred, closest_direction, dim=1) + np.cos(np.deg2rad(angle_threshold))
-    # cosine_sim = torch.where(min_distances < distance_ratio_threhold * closest_radius, cosine_sim, 0)
     cosine_sim = torch.clamp(cosine_sim, min=0)
+    # cosine_sim = torch.where(min_distances < distance_ratio_threhold * closest_radius, cosine_sim, 0)
     intersect_points_num = torch.sum(cosine_sim != 0, dim=0).int().item()
     if intersect_points_num != 0:
         global intersect_num_category
@@ -89,7 +94,7 @@ def compute_intersection(pcd: torch.Tensor, center: torch.Tensor, radius: torch.
     return closest_center, closest_direction, closest_radius, direction_pred, cosine_sim, intersect_points_num
 
 
-def visualize(pcd, IBS, cosine_sim, closest_center, closest_direction, direction_pred, show_positive=True):
+def visualize(pcd, IBS, cosine_sim, closest_center, closest_direction, direction_pred, show_positive=True, geometry_list=[]):
     pcd_color = (1, 0, 0) if show_positive is True else (0, 0, 1)
     arrow_pred_color = (1, 0, 0) if show_positive is True else (0, 0, 1)
     arrow_prior_color = (0, 1, 0)
@@ -114,7 +119,7 @@ def visualize(pcd, IBS, cosine_sim, closest_center, closest_direction, direction
             arrow_prior.paint_uniform_color(arrow_prior_color)
             arrow_prior_list.append(arrow_prior)
 
-    o3d.visualization.draw_geometries([pcd, IBS], mesh_show_back_face=True)
+    o3d.visualization.draw_geometries([pcd, IBS] + geometry_list, mesh_show_back_face=True, mesh_show_wireframe=True)
     # o3d.visualization.draw_geometries([pcd, IBS] + arrow_pred_list + arrow_prior_list, mesh_show_back_face=True)
 
 
@@ -149,16 +154,23 @@ def handle_data_FP(geometries_path: dict, tag: str):
 
 
 def handle_data_FN(geometries_path: dict, tag: str):
+    mesh = geometry_utils.read_mesh(geometries_path["mesh{}".format(tag)])
+    mesh.paint_uniform_color((0, 0.5, 0))
+
     pcd = geometry_utils.read_point_cloud(geometries_path["pcd{}".format(tag)])
+    pcd_aabb = pcd.get_axis_aligned_bounding_box().scale(1.5, pcd.get_center())
     pcd.paint_uniform_color((0, 1, 0))
     pcd_np = np.asarray(pcd.points)
     pcd_tensor = torch.from_numpy(pcd_np)
 
     IBS_mesh = geometry_utils.read_mesh(geometries_path["IBS_mesh"])
     IBS_mesh.paint_uniform_color((0.7, 0.7, 0.3))
-    IBS_aabb = IBS_mesh.get_axis_aligned_bounding_box()
+    IBS_aabb = IBS_mesh.get_axis_aligned_bounding_box().scale(1.2, IBS_mesh.get_center())
 
-    test_points_np = random_utils.get_random_points_in_aabb(IBS_aabb, 2048*4)
+    test_points_IBS_np = random_utils.get_random_points_in_aabb(IBS_aabb, 2048*4)
+    test_points_pcd_np = random_utils.get_random_points_in_aabb(pcd_aabb, 2048*4)
+    test_points_np = np.concatenate((test_points_IBS_np, test_points_pcd_np), axis=0)
+    # test_points_np = test_points_IBS_np
     test_points_pcd = geometry_utils.get_pcd_from_np(test_points_np)
     test_points_pcd.paint_uniform_color((1, 0, 0))
     test_points_tensor = torch.from_numpy(test_points_np)
@@ -170,14 +182,15 @@ def handle_data_FN(geometries_path: dict, tag: str):
         radius), torch.from_numpy(direction)
 
     closest_center, closest_direction, closest_radius, direction_pred, cosine_sim, intersect_points_num = compute_intersection(
-        test_points_tensor, center_tensor, radius_tensor, direction_tensor, 90, 1000
+        test_points_tensor, center_tensor, radius_tensor, direction_tensor, 90, 2
     )
 
     global data_len_category
     data_len_category += 1
 
     if specs.get("visualize") and intersect_points_num != 2048:
-        visualize(test_points_pcd, IBS_mesh, cosine_sim, closest_center, closest_direction, direction_pred, False)
+        visualize(test_points_pcd, IBS_mesh, cosine_sim, closest_center, closest_direction, direction_pred,
+                  False, [mesh])
 
 
 def handle_data(specs, filename):

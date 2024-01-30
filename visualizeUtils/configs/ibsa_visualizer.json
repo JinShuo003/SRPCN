@@ -1,6 +1,7 @@
 {
   "path_options": {
     "geometries_dir": {
+      "mesh_dir": "D:\\dataset\\IBPCDC\\mesh",
       "pcd_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "IBS_mesh_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
       "Medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE",

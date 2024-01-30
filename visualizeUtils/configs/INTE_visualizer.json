@@ -26,6 +26,6 @@
     "metrics_layout_width": 200,
     "metrics_latout_height": 200
   },
-  "sub_window_3_name": "mads_new_madi_pretrain_epoch30",
+  "sub_window_3_name": "PointAttN_INTE_exp_lr1e4_gamma1",
   "sub_window_4_name": "PointAttN"
 }

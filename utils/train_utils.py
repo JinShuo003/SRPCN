@@ -73,11 +73,11 @@ def get_checkpoint(specs):
     return checkpoint
 
 
-def get_network(specs, model_class, checkpoint, *args):
+def get_network(specs, model_class, checkpoint, **kwargs):
     device = specs.get("Device")
     logger = LogFactory.get_logger(specs.get("LogOptions"))
 
-    network = model_class(*args).to(device)
+    network = model_class(**kwargs).to(device)
 
     if checkpoint:
         logger.info("load model parameter from epoch {}".format(checkpoint["epoch"]))

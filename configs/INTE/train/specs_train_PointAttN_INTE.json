@@ -1,5 +1,5 @@
 {
-    "TAG": "PointAttN_INTE_ibsa",
+    "TAG": "PointAttN_INTE_mads05_madi100_ibsa005",
     "Description" : "model: PointAttN, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -12,10 +12,10 @@
         "NumEpochs" : 400,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "PreTrain": true,
+        "PreTrain": false,
         "PreTrainModel": "model_paras/PointAttN_C3d/epoch_235.pth",
-        "ContinueTrain": false,
-        "ContinueFromEpoch": 0,
+        "ContinueTrain": true,
+        "ContinueFromEpoch": 59,
         "LearningRateOptions": {
             "LRScheduler": "StepLR",
             "InitLearningRate": 1e-5,
@@ -25,24 +25,24 @@
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 1,
+        "InitRatio": 0.05,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADSLossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 0.5,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 100,
         "StepSize": 10,
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "PointAttN_INTE_ibsa",
+        "TAG": "PointAttN_INTE_mads05_madi100_ibsa005",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

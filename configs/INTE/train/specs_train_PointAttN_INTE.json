@@ -12,10 +12,10 @@
         "NumEpochs" : 400,
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
-        "PreTrain": false,
+        "PreTrain": true,
         "PreTrainModel": "model_paras/PointAttN_C3d/epoch_235.pth",
-        "ContinueTrain": true,
-        "ContinueFromEpoch": 59,
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
         "LearningRateOptions": {
             "LRScheduler": "StepLR",
             "InitLearningRate": 1e-5,
@@ -48,6 +48,6 @@
         "GlobalLevel": "INFO",
         "FileLevel": "INFO",
         "StreamLevel": "INFO",
-        "Mode": "a"
+        "Mode": "w"
     }
 }

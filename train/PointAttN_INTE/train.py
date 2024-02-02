@@ -114,7 +114,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 
             pcd_gt = pcd_gt.to(device)
             center = center.to(device)
-           
             radius = radius.to(device)
             direction = direction.to(device)
 

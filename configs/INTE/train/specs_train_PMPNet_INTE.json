@@ -5,8 +5,7 @@
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs/INTE",
-    "LogDir" : "logs/train",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/related",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
@@ -14,13 +13,14 @@
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
         "PreTrain": true,
-        "PreTrainModel": "model_paras/PMPNet_C3d/epoch_52.pth",
+        "PreTrainModel": "model_paras/PMPNet_C3d/epoch_96.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
+            "LRScheduler": "StepLR",
             "InitLearningRate": 1e-4,
-            "StepSize": 50,
-            "Gamma": 0.5
+            "StepSize": 20,
+            "Gamma": 0.7
         }
     },
     "IBSALossOptions": {
@@ -40,5 +40,14 @@
         "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
+    },
+    "LogOptions": {
+        "TAG": "PMPNet_INTE",
+        "Type": "train",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
     }
 }

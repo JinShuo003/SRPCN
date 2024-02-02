@@ -1,5 +1,5 @@
 {
-    "TAG": "PCN_INTE",
+    "TAG": "PCN_INTE_mads05_madi100_ibsa005",
     "Description" : "model: PCN, dataset: INTE",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -19,31 +19,31 @@
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
             "LRScheduler": "StepLR",
-            "InitLearningRate": 1e-4,
+            "InitLearningRate": 1e-5,
             "StepSize": 20,
             "Gamma": 0.7
         }
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 0.05,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADSLossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 0.5,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 100,
         "StepSize": 10,
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "PCN_INTE",
+        "TAG": "PCN_INTE_mads05_madi100_ibsa005",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

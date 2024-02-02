@@ -13,7 +13,6 @@ import time
 import torch
 
 from models.TopNet import TopNet
-from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation
 from utils import path_utils
 from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss, ibs_angle_loss, emd_loss
 from utils.train_utils import *

@@ -1,12 +1,11 @@
 {
-    "TAG": "PCN_INTE",
-    "Description" : "encoder: PCN, decoder: PCN, dataset: INTE",
+    "TAG": "PCN_INTE_mads05_madi100_ibsa005",
+    "Description" : "model: PCN, dataset: INTE",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs/INTE",
-    "LogDir" : "logs/train",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/related",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
@@ -19,27 +18,37 @@
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
-            "InitLearningRate": 1e-5,
+            "LRScheduler": "StepLR",
+            "InitLearningRate": 1e-4,
             "StepSize": 20,
             "Gamma": 0.7
         }
     },
     "IBSALossOptions": {
-        "BeginEpoch": 10,
-        "InitRatio": 0,
+        "BeginEpoch": 0,
+        "InitRatio": 0.05,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADSLossOptions": {
-        "BeginEpoch": 20,
-        "InitRatio": 0,
+        "BeginEpoch": 0,
+        "InitRatio": 0.5,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
-        "BeginEpoch": 30,
-        "InitRatio": 0,
+        "BeginEpoch": 0,
+        "InitRatio": 100,
         "StepSize": 10,
         "Gamma": 1
+    },
+    "LogOptions": {
+        "TAG": "PCN_INTE_mads05_madi100_ibsa005",
+        "Type": "train",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
     }
 }

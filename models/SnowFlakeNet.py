@@ -222,7 +222,7 @@ class Decoder(nn.Module):
         return arr_pcd
 
 
-class SnowflakeNet(nn.Module):
+class SnowFlakeNet(nn.Module):
     def __init__(self):
 
         """
@@ -249,7 +249,7 @@ class SnowflakeNet(nn.Module):
         bounding = True
         up_factors = [1, 2, 2]
 
-        super(SnowflakeNet, self).__init__()
+        super(SnowFlakeNet, self).__init__()
         self.feat_extractor = FeatureExtractor(out_dim=dim_feat)
         self.decoder = Decoder(dim_feat=dim_feat, num_pc=num_pc, num_p0=num_p0,
                                radius=radius, bounding=bounding, up_factors=up_factors)

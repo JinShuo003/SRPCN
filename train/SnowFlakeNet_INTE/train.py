@@ -4,7 +4,7 @@ import os
 sys.path.insert(0, os.path.abspath("."))
 
 import os.path
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 from datetime import datetime, timedelta
 import json
@@ -13,7 +13,7 @@ import time
 import torch
 
 from models.pn2_utils import fps_subsample
-from models.SnowflakeNet import SnowflakeNet
+from models.SnowFlakeNet import SnowFlakeNet
 from utils import path_utils
 from utils.loss import cd_loss_L1, cd_loss_L2, cd_loss_L2_single, emd_loss, medial_axis_interaction_loss, medial_axis_surface_loss, ibs_angle_loss
 from utils.train_utils import *
@@ -196,7 +196,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/train/specs_train_SnowflakeNet_INTE.json",
+        default="configs/INTE/train/specs_train_SnowFlakeNet_INTE.json",
         required=False,
         help="The experiment config file."
     )

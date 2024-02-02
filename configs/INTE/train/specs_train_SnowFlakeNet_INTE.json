@@ -1,11 +1,11 @@
 {
-    "TAG": "SnowflakeNet_INTE_mads05_madi100_ibsa005",
+    "TAG": "SnowFlakeNet_INTE_mads05_madi100_ibsa005",
     "Description" : "model: SnowflakeNet, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs/INTE/ibsa",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/related",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
@@ -13,7 +13,7 @@
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
         "PreTrain": true,
-        "PreTrainModel": "model_paras/SnowflakeNet_C3d/epoch_142.pth",
+        "PreTrainModel": "model_paras/SnowFlakeNet_C3d/epoch_163.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SnowflakeNet_INTE_mads05_madi100_ibsa005",
+        "TAG": "SnowFlakeNet_INTE_mads05_madi100_ibsa005",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

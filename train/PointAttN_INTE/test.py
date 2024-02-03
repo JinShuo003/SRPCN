@@ -23,7 +23,6 @@ def test(network, test_dataloader, specs):
 
     dist_dict = {
         "cd_l1": {},
-        "cd_l2": {},
         "emd": {},
         "fscore": {},
         "mad_s": {},
@@ -47,7 +46,6 @@ def test(network, test_dataloader, specs):
             coarse, fine, pcd_pred = network(pcd_partial)
 
             cd_l1 = l1_cd(pcd_pred, pcd_gt)
-            cd_l2 = l2_cd(pcd_pred, pcd_gt)
             emd_ = emd(pcd_pred, pcd_gt)
             fscore = f_score(pcd_pred, pcd_gt)
             mad_s = medial_axis_surface_dist(center, radius, pcd_pred)
@@ -55,7 +53,6 @@ def test(network, test_dataloader, specs):
             ibs_a, interact_num = ibs_angle_dist(center, radius, direction, pcd_pred)
 
             update_loss_dict(dist_dict, filename_list, cd_l1.detach().cpu().numpy(), "cd_l1")
-            update_loss_dict(dist_dict, filename_list, cd_l2.detach().cpu().numpy(), "cd_l2")
             update_loss_dict(dist_dict, filename_list, emd_.detach().cpu().numpy(), "emd")
             update_loss_dict(dist_dict, filename_list, fscore.detach().cpu().numpy(), "fscore")
             update_loss_dict(dist_dict, filename_list, mad_s.detach().cpu().numpy(), "mad_s")
@@ -63,7 +60,7 @@ def test(network, test_dataloader, specs):
             update_loss_dict(dist_dict, filename_list, ibs_a.detach().cpu().numpy(), "ibs_a")
             update_loss_dict(dist_dict, filename_list, interact_num.detach().cpu().numpy(), "interact_num")
 
-            statistics_utils.append_csv_data(single_csv_data, filename_list, cd_l1, cd_l2, emd_, fscore, mad_s, mad_i, ibs_a, interact_num)
+            statistics_utils.append_csv_data(single_csv_data, filename_list, cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num)
 
             save_result(filename_list, pcd_pred, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))

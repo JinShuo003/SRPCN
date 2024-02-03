@@ -4,7 +4,7 @@ import os
 sys.path.insert(0, os.path.abspath("."))
 
 import os.path
-os.environ['CUDA_VISIBLE_DEVICES'] = "0"
+os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 
 from datetime import datetime, timedelta
 import json
@@ -163,7 +163,7 @@ def main_function(specs):
 
     train_loader, test_loader = get_dataloader(data_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
-    network = get_network(specs, SnowflakeNet, checkpoint)
+    network = get_network(specs, SnowFlakeNet, checkpoint)
     optimizer = get_optimizer(specs, network, checkpoint)
     lr_scheduler_class, kwargs = get_lr_scheduler_info(specs)
     lr_scheduler = get_lr_scheduler(specs, optimizer, checkpoint, lr_scheduler_class, **kwargs)

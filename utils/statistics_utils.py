@@ -37,7 +37,6 @@ C3d_name_dict = {
 
 INTE_indicators = [
     "cd_l1",
-    "cd_l2",
     "emd",
     "fscore",
     "mad_s",
@@ -55,7 +54,6 @@ C3d_indicators = [
 
 indicator_scale = {
     "cd_l1": 1000,
-    "cd_l2": 10000,
     "emd": 10000,
     "fscore": 1,
     "mad_s": 1000,

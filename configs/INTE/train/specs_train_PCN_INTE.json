@@ -5,7 +5,7 @@
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs/INTE/related",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/comparison",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
@@ -14,7 +14,7 @@
         "DataLoaderThreads" : 8,
         "CoarseLoss": "cd",
         "PreTrain": true,
-        "PreTrainModel": "model_paras/PCN_C3d/epoch_106.pth",
+        "PreTrainModel": "pretrain_models/PCN_C3d/epoch_106.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {

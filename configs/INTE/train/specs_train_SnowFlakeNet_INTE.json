@@ -1,11 +1,11 @@
 {
-    "TAG": "SnowFlakeNet_INTE_mads05_madi100_lr1e3",
+    "TAG": "SnowFlakeNet_INTE_lr1e3",
     "Description" : "model: SnowflakeNet, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
     "ParaSaveDir" : "model_paras",
-    "TensorboardLogDir" : "tensorboard_logs/INTE/related",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/comparison",
     "Device" : 0,
     "PcdPointNum": 2048,
     "TrainOptions": {
@@ -13,7 +13,7 @@
         "BatchSize" : 64,
         "DataLoaderThreads" : 8,
         "PreTrain": true,
-        "PreTrainModel": "model_paras/SnowFlakeNet_C3d/epoch_163.pth",
+        "PreTrainModel": "pretrain_models/SnowFlakeNet_C3d/epoch_163.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
@@ -31,18 +31,18 @@
     },
     "MADSLossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0.5,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 100,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SnowFlakeNet_INTE_mads05_madi100_lr1e3",
+        "TAG": "SnowFlakeNet_INTE_lr1e3",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

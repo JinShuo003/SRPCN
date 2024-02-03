@@ -4,7 +4,7 @@ import os
 sys.path.insert(0, os.path.abspath("."))
 
 import os.path
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 from datetime import datetime, timedelta
 import json

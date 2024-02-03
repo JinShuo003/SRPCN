@@ -1,5 +1,5 @@
 {
-    "TAG": "AtlasNet_INTE_mads05_madi100_ibsa005_lr1e2",
+    "TAG": "AtlasNet_INTE_lr1e3",
     "Description" : "model: AtlasNet, dataset: INTE",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -18,7 +18,7 @@
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
             "LRScheduler": "StepLR",
-            "InitLearningRate": 1e-2,
+            "InitLearningRate": 1e-3,
             "StepSize": 20,
             "Gamma": 0.7
         }
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "AtlasNet_INTE_mads05_madi100_lr1e2",
+        "TAG": "AtlasNet_INTE_lr1e3",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

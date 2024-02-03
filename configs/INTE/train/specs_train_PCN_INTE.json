@@ -1,5 +1,5 @@
 {
-    "TAG": "PCN_INTE_mads05_madi100_lr1e4",
+    "TAG": "PCN_INTE_lr1e4",
     "Description" : "model: PCN, dataset: INTE",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -32,18 +32,18 @@
     },
     "MADSLossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0.5,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 100,
+        "InitRatio": 0,
         "StepSize": 10,
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "PCN_INTE_mads05_madi100_lr1e4",
+        "TAG": "PCN_INTE_lr1e4",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

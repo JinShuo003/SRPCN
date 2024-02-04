@@ -1,9 +1,9 @@
 {
-    "TAG": "PointAttN_INTE_exp_lr1e4_gamma1_epoch136",
+    "TAG": "PointAttN_INTE_mads05_madi100_lr1e4",
     "DataSource" : "data",
     "Dataset": "INTE",
     "TestSplit" : "dataset/test_INTE/test.json",
-    "ModelPath": "model_paras/PointAttN_INTE_exp_lr1e4_gamma1/epoch_136.pth",
+    "ModelPath": "model_paras/PointAttN_INTE_mads05_madi100_lr1e4/epoch_52.pth",
     "ScenePatten": "scene\\d+.\\d+",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
@@ -14,7 +14,7 @@
     "DataLoaderThreads" : 8,
 
     "LogOptions": {
-        "TAG": "PointAttN_INTE_exp_lr1e4_gamma1_epoch136",
+        "TAG": "PointAttN_INTE_mads05_madi100_lr1e4",
         "Type": "test",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

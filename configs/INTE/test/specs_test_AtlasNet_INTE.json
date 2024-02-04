@@ -1,9 +1,9 @@
 {
-    "TAG": "AtlasNet_INTE_mads05_madi100_ibsa005_lr1e2",
+    "TAG": "AtlasNet_INTE_mads05_madi100_ibsa005_lr1e3",
     "DataSource" : "data",
     "Dataset": "INTE",
     "TestSplit" : "dataset/test_INTE/test.json",
-    "ModelPath": "model_paras/AtlasNet_INTE_mads05_madi100_ibsa005_lr1e2/epoch_62.pth",
+    "ModelPath": "model_paras/AtlasNet_INTE_mads05_madi100_ibsa005_lr1e3/epoch_333.pth",
     "ScenePatten": "scene\\d+.\\d+",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
@@ -14,7 +14,7 @@
     "DataLoaderThreads" : 8,
 
     "LogOptions": {
-        "TAG": "AtlasNet_INTE_mads05_madi100_ibsa005_lr1e2",
+        "TAG": "AtlasNet_INTE_mads05_madi100_ibsa005_lr1e3",
         "Type": "test",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

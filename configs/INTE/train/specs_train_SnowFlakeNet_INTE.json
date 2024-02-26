@@ -1,5 +1,5 @@
 {
-    "TAG": "SnowFlakeNet_INTE_lr1e3",
+    "TAG": "SnowFlakeNet_INTE_mads05_madi100_ibsa005_lr1e3",
     "Description" : "model: SnowflakeNet, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -25,24 +25,24 @@
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 0.05,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADSLossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 0.5,
         "StepSize": 10,
         "Gamma": 1
     },
     "MADILossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0,
+        "InitRatio": 100,
         "StepSize": 10,
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SnowFlakeNet_INTE_lr1e3",
+        "TAG": "SnowFlakeNet_INTE_mads05_madi100_ibsa005_lr1e3",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

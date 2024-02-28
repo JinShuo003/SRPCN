@@ -101,9 +101,9 @@ def get_pcd_normalize_para(pcd):
     return centroid, scale
 
 
-def geometry_transform(geometry, centroid, scale):
+def normalize_geometry(geometry, centroid, scale):
     """
-    按照归一化参数将open3d.Geometry执行平移和缩放变换
+    将open3d.Geometry归一化到单位球内
     Args:
         geometry: open3d.Geometry
         centroid: Geometry的轴对齐包围盒中心点
@@ -115,6 +115,52 @@ def geometry_transform(geometry, centroid, scale):
     geometry_copy.translate(-centroid)
     geometry_copy.scale(1 / scale, np.array([0, 0, 0]))
     return geometry_copy
+
+
+def denormalize_geometry(geometry, centroid, scale):
+    """
+    将open3d.Geometry变换到原有坐标系
+    Args:
+        geometry: open3d.Geometry
+        centroid: Geometry的轴对齐包围盒中心点
+        scale: Geometry的尺度
+    Returns:
+        反归一化后的open3d.geometry，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
+    """
+    geometry_copy = copy.deepcopy(geometry)
+    geometry_copy.scale(scale, np.array([0, 0, 0]))
+    geometry_copy.translate(centroid)
+    return geometry_copy
+
+
+def denormalize_geometry_tensor(geometry, centroid, scale):
+    """
+    将torch.Tensor变换到原有坐标系
+    Args:
+        geometry: torch.Tensor, (n, 3)
+        centroid: Geometry的轴对齐包围盒中心点
+        scale: Geometry的尺度
+    Returns:
+        反归一化后的torch.Tensor，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
+    """
+    geometry *= scale
+    geometry += centroid
+    return geometry
+
+
+def denormalize_geometry_tensor_batch(geometry, centroid, scale):
+    """
+    将一个batch的torch.Tensor变换到原有坐标系
+    Args:
+        geometry: torch.Tensor, (B, n, 3)
+        centroid: Geometry的轴对齐包围盒中心点, (B, n)
+        scale: Geometry的尺度, (B, 3)
+    Returns:
+        反归一化后的torch.Tensor，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
+    """
+    geometry *= scale.unsqueeze(2)
+    geometry += centroid.unsqueeze(1)
+    return geometry
 
 
 def sphere_transform(center, radius, centroid, scale):

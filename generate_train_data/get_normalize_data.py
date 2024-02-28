@@ -144,9 +144,9 @@ class TrainDataGenerator:
 
         translate1, scale1 = geometry_utils.get_pcd_normalize_para(pcd1_complete)
         scale1 /= normalize_scale
-        pcd1_complete_normalized = geometry_utils.geometry_transform(pcd1_complete, translate1, scale1)
-        pcd1_partial_normalized = geometry_utils.geometry_transform(pcd1_partial, translate1, scale1)
-        IBS1_normalized = geometry_utils.geometry_transform(IBS, translate1, scale1)
+        pcd1_complete_normalized = geometry_utils.normalize_geometry(pcd1_complete, translate1, scale1)
+        pcd1_partial_normalized = geometry_utils.normalize_geometry(pcd1_partial, translate1, scale1)
+        IBS1_normalized = geometry_utils.normalize_geometry(IBS, translate1, scale1)
         sphere_center1, sphere_radius1 = geometry_utils.sphere_transform(sphere_center, sphere_radius, translate1, scale1)
         self.save_pcd(pcd1_complete_normalized, self.get_pcd_complete_save_path(scene, '0'))
         self.save_pcd(pcd1_partial_normalized, self.get_pcd_partial_save_path(scene, '0'))
@@ -156,9 +156,9 @@ class TrainDataGenerator:
 
         translate2, scale2 = geometry_utils.get_pcd_normalize_para(pcd2_complete)
         scale2 /= normalize_scale
-        pcd2_complete_normalized = geometry_utils.geometry_transform(pcd2_complete, translate2, scale2)
-        pcd2_partial_normalized = geometry_utils.geometry_transform(pcd2_partial, translate2, scale2)
-        IBS2_normalized = geometry_utils.geometry_transform(IBS, translate2, scale2)
+        pcd2_complete_normalized = geometry_utils.normalize_geometry(pcd2_complete, translate2, scale2)
+        pcd2_partial_normalized = geometry_utils.normalize_geometry(pcd2_partial, translate2, scale2)
+        IBS2_normalized = geometry_utils.normalize_geometry(IBS, translate2, scale2)
         sphere_center2, sphere_radius2 = geometry_utils.sphere_transform(sphere_center, sphere_radius, translate2, scale2)
         self.save_pcd(pcd2_complete_normalized, self.get_pcd_complete_save_path(scene, '1'))
         self.save_pcd(pcd2_partial_normalized, self.get_pcd_partial_save_path(scene, '1'))

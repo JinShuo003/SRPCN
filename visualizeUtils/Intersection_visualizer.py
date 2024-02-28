@@ -65,11 +65,11 @@ def visualize_intersection(geometries_path: dict, tag: str):
     pcd_pred = geometry_utils.read_point_cloud(geometries_path["pcd{}_pred".format(tag)])
     pcd_pred.paint_uniform_color((0.7, 0.3, 0.3))
     translate, scale = get_normalize_para(geometries_path["normalize_data{}".format(tag)])
-    pcd_pred = geometry_utils.geometry_transform(pcd_pred, np.array(translate), scale)
+    pcd_pred = geometry_utils.normalize_geometry(pcd_pred, np.array(translate), scale)
 
     IBS_mesh = geometry_utils.read_mesh(geometries_path["IBS_mesh"])
     IBS_mesh.paint_uniform_color((0.3, 0.7, 0.3))
-    IBS_mesh = geometry_utils.geometry_transform(IBS_mesh, np.array(translate), scale)
+    IBS_mesh = geometry_utils.normalize_geometry(IBS_mesh, np.array(translate), scale)
 
     center, radius, direction = geometry_utils.read_medial_axis_sphere_single(geometries_path["Medial_axis_sphere{}".format(tag)])
     center_tensor, radius_tensor, direction_tensor = torch.from_numpy(center).unsqueeze(0), torch.from_numpy(radius).unsqueeze(0), torch.from_numpy(direction).unsqueeze(0)

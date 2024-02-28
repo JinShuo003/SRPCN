@@ -113,8 +113,8 @@ class TrainDataGenerator:
         print(centroid)
         print(scale)
 
-        mesh1 = geometry_utils.geometry_transform(mesh1, centroid, scale)
-        mesh2 = geometry_utils.geometry_transform(mesh2, centroid, scale)
+        mesh1 = geometry_utils.normalize_geometry(mesh1, centroid, scale)
+        mesh2 = geometry_utils.normalize_geometry(mesh2, centroid, scale)
         mesh1.scale(normalize_radius, np.array([0, 0, 0]))
         mesh2.scale(normalize_radius, np.array([0, 0, 0]))
 

@@ -10,6 +10,20 @@ from utils.log_utils import LogFactory
 from utils.geometry_utils import get_pcd_from_np
 
 
+def get_network(specs, model_class, checkpoint, **kwargs):
+    assert checkpoint is not None
+
+    device = specs.get("Device")
+    logger = LogFactory.get_logger(specs.get("LogOptions"))
+
+    network = model_class(**kwargs).to(device)
+
+    logger.info("load model parameter from epoch {}".format(checkpoint["epoch"]))
+    network.load_state_dict(checkpoint["model"])
+
+    return network
+
+
 def get_dataloader(dataset_class, specs: dict):
     data_source = specs.get("DataSource")
     test_split_file = specs.get("TestSplit")

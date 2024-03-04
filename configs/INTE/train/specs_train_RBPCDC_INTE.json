@@ -1,0 +1,53 @@
+{
+    "TAG": "RBPCDC_INTE",
+    "Description" : "model: RBPCDC, dataset: INTE",
+    "DataSource" : "data",
+    "TrainSplit" : "dataset/train_INTE/train_RBPCDC.json",
+    "TestSplit" : "dataset/test_INTE/test_RBPCDC.json",
+    "ParaSaveDir" : "model_paras",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/comparison",
+    "Device" : 0,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8,
+        "PreTrain": false,
+        "PreTrainModel": "",
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "LRScheduler": "StepLR",
+            "InitLearningRate": 1e-3,
+            "StepSize": 20,
+            "Gamma": 1
+        }
+    },
+    "IBSALossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADSLossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADILossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "LogOptions": {
+        "TAG": "RBPCDC_INTE",
+        "Type": "train",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
+    }
+}

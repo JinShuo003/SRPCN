@@ -41,23 +41,21 @@ def get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sph
     pcd1_gt, pcd2_gt = pcd_gt
 
     pcd1_normalize_para, pcd2_normalize_para = pcd_normalize_para
-    pcd1_centroid, pcd1_translate = pcd1_normalize_para
-    pcd2_centroid, pcd2_translate = pcd2_normalize_para
+    pcd1_centroid, pcd1_scale = pcd1_normalize_para
+    pcd2_centroid, pcd2_scale = pcd2_normalize_para
 
-    medial_axis_sphere1, medial_axis_sphere2 = medial_axis_sphere
-    center1, radius1, direction1 = medial_axis_sphere1
-    center2, radius2, direction2 = medial_axis_sphere2
+    center, radius, direction1, direction2 = medial_axis_sphere
 
-    pcd1_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_gt, pcd1_centroid, pcd1_translate)
+    pcd1_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_gt, pcd1_centroid, pcd1_scale)
     pcd1_pred_path1_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_pred_path1, pcd1_centroid,
-                                                                              pcd1_translate)
+                                                                              pcd1_scale)
     pcd1_pred_path2_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_pred_path2, pcd1_centroid,
-                                                                              pcd1_translate)
-    pcd2_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_gt, pcd1_centroid, pcd1_translate)
+                                                                              pcd1_scale)
+    pcd2_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_gt, pcd1_centroid, pcd1_scale)
     pcd2_pred_path1_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_pred_path1, pcd2_centroid,
-                                                                              pcd2_translate)
+                                                                              pcd2_scale)
     pcd2_pred_path2_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_pred_path2, pcd2_centroid,
-                                                                              pcd2_translate)
+                                                                              pcd2_scale)
 
     loss_dense_pcd1_path1 = cd_loss_L1(pcd1_pred_path1_origin, pcd1_gt_origin)
     loss_dense_pcd1_path2 = cd_loss_L1(pcd1_pred_path2_origin, pcd1_gt_origin)
@@ -65,27 +63,27 @@ def get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sph
     loss_dense_pcd2_path2 = cd_loss_L1(pcd2_pred_path2_origin, pcd2_gt_origin)
     loss_dense = (loss_dense_pcd1_path1 + loss_dense_pcd1_path2 + loss_dense_pcd2_path1 + loss_dense_pcd2_path2) / 4
 
-    loss_surface_pcd1_path1 = medial_axis_surface_loss(center1, radius1, pcd1_pred_path1_origin)
-    loss_surface_pcd1_path2 = medial_axis_surface_loss(center1, radius1, pcd1_pred_path1_origin)
-    loss_surface_pcd2_path1 = medial_axis_surface_loss(center2, radius2, pcd2_pred_path1_origin)
-    loss_surface_pcd2_path2 = medial_axis_surface_loss(center2, radius2, pcd2_pred_path1_origin)
+    loss_surface_pcd1_path1 = medial_axis_surface_loss(center, radius, pcd1_pred_path1_origin)
+    loss_surface_pcd1_path2 = medial_axis_surface_loss(center, radius, pcd1_pred_path2_origin)
+    loss_surface_pcd2_path1 = medial_axis_surface_loss(center, radius, pcd2_pred_path1_origin)
+    loss_surface_pcd2_path2 = medial_axis_surface_loss(center, radius, pcd2_pred_path2_origin)
     loss_medial_axis_surface = (
                                            loss_surface_pcd1_path1 + loss_surface_pcd1_path2 + loss_surface_pcd2_path1 + loss_surface_pcd2_path2) / 4
 
-    loss_interaction_pcd1_path1 = medial_axis_interaction_loss(center1, radius1, pcd1_pred_path1_origin)
-    loss_interaction_pcd1_path2 = medial_axis_interaction_loss(center1, radius1, pcd1_pred_path1_origin)
-    loss_interaction_pcd2_path1 = medial_axis_interaction_loss(center2, radius2, pcd2_pred_path1_origin)
-    loss_interaction_pcd2_path2 = medial_axis_interaction_loss(center2, radius2, pcd2_pred_path1_origin)
+    loss_interaction_pcd1_path1 = medial_axis_interaction_loss(center, radius, pcd1_pred_path1_origin)
+    loss_interaction_pcd1_path2 = medial_axis_interaction_loss(center, radius, pcd1_pred_path2_origin)
+    loss_interaction_pcd2_path1 = medial_axis_interaction_loss(center, radius, pcd2_pred_path1_origin)
+    loss_interaction_pcd2_path2 = medial_axis_interaction_loss(center, radius, pcd2_pred_path2_origin)
     loss_medial_axis_interaction = (
                                                loss_interaction_pcd1_path1 + loss_interaction_pcd1_path2 + loss_interaction_pcd2_path1 + loss_interaction_pcd2_path2) / 4
 
-    loss_ibs_angle_pcd1_path1, intersect_num_pcd1_path1 = ibs_angle_loss(center1, radius1, direction1,
+    loss_ibs_angle_pcd1_path1, intersect_num_pcd1_path1 = ibs_angle_loss(center, radius, direction1,
                                                                          pcd1_pred_path1_origin)
-    loss_ibs_angle_pcd1_path2, intersect_num_pcd1_path2 = ibs_angle_loss(center1, radius1, direction1,
+    loss_ibs_angle_pcd1_path2, intersect_num_pcd1_path2 = ibs_angle_loss(center, radius, direction1,
                                                                          pcd1_pred_path1_origin)
-    loss_ibs_angle_pcd2_path1, intersect_num_pcd2_path1 = ibs_angle_loss(center2, radius2, direction2,
+    loss_ibs_angle_pcd2_path1, intersect_num_pcd2_path1 = ibs_angle_loss(center, radius, direction2,
                                                                          pcd2_pred_path1_origin)
-    loss_ibs_angle_pcd2_path2, intersect_num_pcd2_path2 = ibs_angle_loss(center2, radius2, direction2,
+    loss_ibs_angle_pcd2_path2, intersect_num_pcd2_path2 = ibs_angle_loss(center, radius, direction2,
                                                                          pcd2_pred_path1_origin)
     loss_ibs_angle = (loss_ibs_angle_pcd1_path1 + loss_ibs_angle_pcd1_path2 + loss_ibs_angle_pcd2_path1 + loss_ibs_angle_pcd2_path2) / 4
     intersect_num = (intersect_num_pcd1_path1 + intersect_num_pcd1_path2 + intersect_num_pcd2_path1 + intersect_num_pcd2_path2) / 4
@@ -104,7 +102,7 @@ def train(network, train_dataloader, optimizer, epoch, specs, tensorboard_writer
 
     logger.info("")
     logger.info('epoch: {}, path1 learning rate: {}'.format(epoch, optimizer_path1.param_groups[0]["lr"]))
-    logger.info('epoch: {}, path 2learning rate: {}'.format(epoch, optimizer_path2.param_groups[0]["lr"]))
+    logger.info('epoch: {}, path2 learning rate: {}'.format(epoch, optimizer_path2.param_groups[0]["lr"]))
 
     train_total_loss_dense = 0
     train_total_loss_medial_axis_surface = 0
@@ -123,8 +121,9 @@ def train(network, train_dataloader, optimizer, epoch, specs, tensorboard_writer
         pcd1_gt = pcd1_gt.to(device)
         pcd2_gt = pcd2_gt.to(device)
 
-        pcd1_pred_path1, pcd2_pred_path1 = network_path1(torch.concatenate((pcd1_partial, pcd2_partial), dim=2))
-        pcd2_pred_path2, pcd1_pred_path2 = network_path2(torch.concatenate((pcd1_partial, pcd2_partial), dim=2))
+        pcd_input = torch.concatenate((pcd1_partial, pcd2_partial), dim=2)
+        pcd1_pred_path1, pcd2_pred_path1 = network_path1(pcd_input)
+        pcd2_pred_path2, pcd1_pred_path2 = network_path2(pcd_input)
 
         loss_consistency = emd_loss(pcd1_pred_path1, pcd1_pred_path2) + emd_loss(pcd2_pred_path1, pcd2_pred_path2)
         loss_pcd1_path1 = emd_loss(pcd1_pred_path1, pcd1_gt)
@@ -141,6 +140,12 @@ def train(network, train_dataloader, optimizer, epoch, specs, tensorboard_writer
 
         pcd_pred = ((pcd1_pred_path1, pcd2_pred_path1), (pcd1_pred_path2, pcd2_pred_path2))
         pcd_gt = (pcd1_gt, pcd2_gt)
+        pcd1_normalize_para, pcd2_normalize_para = pcd_normalize_para
+        pcd1_centroid, pcd1_scale = pcd1_normalize_para
+        pcd2_centroid, pcd2_scale = pcd2_normalize_para
+        pcd_normalize_para = ((pcd1_centroid.to(device), pcd1_scale.to(device)), (pcd2_centroid.to(device), pcd2_scale.to(device)))
+        center, radius, direction1, direction2 = medial_axis_sphere
+        medial_axis_sphere = (center.to(device), radius.to(device), direction1.to(device), direction2.to(device))
         loss_dense, loss_medial_axis_surface, loss_medial_axis_interaction, loss_ibs_angle, intersect_num = get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sphere)
 
         train_total_loss_dense += loss_dense.item()
@@ -185,6 +190,12 @@ def test(network, test_dataloader, epoch, specs, tensorboard_writer, best_cd, be
 
             pcd_pred = ((pcd1_pred_path1, pcd2_pred_path1), (pcd1_pred_path2, pcd2_pred_path2))
             pcd_gt = (pcd1_gt, pcd2_gt)
+            pcd1_normalize_para, pcd2_normalize_para = pcd_normalize_para
+            pcd1_centroid, pcd1_scale = pcd1_normalize_para
+            pcd2_centroid, pcd2_scale = pcd2_normalize_para
+            pcd_normalize_para = ((pcd1_centroid.to(device), pcd1_scale.to(device)), (pcd2_centroid.to(device), pcd2_scale.to(device)))
+            center, radius, direction1, direction2 = medial_axis_sphere
+            medial_axis_sphere = (center.to(device), radius.to(device), direction1.to(device), direction2.to(device))
             loss_dense, loss_medial_axis_surface, loss_medial_axis_interaction, loss_ibs_angle, intersect_num = get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sphere)
 
             test_total_dense += loss_dense.item()
@@ -257,7 +268,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/train/specs_train_TopNet_INTE.json",
+        default="configs/INTE/train/specs_train_RBPCDC_INTE.json",
         required=False,
         help="The experiment config file."
     )

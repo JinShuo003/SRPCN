@@ -16,8 +16,7 @@ def get_instance_filenames(data_source, split):
     pcd2_gt_filenames = []
     pcd1_normalize_para_filenames = []
     pcd2_normalize_para_filenames = []
-    medial_axis_sphere1_filenames = []
-    medial_axis_sphere2_filenames = []
+    medial_axis_sphere_filenames = []
 
     for dataset in split:
         for class_name in split[dataset]:
@@ -29,10 +28,9 @@ def get_instance_filenames(data_source, split):
                 pcd2_gt_filename = os.path.join(dataset, class_name, "{}_{}.ply".format(scene_name, 1))
                 pcd1_normalize_para_filename = os.path.join(dataset, class_name, "{}_{}.txt".format(scene_name, 0))
                 pcd2_normalize_para_filename = os.path.join(dataset, class_name, "{}_{}.txt".format(scene_name, 1))
-                medial_axis_sphere1_filename = os.path.join(dataset, class_name, "{}_{}.npz".format(scene_name, 0))
-                medial_axis_sphere2_filename = os.path.join(dataset, class_name, "{}_{}.npz".format(scene_name, 1))
+                medial_axis_sphere_filename = os.path.join(dataset, class_name, "{}.npz".format(scene_name))
 
-                if not os.path.isfile(os.path.join(data_source, ws.medial_axis_sphere_subdir, pcd1_partial_filename)):
+                if not os.path.isfile(os.path.join(data_source, ws.medial_axis_sphere_subdir, medial_axis_sphere_filename)):
                     logging.warning("Requested non-existent file '{}'".format(pcd1_partial_filename))
 
                 pcd1_partial_filenames.append(pcd1_partial_filename)
@@ -41,13 +39,11 @@ def get_instance_filenames(data_source, split):
                 pcd2_gt_filenames.append(pcd2_gt_filename)
                 pcd1_normalize_para_filenames.append(pcd1_normalize_para_filename)
                 pcd2_normalize_para_filenames.append(pcd2_normalize_para_filename)
-                medial_axis_sphere1_filenames.append(medial_axis_sphere1_filename)
-                medial_axis_sphere2_filenames.append(medial_axis_sphere2_filename)
+                medial_axis_sphere_filenames.append(medial_axis_sphere_filename)
 
     pcd_partial_filenames = (pcd1_partial_filenames, pcd2_partial_filenames)
     pcd_gt_filenames = (pcd1_gt_filenames, pcd2_gt_filenames)
     pcd_normalize_para_filenames = (pcd1_normalize_para_filenames, pcd2_normalize_para_filenames)
-    medial_axis_sphere_filenames = (medial_axis_sphere1_filenames, medial_axis_sphere2_filenames)
 
     return pcd_partial_filenames, pcd_gt_filenames, pcd_normalize_para_filenames, medial_axis_sphere_filenames
 
@@ -64,18 +60,20 @@ def get_normalize_para(file_path):
         data = list(map(float, content.split(",")))
         translate = data[0:3]
         scale = data[-1]
-    return torch.Tensor(translate, dtype=torch.float32), torch.Tensor(scale, dtype=torch.float32)
+    return torch.tensor(translate, dtype=torch.float32), torch.tensor(scale, dtype=torch.float32)
 
 
 def get_medial_axis_sphere_data(medial_axis_sphere_filename):
     data = np.load(medial_axis_sphere_filename)
     center = data["center"]
     radius = data["radius"]
-    direction = data["direction"]
+    direction1 = data["direction1"]
+    direction2 = data["direction2"]
     center = torch.from_numpy(np.asarray(center).astype(np.float32))
     radius = torch.from_numpy(np.asarray(radius).astype(np.float32))
-    direction = torch.from_numpy(np.asarray(direction).astype(np.float32))
-    return center, radius, direction
+    direction1 = torch.from_numpy(np.asarray(direction1).astype(np.float32))
+    direction2 = torch.from_numpy(np.asarray(direction1).astype(np.float32))
+    return center, radius, direction1, direction2
 
 
 class RBPCDCDataset(torch.utils.data.Dataset):
@@ -85,7 +83,7 @@ class RBPCDCDataset(torch.utils.data.Dataset):
         self.pcd1_partial_filenames, self.pcd2_partial_filenames = pcd_partial_filenames
         self.pcd1_gt_filenames, self.pcd2_gt_filenames = pcd_gt_filenames
         self.pcd1_normalize_para_filenames, self.pcd2_normalize_para_filenames = pcd_normalize_para_filenames
-        self.medial_axis_sphere1_filenames, self.medial_axis_sphere2_filenames = medial_axis_sphere_filenames
+        self.medial_axis_sphere_filenames = medial_axis_sphere_filenames
 
     def __len__(self):
         return len(self.pcd1_partial_filenames)
@@ -95,14 +93,13 @@ class RBPCDCDataset(torch.utils.data.Dataset):
         pcd2_partial_filename = os.path.join(self.data_source, ws.pcd_partial_subdir, self.pcd1_partial_filenames[idx])
         pcd1_gt_filename = os.path.join(self.data_source, ws.pcd_complete_subdir, self.pcd1_gt_filenames[idx])
         pcd2_gt_filename = os.path.join(self.data_source, ws.pcd_complete_subdir, self.pcd2_gt_filenames[idx])
-        pcd1_normalize_data_filename = os.path.join(self.data_source, ws.normalize_para_subdir, self.pcd1_normalize_data_filenames[idx])
-        pcd2_normalize_data_filename = os.path.join(self.data_source, ws.normalize_para_subdir, self.pcd2_normalize_data_filenames[idx])
-        medial_axis_sphere1_filename = os.path.join(self.data_source, ws.medial_axis_sphere_subdir, self.medial_axis_sphere1_filenames[idx])
-        medial_axis_sphere2_filename = os.path.join(self.data_source, ws.medial_axis_sphere_subdir, self.medial_axis_sphere2_filenames[idx])
+        pcd1_normalize_data_filename = os.path.join(self.data_source, ws.normalize_para_subdir, self.pcd1_normalize_para_filenames[idx])
+        pcd2_normalize_data_filename = os.path.join(self.data_source, ws.normalize_para_subdir, self.pcd2_normalize_para_filenames[idx])
+        medial_axis_sphere_filename = os.path.join(self.data_source, ws.medial_axis_sphere_subdir, self.medial_axis_sphere_filenames[idx])
 
         pcd_partial = (get_pcd_data(pcd1_partial_filename), get_pcd_data(pcd2_partial_filename))
         pcd_gt = (get_pcd_data(pcd1_gt_filename), get_pcd_data(pcd2_gt_filename))
         pcd_normalize_para = (get_normalize_para(pcd1_normalize_data_filename), get_normalize_para(pcd2_normalize_data_filename))
-        medial_axis_sphere = (get_medial_axis_sphere_data(medial_axis_sphere1_filename), get_medial_axis_sphere_data(medial_axis_sphere2_filename))
+        medial_axis_sphere = get_medial_axis_sphere_data(medial_axis_sphere_filename)
 
-        return pcd_partial, pcd_gt, pcd_normalize_para, medial_axis_sphere, idx
+        return (pcd_partial, pcd_gt, pcd_normalize_para, medial_axis_sphere), idx

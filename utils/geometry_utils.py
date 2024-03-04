@@ -153,12 +153,12 @@ def denormalize_geometry_tensor_batch(geometry, centroid, scale):
     将一个batch的torch.Tensor变换到原有坐标系
     Args:
         geometry: torch.Tensor, (B, n, 3)
-        centroid: Geometry的轴对齐包围盒中心点, (B, n)
-        scale: Geometry的尺度, (B, 3)
+        centroid: Geometry的轴对齐包围盒中心点, (B, 3)
+        scale: Geometry的尺度, (B)
     Returns:
         反归一化后的torch.Tensor，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
     """
-    geometry *= scale.unsqueeze(2)
+    geometry *= scale.unsqueeze(1).unsqueeze(2)
     geometry += centroid.unsqueeze(1)
     return geometry
 

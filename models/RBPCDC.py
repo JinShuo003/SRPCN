@@ -34,7 +34,7 @@ class final_mlp(nn.Module):
 
 
 class TopNet_decoder(nn.Module):
-    def __init__(self, arch=[4, 4, 8, 8]):
+    def __init__(self, arch=[4, 8, 8, 8]):
         super(TopNet_decoder, self).__init__()
         self.arch = arch
         self.level_num = len(arch)
@@ -89,15 +89,15 @@ class PCN_encoder(nn.Module):
         """
         x = F.relu(self.conv1(x))
         x = self.conv2(x)
-        global_feature_1 = torch.max(x, dim=2, keepdim=True)[0].repeat(1, 1, self.i_num)
+        global_feature_1 = torch.max(x, dim=2, keepdim=True)[0].repeat(1, 1, 2 * self.i_num)
         x = torch.cat([x, global_feature_1], dim=1)
         x = F.relu(self.conv3(x))
         x = self.conv4(x)
         global_feature_2 = None
         if self.AorB == 'a':
-            global_feature_2 = torch.max(x[:, :, 0:self.i_num/2], dim=2, keepdim=True)[0]
+            global_feature_2 = torch.max(x[:, :, 0:self.i_num], dim=2, keepdim=True)[0]
         if self.AorB == 'b':
-            global_feature_2 = torch.max(x[:, :, -self.i_num/2:], dim=2, keepdim=True)[0]
+            global_feature_2 = torch.max(x[:, :, -self.i_num:], dim=2, keepdim=True)[0]
         return global_feature_2
 
 
@@ -114,6 +114,9 @@ class TopNet(nn.Module):
 
 
 class TopNet_path1(nn.Module):
+    """
+    input_num: the point num of single point cloud
+    """
     def __init__(self, input_num=2048):
         super(TopNet_path1, self).__init__()
         self.topnet1 = TopNet(input_num, 'a')
@@ -125,11 +128,14 @@ class TopNet_path1(nn.Module):
         x: [batch, point_num_A + point_num_B, 3]
         """
         A_1 = self.topnet1(x)
-        B_2 = self.topnet2(torch.cat([A_1, x[:, :, int(self.input_num / 2):]], dim=2))
-        return A_1, B_2
+        B_2 = self.topnet2(torch.cat([A_1, x[:, :, self.input_num:]], dim=2))
+        return A_1.permute(0, 2, 1), B_2.permute(0, 2, 1)
 
 
 class TopNet_path2(nn.Module):
+    """
+    input_num: the point num of single point cloud
+    """
     def __init__(self, input_num=2048):
         super(TopNet_path2, self).__init__()
         self.topnet1 = TopNet(input_num, 'b')
@@ -138,5 +144,5 @@ class TopNet_path2(nn.Module):
 
     def forward(self, x):
         B_1 = self.topnet1(x)
-        A_2 = self.topnet2(torch.cat([x[:, :, 0:int(self.input_num / 2)], B_1], dim=2))
-        return B_1, A_2
+        A_2 = self.topnet2(torch.cat([x[:, :, 0:self.input_num], B_1], dim=2))
+        return B_1.permute(0, 2, 1), A_2.permute(0, 2, 1)

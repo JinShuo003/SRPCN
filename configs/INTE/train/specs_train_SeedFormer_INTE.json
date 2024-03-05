@@ -1,0 +1,43 @@
+{
+    "TAG": "SeedFormer_INTE",
+    "Description" : "model: SeedFormer, dataset: INTE_norm",
+    "DataSource" : "data",
+    "TrainSplit" : "dataset/train_INTE/train.json",
+    "TestSplit" : "dataset/test_INTE/test.json",
+    "ParaSaveDir" : "model_paras",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/comparison",
+    "Device" : 0,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8
+    },
+    "IBSALossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADSLossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADILossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "LogOptions": {
+        "TAG": "SeedFormer_INTE",
+        "Type": "train",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
+    }
+}

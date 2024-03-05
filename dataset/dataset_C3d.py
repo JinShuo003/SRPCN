@@ -49,4 +49,4 @@ class C3dDataset(torch.utils.data.Dataset):
         pcd_partial = get_pcd_data(pcd_partial_filename)
         pcd_gt = get_pcd_data(pcd1_gt_filename)
 
-        return pcd_partial, pcd_gt, idx
+        return (pcd_partial, pcd_gt), idx

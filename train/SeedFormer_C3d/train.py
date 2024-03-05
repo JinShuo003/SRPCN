@@ -15,8 +15,7 @@ from torch.optim.lr_scheduler import StepLR, _LRScheduler
 from models.SeedFormer import SeedFormer
 from models.pn2_utils import fps_subsample
 from utils import path_utils
-from utils.loss import cd_loss_L1, cd_loss_L1_single, medial_axis_surface_loss, medial_axis_interaction_loss, \
-    ibs_angle_loss, emd_loss
+from utils.loss import cd_loss_L1, cd_loss_L1_single, emd_loss
 from utils.train_utils import *
 from dataset import dataset_C3d
 
@@ -104,33 +103,18 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     logger.info("")
     logger.info('epoch: {}, learning rate: {}'.format(epoch, optimizer.param_groups[0]["lr"]))
 
-    mads_loss_weight = get_loss_weight(specs.get("MADSLossOptions"), epoch)
-    madi_loss_weight = get_loss_weight(specs.get("MADILossOptions"), epoch)
-    ibsa_loss_weight = get_loss_weight(specs.get("IBSALossOptions"), epoch)
-
-    logger.info("mads_loss_weight: {}".format(mads_loss_weight))
-    logger.info("madi_loss_weight: {}".format(madi_loss_weight))
-    logger.info("ibsa_loss_weight: {}".format(ibsa_loss_weight))
-
     train_total_loss_dense = 0
     train_total_loss_sub_dense = 0
     train_total_loss_coarse = 0
-    train_total_loss_medial_axis_surface = 0
-    train_total_loss_medial_axis_interaction = 0
-    train_total_loss_ibs_angle = 0
-    train_total_intersect_num = 0
 
     for data, idx in train_dataloader:
-        center, radius, direction, pcd_partial, pcd_gt = data
+        pcd_partial, pcd_gt = data
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
         pcds_pred = network(pcd_partial)
 
         pcd_gt = pcd_gt.to(device)
-        center = center.to(device)
-        radius = radius.to(device)
-        direction = direction.to(device)
 
         Pc, P1, P2, P3 = pcds_pred
 
@@ -145,22 +129,11 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
         partial_matching = cd_loss_L1_single(pcd_partial, P3)
 
-        loss_medial_axis_surface = medial_axis_surface_loss(center, radius, P3)
-        loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, P3)
-        loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, P3)
-
-        loss_total = (cdc + cd1 + cd2 + cd3 + partial_matching +
-                      mads_loss_weight * loss_medial_axis_surface +
-                      madi_loss_weight * loss_medial_axis_interaction +
-                      ibsa_loss_weight * loss_ibs_angle)
+        loss_total = cdc + cd1 + cd2 + cd3 + partial_matching
 
         train_total_loss_dense += cd3.item()
         train_total_loss_sub_dense += cd2.item()
         train_total_loss_coarse += cdc.item()
-        train_total_loss_medial_axis_surface += loss_medial_axis_surface.item()
-        train_total_loss_medial_axis_interaction += loss_medial_axis_interaction.item()
-        train_total_loss_ibs_angle += loss_ibs_angle.item()
-        train_total_intersect_num += intersect_num.item()
 
         loss_total.backward()
         optimizer.step()
@@ -173,14 +146,6 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
                      tensorboard_writer)
     record_loss_info(specs, "train_loss_coarse", train_total_loss_coarse / train_dataloader.__len__(), epoch,
                      tensorboard_writer)
-    record_loss_info(specs, "train_loss_medial_axis_surface",
-                     train_total_loss_medial_axis_surface / train_dataloader.__len__(), epoch, tensorboard_writer)
-    record_loss_info(specs, "train_loss_medial_axis_interaction",
-                     train_total_loss_medial_axis_interaction / train_dataloader.__len__(), epoch, tensorboard_writer)
-    record_loss_info(specs, "train_loss_ibs_angle", train_total_loss_ibs_angle / train_dataloader.__len__(), epoch,
-                     tensorboard_writer)
-    record_loss_info(specs, "train_intersect_num", train_total_intersect_num / train_dataloader.__len__(), epoch,
-                     tensorboard_writer)
 
 
 def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch):
@@ -192,21 +157,14 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
         test_total_dense = 0
         test_total_sub_dense = 0
         test_total_coarse = 0
-        test_total_medial_axis_surface = 0
-        test_total_medial_axis_interaction = 0
-        test_total_ibs_angle = 0
-        test_total_intersect_num = 0
         test_total_emd = 0
         for data, idx in test_dataloader:
-            center, radius, direction, pcd_partial, pcd_gt = data
+            pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
 
             pcds_pred = network(pcd_partial)
 
             pcd_gt = pcd_gt.to(device)
-            center = center.to(device)
-            radius = radius.to(device)
-            direction = direction.to(device)
 
             Pc, P1, P2, P3 = pcds_pred
 
@@ -221,18 +179,11 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 
             partial_matching = cd_loss_L1_single(pcd_partial, P3)
 
-            loss_medial_axis_surface = medial_axis_surface_loss(center, radius, P3)
-            loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, P3)
-            loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, P3)
             loss_emd = emd_loss(P3, pcd_gt)
 
             test_total_dense += cd3.item()
             test_total_sub_dense += cd2.item()
             test_total_coarse += cdc.item()
-            test_total_medial_axis_surface += loss_medial_axis_surface.item()
-            test_total_medial_axis_interaction += loss_medial_axis_interaction.item()
-            test_total_ibs_angle += loss_ibs_angle.item()
-            test_total_intersect_num += intersect_num.item()
             test_total_emd += loss_emd.item()
 
         test_avrg_dense = test_total_dense / test_dataloader.__len__()
@@ -241,14 +192,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
         record_loss_info(specs, "test_loss_sub_dense", test_total_sub_dense / test_dataloader.__len__(), epoch,
                          tensorboard_writer)
         record_loss_info(specs, "test_loss_coarse", test_total_coarse / test_dataloader.__len__(), epoch,
-                         tensorboard_writer)
-        record_loss_info(specs, "test_loss_medial_axis_surface",
-                         test_total_medial_axis_surface / test_dataloader.__len__(), epoch, tensorboard_writer)
-        record_loss_info(specs, "test_loss_medial_axis_interaction",
-                         test_total_medial_axis_interaction / test_dataloader.__len__(), epoch, tensorboard_writer)
-        record_loss_info(specs, "test_loss_ibs_angle", test_total_ibs_angle / test_dataloader.__len__(), epoch,
-                         tensorboard_writer)
-        record_loss_info(specs, "test_intersect_num", test_total_intersect_num / test_dataloader.__len__(), epoch,
                          tensorboard_writer)
         record_loss_info(specs, "test_loss_emd", test_total_emd / test_dataloader.__len__(), epoch, tensorboard_writer)
 
@@ -273,7 +216,7 @@ def main_function(specs):
     logger.info("There are {} epochs in total".format(epoch_num))
 
     train_loader, test_loader = get_dataloader(dataset_C3d.C3dDataset, specs)
-    checkpoint = get_checkpoint(specs)
+    checkpoint = None
     network = get_network(specs, SeedFormer, checkpoint)
     optimizer = get_optimizer(network)
     lr_scheduler = get_lr_scheduler(optimizer)
@@ -307,7 +250,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/train/specs_train_SeedFormer_INTE.json",
+        default="configs/C3d/train/specs_train_SeedFormer_C3d.json",
         required=False,
         help="The experiment config file."
     )

@@ -11,7 +11,16 @@
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 64,
+        "BatchSize" : 48,
         "DataLoaderThreads" : 8
+    },
+    "LogOptions": {
+        "TAG": "SeedFormer_C3d",
+        "Type": "train",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
     }
 }

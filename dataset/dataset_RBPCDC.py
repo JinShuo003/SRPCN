@@ -71,13 +71,11 @@ def get_medial_axis_sphere_data(medial_axis_sphere_filename):
     data = np.load(medial_axis_sphere_filename)
     center = data["center"]
     radius = data["radius"]
-    direction1 = data["direction1"]
-    direction2 = data["direction2"]
+    direction = data["direction"]
     center = torch.from_numpy(np.asarray(center).astype(np.float32))
     radius = torch.from_numpy(np.asarray(radius).astype(np.float32))
-    direction1 = torch.from_numpy(np.asarray(direction1).astype(np.float32))
-    direction2 = torch.from_numpy(np.asarray(direction1).astype(np.float32))
-    return center, radius, direction1, direction2
+    direction = torch.from_numpy(np.asarray(direction).astype(np.float32))
+    return center, radius, direction
 
 
 class RBPCDCDataset(torch.utils.data.Dataset):

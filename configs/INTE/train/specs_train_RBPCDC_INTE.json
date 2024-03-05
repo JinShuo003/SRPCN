@@ -1,5 +1,5 @@
 {
-    "TAG": "RBPCDC_INTE",
+    "TAG": "RBPCDC_INTE_emd",
     "Description" : "model: RBPCDC, dataset: INTE",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train_RBPCDC.json",
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "RBPCDC_INTE",
+        "TAG": "RBPCDC_INTE_emd",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

@@ -108,6 +108,20 @@ def cd_loss_L1(pcd1, pcd2):
     return (torch.mean(dist1) + torch.mean(dist2)) / 2.0
 
 
+def cd_loss_L1_single(pcd1, pcd2):
+    """
+    L2 Chamfer Distance.
+
+    Args:
+        pcd1 (torch.tensor): (B, N, 3)
+        pcd2 (torch.tensor): (B, M, 3)
+    """
+    cham_loss = dist_chamfer_3D.chamfer_3DDist()
+    dist1, dist2, _, _ = cham_loss(pcd1, pcd2)
+    dist1 = torch.sqrt(dist1)
+    return torch.mean(dist1)
+
+
 def cd_loss_L2(pcd1, pcd2):
     """
     L2 Chamfer Distance.

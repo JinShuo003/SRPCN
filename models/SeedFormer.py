@@ -249,7 +249,7 @@ class SeedFormer(nn.Module):
     SeedFormer Point Cloud Completion with Patch Seeds and Upsample Transformer
     """
 
-    def __init__(self, feat_dim=512, embed_dim=128, num_p0=512, n_knn=20, radius=1, up_factors=None, seed_factor=2,
+    def __init__(self, feat_dim=512, embed_dim=128, num_p0=512, n_knn=20, radius=1, up_factors=[1, 2, 2], seed_factor=2,
                  interpolate='three', attn_channel=True):
         """
         Args:

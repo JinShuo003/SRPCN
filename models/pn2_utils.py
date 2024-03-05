@@ -247,6 +247,49 @@ def fps_subsample(pcd, n_points=2048):
     return new_pcd
 
 
+def get_nearest_index(target, source, k=1, return_dis=False):
+    """
+    Args:
+        target: (bs, 3, v1)
+        source: (bs, 3, v2)
+    Return:
+        nearest_index: (bs, v1, 1)
+    """
+    inner = torch.bmm(target.transpose(1, 2), source)  # (bs, v1, v2)
+    s_norm_2 = torch.sum(source**2, dim=1)  # (bs, v2)
+    t_norm_2 = torch.sum(target**2, dim=1)  # (bs, v1)
+    d_norm_2 = s_norm_2.unsqueeze(1) + t_norm_2.unsqueeze(
+        2) - 2 * inner  # (bs, v1, v2)
+    nearest_dis, nearest_index = torch.topk(d_norm_2,
+                                            k=k,
+                                            dim=-1,
+                                            largest=False)
+    if not return_dis:
+        return nearest_index
+    else:
+        return nearest_index, nearest_dis
+
+
+def indexing_neighbor(x, index):
+    """
+    Args:
+        x: (bs, dim, num_points0)
+        index: (bs, num_points, k)
+    Return:
+        feature: (bs, dim, num_points, k)
+    """
+    batch_size, num_points, k = index.size()
+
+    id_0 = torch.arange(batch_size).view(-1, 1, 1)
+
+    x = x.transpose(2, 1).contiguous()  # (bs, num_points, num_dims)
+    feature = x[id_0, index]  # (bs, num_points, k, num_dims)
+    feature = feature.permute(0, 3, 1,
+                              2).contiguous()  # (bs, num_dims, num_points, k)
+
+    return feature
+
+
 class PointNet_SA_Module(nn.Module):
     def __init__(self, npoint, nsample, radius, in_channel, mlp, if_bn=True, group_all=False, use_xyz=True):
         """

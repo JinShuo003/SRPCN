@@ -1192,11 +1192,11 @@ class PointTransformerEncoder(nn.Module):
     """
 
     def __init__(
-            self, embed_dim=256, depth=12, num_heads=4, mlp_ratio=4., qkv_bias=True, init_values=None,
+            self, embed_dim=384, depth=6, num_heads=6, mlp_ratio=2., qkv_bias=True, init_values=None,
             drop_rate=0., attn_drop_rate=0., drop_path_rate=0.,
             norm_layer=None, act_layer=None,
             block_style_list=['attn-deform'], combine_style='concat',
-            k=10, n_group=2
+            k=8, n_group=2
     ):
         super().__init__()
         norm_layer = norm_layer or partial(nn.LayerNorm, eps=1e-6)
@@ -1246,12 +1246,12 @@ class PointTransformerDecoder(nn.Module):
     """
 
     def __init__(
-            self, embed_dim=256, depth=12, num_heads=4, mlp_ratio=4., qkv_bias=True, init_values=None,
+            self, embed_dim=384, depth=8, num_heads=6, mlp_ratio=2., qkv_bias=True, init_values=None,
             drop_rate=0., attn_drop_rate=0., drop_path_rate=0.,
             norm_layer=None, act_layer=None,
             self_attn_block_style_list=['attn-deform'], self_attn_combine_style='concat',
             cross_attn_block_style_list=['attn-deform'], cross_attn_combine_style='concat',
-            k=10, n_group=2
+            k=8, n_group=2
     ):
         """
         Args:
@@ -1311,13 +1311,13 @@ class PointTransformerDecoder(nn.Module):
 
 
 class PointTransformerEncoderEntry(PointTransformerEncoder):
-    def __init__(self, config, **kwargs):
-        super().__init__(**dict(config))
+    def __init__(self):
+        super().__init__()
 
 
 class PointTransformerDecoderEntry(PointTransformerDecoder):
-    def __init__(self, config, **kwargs):
-        super().__init__(**dict(config))
+    def __init__(self):
+        super().__init__()
 
 
 ######################################## Grouper ########################################
@@ -1579,38 +1579,31 @@ class SimpleRebuildFCLayer(nn.Module):
 
 ######################################## PCTransformer ########################################
 class PCTransformer(nn.Module):
-    def __init__(self, config):
+    def __init__(self):
         super().__init__()
-        encoder_config = config.encoder_config
-        decoder_config = config.decoder_config
-        self.center_num = getattr(config, 'center_num', [512, 128])
-        self.encoder_type = config.encoder_type
-        assert self.encoder_type in ['graph', 'pn'], f'unexpected encoder_type {self.encoder_type}'
+        self.center_num = [512, 256]
 
         in_chans = 3
-        self.num_query = query_num = config.num_query
-        global_feature_dim = config.global_feature_dim
+        self.num_query = query_num = 512
+        global_feature_dim = 1024
 
         # base encoder
-        if self.encoder_type == 'graph':
-            self.grouper = DGCNN_Grouper(k=16)
-        else:
-            self.grouper = SimpleEncoder(k=32, embed_dims=512)
+        self.grouper = DGCNN_Grouper(k=16)
         self.pos_embed = nn.Sequential(
             nn.Linear(in_chans, 128),
             nn.GELU(),
-            nn.Linear(128, encoder_config.embed_dim)
+            nn.Linear(128, 384)
         )
         self.input_proj = nn.Sequential(
             nn.Linear(self.grouper.num_features, 512),
             nn.GELU(),
-            nn.Linear(512, encoder_config.embed_dim)
+            nn.Linear(512, 384)
         )
         # Coarse Level 1 : Encoder
-        self.encoder = PointTransformerEncoderEntry(encoder_config)
+        self.encoder = PointTransformerEncoderEntry()
 
         self.increase_dim = nn.Sequential(
-            nn.Linear(encoder_config.embed_dim, 1024),
+            nn.Linear(384, 1024),
             nn.GELU(),
             nn.Linear(1024, global_feature_dim))
         # query generator
@@ -1624,15 +1617,12 @@ class PCTransformer(nn.Module):
             nn.GELU(),
             nn.Linear(1024, 1024),
             nn.GELU(),
-            nn.Linear(1024, decoder_config.embed_dim)
+            nn.Linear(1024, 384)
         )
         # assert decoder_config.embed_dim == encoder_config.embed_dim
-        if decoder_config.embed_dim == encoder_config.embed_dim:
-            self.mem_link = nn.Identity()
-        else:
-            self.mem_link = nn.Linear(encoder_config.embed_dim, decoder_config.embed_dim)
+        self.mem_link = nn.Identity()
         # Coarse Level 2 : Decoder
-        self.decoder = PointTransformerDecoderEntry(decoder_config)
+        self.decoder = PointTransformerDecoderEntry()
 
         self.query_ranking = nn.Sequential(
             nn.Linear(3, 256),
@@ -1711,17 +1701,17 @@ class PCTransformer(nn.Module):
 ######################################## PoinTr ########################################
 
 class AdaPoinTr(nn.Module):
-    def __init__(self, config, **kwargs):
+    def __init__(self):
         super().__init__()
-        self.trans_dim = config.decoder_config.embed_dim
-        self.num_query = config.num_query
-        self.num_points = getattr(config, 'num_points', None)
+        self.trans_dim = 384
+        self.num_query = 512
+        self.num_points = 2048
 
-        self.decoder_type = config.decoder_type
+        self.decoder_type = 'fc'
         assert self.decoder_type in ['fold', 'fc'], f'unexpected decoder_type {self.decoder_type}'
 
         self.fold_step = 8
-        self.base_model = PCTransformer(config)
+        self.base_model = PCTransformer()
 
         if self.decoder_type == 'fold':
             self.factor = self.fold_step ** 2
@@ -1765,7 +1755,7 @@ class AdaPoinTr(nn.Module):
         loss_fine = self.loss_func(pred_fine, gt)
         loss_recon = loss_coarse + loss_fine
 
-        return loss_denoised, loss_coarse, loss_fine
+        return loss_denoised, loss_recon
 
     def forward(self, xyz):
         q, coarse_point_cloud, denoise_length = self.base_model(xyz)  # B M C and B M 3

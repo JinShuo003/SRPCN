@@ -230,7 +230,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/C3d/train/specs_train_SeedFormer_C3d.json",
+        default="configs/C3d/train/specs_train_AdaPointTr_C3d.json",
         required=False,
         help="The experiment config file."
     )

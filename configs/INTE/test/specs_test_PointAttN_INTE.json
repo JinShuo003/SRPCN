@@ -5,6 +5,7 @@
     "TestSplit" : "dataset/test_INTE/test.json",
     "ModelPath": "model_paras/PointAttN_INTE_mads05_madi100_lr1e4/epoch_52.pth",
     "ScenePatten": "scene\\d+.\\d+",
+    "ViewNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
     "ResultSaveDir": "test_result",

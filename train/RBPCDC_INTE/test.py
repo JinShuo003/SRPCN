@@ -13,25 +13,125 @@ from datetime import datetime, timedelta
 from models.RBPCDC import TopNet_path1, TopNet_path2
 from utils.metric import *
 from utils.test_utils import *
-from utils import log_utils, path_utils, statistics_utils
+from utils import log_utils, path_utils, statistics_utils, geometry_utils
 from dataset import dataset_RBPCDC
 
 
-def get_network(specs, checkpoint):
-    assert checkpoint is not None
+def save_result(filename_list: list, pcd, specs: dict):
+    pcd_pred_path1, pcd_pred_path2 = pcd
+    pcd1_pred_path1, pcd2_pred_path1 = pcd_pred_path1
+    pcd1_pred_path2, pcd2_pred_path2 = pcd_pred_path2
 
-    device = specs.get("Device")
-    logger = LogFactory.get_logger(specs.get("LogOptions"))
+    save_dir = specs.get("ResultSaveDir")
+    tag = specs.get("TAG")
+    dataset = specs.get("Dataset")
+    normalize_para_dir = specs.get("NormalizeParaDir")
 
-    network = model_class(**kwargs).to(device)
+    filename_patten = specs.get("FileNamePatten")
+    scene_patten = specs.get("ScenePatten")
 
-    logger.info("load model parameter from epoch {}".format(checkpoint["epoch"]))
-    network.load_state_dict(checkpoint["model"])
+    pcd1_pred_path1 = pcd1_pred_path1.cpu().detach().numpy()
+    pcd2_pred_path1 = pcd2_pred_path1.cpu().detach().numpy()
+    pcd1_pred_path2 = pcd1_pred_path2.cpu().detach().numpy()
+    pcd2_pred_path2 = pcd2_pred_path2.cpu().detach().numpy()
 
-    return network
+    for index, filename_abs in enumerate(filename_list):
+        # [dataset, category, filename], example:[MVP, scene1, scene1.1000_view0_0.ply]
+        _, category, filename = filename_abs.split('/')
+        filename = re.match(filename_patten, filename).group()  # scene1.1000_view0_0
+
+        # the real directory is save_dir/tag/dataset/category
+        path1_save_path = os.path.join(save_dir, tag, dataset, "path1", category)
+        path2_save_path = os.path.join(save_dir, tag, dataset, "path1", category)
+
+        if not os.path.isdir(path1_save_path):
+            os.makedirs(path1_save_path)
+        if not os.path.isdir(path2_save_path):
+            os.makedirs(path2_save_path)
+
+        # get final filename
+        filename_final = "{}.ply".format(filename)
+        absolute_path = os.path.join(save_path, filename_final)
+        pcd = get_pcd_from_np(pcd_np[index])
+
+        # transform to origin coordinate
+        pcd.scale(scale, np.array([0, 0, 0]))
+        pcd.translate(translate)
+
+        o3d.io.write_point_cloud(absolute_path, pcd)
 
 
-def test(network, test_dataloader, specs):
+def get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sphere):
+    pcd_pred_path1, pcd_pred_path2 = pcd_pred
+    pcd1_pred_path1, pcd2_pred_path1 = pcd_pred_path1
+    pcd1_pred_path2, pcd2_pred_path2 = pcd_pred_path2
+    pcd1_gt, pcd2_gt = pcd_gt
+
+    pcd1_normalize_para, pcd2_normalize_para = pcd_normalize_para
+    pcd1_centroid, pcd1_scale = pcd1_normalize_para
+    pcd2_centroid, pcd2_scale = pcd2_normalize_para
+
+    medial_axis_sphere1, medial_axis_sphere2 = medial_axis_sphere
+    center1, radius1, direction1,  = medial_axis_sphere1
+    center2, radius2, direction2,  = medial_axis_sphere2
+
+    pcd1_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_gt, pcd1_centroid, pcd1_scale)
+    pcd1_pred_path1_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_pred_path1, pcd1_centroid,
+                                                                              pcd1_scale)
+    pcd1_pred_path2_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_pred_path2, pcd1_centroid,
+                                                                              pcd1_scale)
+    pcd2_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_gt, pcd2_centroid, pcd2_scale)
+    pcd2_pred_path1_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_pred_path1, pcd2_centroid,
+                                                                              pcd2_scale)
+    pcd2_pred_path2_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_pred_path2, pcd2_centroid,
+                                                                              pcd2_scale)
+
+    cd_l1_pcd1_path1 = l1_cd(pcd1_pred_path1_origin, pcd1_gt_origin)
+    cd_l1_pcd1_path2 = l1_cd(pcd1_pred_path2_origin, pcd1_gt_origin)
+    cd_l1_pcd2_path1 = l1_cd(pcd2_pred_path1_origin, pcd2_gt_origin)
+    cd_l1_pcd2_path2 = l1_cd(pcd2_pred_path2_origin, pcd2_gt_origin)
+    cd_l1 = (cd_l1_pcd1_path1 + cd_l1_pcd1_path2 + cd_l1_pcd2_path1 + cd_l1_pcd2_path2) / 4
+
+    emd_pcd1_path1 = emd(pcd1_pred_path1_origin, pcd1_gt_origin)
+    emd_pcd1_path2 = emd(pcd1_pred_path2_origin, pcd1_gt_origin)
+    emd_pcd2_path1 = emd(pcd2_pred_path1_origin, pcd2_gt_origin)
+    emd_pcd2_path2 = emd(pcd2_pred_path2_origin, pcd2_gt_origin)
+    emd_ = (emd_pcd1_path1 + emd_pcd1_path2 + emd_pcd2_path1 + emd_pcd2_path2) / 4
+
+    f_score_pcd1_path1 = f_score(pcd1_pred_path1_origin, pcd1_gt_origin)
+    f_score_pcd1_path2 = f_score(pcd1_pred_path2_origin, pcd1_gt_origin)
+    f_score_pcd2_path1 = f_score(pcd2_pred_path1_origin, pcd2_gt_origin)
+    f_score_pcd2_path2 = f_score(pcd2_pred_path2_origin, pcd2_gt_origin)
+    fscore = (f_score_pcd1_path1 + f_score_pcd1_path2 + f_score_pcd2_path1 + f_score_pcd2_path2) / 4
+
+    mad_s_pcd1_path1 = medial_axis_surface_dist(center1, radius1, pcd1_pred_path1_origin)
+    mad_s_pcd1_path2 = medial_axis_surface_dist(center1, radius1, pcd1_pred_path2_origin)
+    mad_s_pcd2_path1 = medial_axis_surface_dist(center2, radius2, pcd2_pred_path1_origin)
+    mad_s_pcd2_path2 = medial_axis_surface_dist(center2, radius2, pcd2_pred_path2_origin)
+    mad_s = (mad_s_pcd1_path1 + mad_s_pcd1_path2 + mad_s_pcd2_path1 + mad_s_pcd2_path2) / 4
+
+    mad_i_pcd1_path1 = medial_axis_interaction_dist(center1, radius1, pcd1_pred_path1_origin)
+    mad_i_pcd1_path2 = medial_axis_interaction_dist(center1, radius1, pcd1_pred_path2_origin)
+    mad_i_pcd2_path1 = medial_axis_interaction_dist(center2, radius2, pcd2_pred_path1_origin)
+    mad_i_pcd2_path2 = medial_axis_interaction_dist(center2, radius2, pcd2_pred_path2_origin)
+    mad_i = (mad_i_pcd1_path1 + mad_i_pcd1_path2 + mad_i_pcd2_path1 + mad_i_pcd2_path2) / 4
+
+    ibs_a_pcd1_path1, interact_num_pcd1_path1 = ibs_angle_dist(center1, radius1, direction1,
+                                                                         pcd1_pred_path1_origin)
+    ibs_a_pcd1_path2, interact_num_pcd1_path2 = ibs_angle_dist(center1, radius1, direction1,
+                                                                         pcd1_pred_path2_origin)
+    ibs_a_pcd2_path1, interact_num_pcd2_path1 = ibs_angle_dist(center2, radius2, direction2,
+                                                                         pcd2_pred_path1_origin)
+    ibs_a_pcd2_path2, interact_num_pcd2_path2 = ibs_angle_dist(center2, radius2, direction2,
+                                                                         pcd2_pred_path2_origin)
+    ibs_a = (ibs_a_pcd1_path1 + ibs_a_pcd1_path2 + ibs_a_pcd2_path1 + ibs_a_pcd2_path2) / 4
+    interact_num = (interact_num_pcd1_path1 + interact_num_pcd1_path2 + interact_num_pcd2_path1 + interact_num_pcd2_path2) / 4
+
+    return cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num
+
+
+def test(model, test_dataloader, specs):
+    network_path1, network_path2 = model
     device = specs.get("Device")
 
     dist_dict = {
@@ -44,11 +144,14 @@ def test(network, test_dataloader, specs):
         "interact_num": {}
     }
     single_csv_data = {}
-    network.eval()
+    model.eval()
     with torch.no_grad():
         for data, idx in test_dataloader:
-            filename_list = [test_dataloader.dataset.pcd_partial_filenames[i] for i in idx]
-            center, radius, direction, pcd_partial, pcd_gt = data
+            filename_list = [test_dataloader.dataset.pcd1_partial_filenames[i] for i in idx]
+            pcd_partial, pcd_gt, pcd_normalize_para, medial_axis_sphere = data
+
+            pcd1_partial, pcd2_partial = pcd_partial
+            pcd1_gt, pcd2_gt = pcd_gt
 
             pcd_partial = pcd_partial.to(device)
             pcd_gt = pcd_gt.to(device)
@@ -56,14 +159,21 @@ def test(network, test_dataloader, specs):
             radius = radius.to(device)
             direction = direction.to(device)
 
-            pcd_pred = network(pcd_partial)
+            pcd_input = torch.concatenate((pcd1_partial, pcd2_partial), dim=2)
+            pcd1_pred_path1, pcd2_pred_path1 = network_path1(pcd_input)
+            pcd2_pred_path2, pcd1_pred_path2 = network_path2(pcd_input)
 
-            cd_l1 = l1_cd(pcd_pred, pcd_gt)
-            emd_ = emd(pcd_pred, pcd_gt)
-            fscore = f_score(pcd_pred, pcd_gt)
-            mad_s = medial_axis_surface_dist(center, radius, pcd_pred)
-            mad_i = medial_axis_interaction_dist(center, radius, pcd_pred)
-            ibs_a, interact_num = ibs_angle_dist(center, radius, direction, pcd_pred)
+            pcd_pred = ((pcd1_pred_path1, pcd2_pred_path1), (pcd1_pred_path2, pcd2_pred_path2))
+            pcd_gt = (pcd1_gt, pcd2_gt)
+            pcd1_normalize_para, pcd2_normalize_para = pcd_normalize_para
+            pcd1_centroid, pcd1_scale = pcd1_normalize_para
+            pcd2_centroid, pcd2_scale = pcd2_normalize_para
+            pcd_normalize_para = ((pcd1_centroid.to(device), pcd1_scale.to(device)), (pcd2_centroid.to(device), pcd2_scale.to(device)))
+            medial_axis_sphere1, medial_axis_sphere2 = medial_axis_sphere
+            center1, radius1, direction1 = medial_axis_sphere1
+            center2, radius2, direction2 = medial_axis_sphere2
+            medial_axis_sphere = ((center1.to(device), radius1.to(device), direction1.to(device)), (center2.to(device), radius2.to(device), direction2.to(device)))
+            cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num = get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sphere)
 
             update_loss_dict(dist_dict, filename_list, cd_l1.detach().cpu().numpy(), "cd_l1")
             update_loss_dict(dist_dict, filename_list, emd_.detach().cpu().numpy(), "emd")
@@ -99,14 +209,15 @@ def main_function(specs):
     test_dataloader = get_dataloader(dataset_RBPCDC.RBPCDCDataset, specs)
     logger.info("init dataloader succeed")
 
-    model = get_network(specs, )
     network_path1 = get_network(specs, TopNet_path1, None, input_num=2048)
     network_path2 = get_network(specs, TopNet_path2, None, input_num=2048)
     checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(checkpoint["model"])
+    network_path1.load_state_dict(checkpoint["model_path1"])
+    network_path2.load_state_dict(checkpoint["model_path2"])
     logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()
+    model = (network_path1, network_path2)
     test(model, test_dataloader, specs)
     time_end_test = time.time()
     logger.info("use {} to test".format(time_end_test - time_begin_test))

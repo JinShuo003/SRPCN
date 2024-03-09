@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 import os.path
 
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 from datetime import datetime, timedelta
 import argparse
@@ -13,12 +13,26 @@ import time
 import torch.nn as nn
 from torch import optim
 
-from models.AdaPoinTr import AdaPoinTr
-from models.pn2_utils import fps_subsample
+from models.PoinTr import PoinTr
 from utils import path_utils
-from utils.loss import cd_loss_L1, cd_loss_L1_single, emd_loss
+from utils.loss import cd_loss_L1, emd_loss
 from utils.train_utils import *
 from dataset import dataset_C3d
+
+
+def save_model(specs, model, epoch):
+    para_save_dir = specs.get("ParaSaveDir")
+    para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
+    if not os.path.isdir(para_save_path):
+        os.mkdir(para_save_path)
+
+    checkpoint = {
+        "epoch": epoch,
+        "model": model.state_dict(),
+    }
+    checkpoint_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
+
+    torch.save(checkpoint, checkpoint_filename)
 
 
 def set_bn_momentum_default(bn_momentum):
@@ -65,7 +79,7 @@ def get_optimizer(base_model):
     def add_weight_decay(model, weight_decay=1e-5, skip_list=()):
         decay = []
         no_decay = []
-        for name, param in model.module.named_parameters():
+        for name, param in model.named_parameters():
             if not param.requires_grad:
                 continue  # frozen weights
             if len(param.shape) == 1 or name.endswith(".bias") or name in skip_list:
@@ -94,7 +108,7 @@ def get_lr_scheduler(base_model, optimizer, last_epoch=-1):
     return scheduler
 
 
-def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
+def train(network, train_dataloader, lr_scheduler, optimizer, epoch, specs, tensorboard_writer):
     logger = LogFactory.get_logger(specs.get("LogOptions"))
     device = specs.get("Device")
 
@@ -115,7 +129,7 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
 
         pcd_gt = pcd_gt.to(device)
 
-        loss_denoised, loss_coarse, loss_fine = network.module.get_loss(ret, pcd_gt, epoch)
+        loss_denoised, loss_coarse, loss_fine = network.get_loss(ret, pcd_gt, epoch)
 
         loss_total = loss_denoised + loss_coarse + loss_fine
 
@@ -126,11 +140,12 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         loss_total.backward()
         optimizer.step()
 
-    lr_schedule.step()
+    for scheduler_item in lr_scheduler:
+        scheduler_item.step()
 
     record_loss_info(specs, "train_loss_dense", train_total_loss_dense / train_dataloader.__len__(), epoch,
                      tensorboard_writer)
-    record_loss_info(specs, "train_loss_sub_dense", train_total_loss_denoised / train_dataloader.__len__(), epoch,
+    record_loss_info(specs, "train_loss_denoised", train_total_loss_denoised / train_dataloader.__len__(), epoch,
                      tensorboard_writer)
     record_loss_info(specs, "train_loss_coarse", train_total_loss_coarse / train_dataloader.__len__(), epoch,
                      tensorboard_writer)
@@ -143,7 +158,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
     network.eval()
     with torch.no_grad():
         test_total_dense = 0
-        test_total_denoise = 0
         test_total_coarse = 0
         test_total_emd = 0
         for data, idx in test_dataloader:
@@ -151,25 +165,21 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             pcd_partial = pcd_partial.to(device)
 
             ret = network(pcd_partial)
-            pred_coarse, denoised_coarse, denoised_fine, pred_fine = ret
+            coarse_point_cloud, rebuild_points = ret
 
             pcd_gt = pcd_gt.to(device)
 
-            loss_dense = cd_loss_L1(pred_fine, pcd_gt)
-            loss_coarse = cd_loss_L1(pred_coarse, pcd_gt)
-            loss_denoise = cd_loss_L1(denoised_fine, pcd_gt)
+            loss_dense = cd_loss_L1(rebuild_points, pcd_gt)
+            loss_coarse = cd_loss_L1(coarse_point_cloud, pcd_gt)
 
-            loss_emd = emd_loss(pred_fine, pcd_gt)
+            loss_emd = emd_loss(rebuild_points, pcd_gt)
 
             test_total_dense += loss_dense.item()
-            test_total_denoise += loss_denoise.item()
             test_total_coarse += loss_coarse.item()
             test_total_emd += loss_emd.item()
 
         test_avrg_dense = test_total_dense / test_dataloader.__len__()
         record_loss_info(specs, "test_loss_dense", test_total_dense / test_dataloader.__len__(), epoch,
-                         tensorboard_writer)
-        record_loss_info(specs, "test_loss_sub_dense", test_total_denoise / test_dataloader.__len__(), epoch,
                          tensorboard_writer)
         record_loss_info(specs, "test_loss_coarse", test_total_coarse / test_dataloader.__len__(), epoch,
                          tensorboard_writer)
@@ -179,7 +189,7 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             best_epoch = epoch
             best_cd = test_avrg_dense
             logger.info('current best epoch: {}, cd: {}'.format(best_epoch, best_cd))
-        save_model(specs, network, lr_schedule, optimizer, epoch)
+        save_model(specs, network, epoch)
 
         return best_cd, best_epoch
 
@@ -197,9 +207,9 @@ def main_function(specs):
 
     train_loader, test_loader = get_dataloader(dataset_C3d.C3dDataset, specs)
     checkpoint = None
-    network = get_network(specs, AdaPoinTr, checkpoint)
+    network = get_network(specs, PoinTr, checkpoint)
     optimizer = get_optimizer(network)
-    lr_scheduler = get_lr_scheduler(optimizer)
+    lr_scheduler = get_lr_scheduler(network, optimizer)
     tensorboard_writer = get_tensorboard_writer(specs)
 
     best_cd = 1e8

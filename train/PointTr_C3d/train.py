@@ -117,7 +117,6 @@ def train(network, train_dataloader, lr_scheduler, optimizer, epoch, specs, tens
     logger.info('epoch: {}, learning rate: {}'.format(epoch, optimizer.param_groups[0]["lr"]))
 
     train_total_loss_dense = 0
-    train_total_loss_denoised = 0
     train_total_loss_coarse = 0
 
     for data, idx in train_dataloader:
@@ -125,16 +124,16 @@ def train(network, train_dataloader, lr_scheduler, optimizer, epoch, specs, tens
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
-        ret = network(pcd_partial)
+        coarse, dense = network(pcd_partial)
 
         pcd_gt = pcd_gt.to(device)
 
-        loss_denoised, loss_coarse, loss_fine = network.get_loss(ret, pcd_gt, epoch)
+        loss_coarse = cd_loss_L1(coarse, pcd_gt)
+        loss_dense = cd_loss_L1(coarse, dense)
 
-        loss_total = loss_denoised + loss_coarse + loss_fine
+        loss_total = loss_coarse + loss_dense
 
-        train_total_loss_dense += loss_fine.item()
-        train_total_loss_denoised += loss_denoised.item()
+        train_total_loss_dense += loss_dense.item()
         train_total_loss_coarse += loss_coarse.item()
 
         loss_total.backward()
@@ -144,8 +143,6 @@ def train(network, train_dataloader, lr_scheduler, optimizer, epoch, specs, tens
         scheduler_item.step()
 
     record_loss_info(specs, "train_loss_dense", train_total_loss_dense / train_dataloader.__len__(), epoch,
-                     tensorboard_writer)
-    record_loss_info(specs, "train_loss_denoised", train_total_loss_denoised / train_dataloader.__len__(), epoch,
                      tensorboard_writer)
     record_loss_info(specs, "train_loss_coarse", train_total_loss_coarse / train_dataloader.__len__(), epoch,
                      tensorboard_writer)
@@ -164,15 +161,13 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
 
-            ret = network(pcd_partial)
-            coarse_point_cloud, rebuild_points = ret
+            coarse, dense = network(pcd_partial)
 
             pcd_gt = pcd_gt.to(device)
 
-            loss_dense = cd_loss_L1(rebuild_points, pcd_gt)
-            loss_coarse = cd_loss_L1(coarse_point_cloud, pcd_gt)
-
-            loss_emd = emd_loss(rebuild_points, pcd_gt)
+            loss_dense = cd_loss_L1(dense, pcd_gt)
+            loss_coarse = cd_loss_L1(coarse, pcd_gt)
+            loss_emd = emd_loss(dense, pcd_gt)
 
             test_total_dense += loss_dense.item()
             test_total_coarse += loss_coarse.item()

@@ -77,12 +77,6 @@ class PoinTr(nn.Module):
             nn.Conv1d(1024, 1024, 1)
         )
         self.reduce_map = nn.Linear(self.trans_dim + 1027, self.trans_dim)
-        self.build_loss_func()
-
-    def get_loss(self, ret, gt, epoch=0):
-        loss_coarse = self.loss_func(ret[0], gt)
-        loss_fine = self.loss_func(ret[1], gt)
-        return loss_coarse, loss_fine
 
     def forward(self, xyz):
         q, coarse_point_cloud = self.base_model(xyz)  # B M C and B M 3

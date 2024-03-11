@@ -58,13 +58,23 @@ def get_pcd_data(pcd_filename):
     return xyz_load
 
 
-def get_normalize_para(file_path):
+def _get_normalize_para(file_path):
     with open(file_path, "r") as file:
         content = file.read()
         data = list(map(float, content.split(",")))
         translate = data[0:3]
         scale = data[-1]
+    return translate, scale
+
+
+def get_normalize_para_tensor(file_path):
+    translate, scale = _get_normalize_para(file_path)
     return torch.tensor(translate, dtype=torch.float32), torch.tensor(scale, dtype=torch.float32)
+
+
+def get_normalize_para_np(file_path):
+    translate, scale = _get_normalize_para(file_path)
+    return np.asarray(translate, dtype=np.float32), np.asarray(scale, dtype=np.float32)
 
 
 def get_medial_axis_sphere_data(medial_axis_sphere_filename):
@@ -102,7 +112,7 @@ class RBPCDCDataset(torch.utils.data.Dataset):
 
         pcd_partial = (get_pcd_data(pcd1_partial_filename), get_pcd_data(pcd2_partial_filename))
         pcd_gt = (get_pcd_data(pcd1_gt_filename), get_pcd_data(pcd2_gt_filename))
-        pcd_normalize_para = (get_normalize_para(pcd1_normalize_data_filename), get_normalize_para(pcd2_normalize_data_filename))
+        pcd_normalize_para = (get_normalize_para_tensor(pcd1_normalize_data_filename), get_normalize_para_tensor(pcd2_normalize_data_filename))
         medial_axis_sphere = (get_medial_axis_sphere_data(medial_axis_sphere1_filename), get_medial_axis_sphere_data(medial_axis_sphere2_filename))
 
         return (pcd_partial, pcd_gt, pcd_normalize_para, medial_axis_sphere), idx

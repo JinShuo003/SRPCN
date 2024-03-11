@@ -4,23 +4,111 @@ import os
 sys.path.insert(0, os.path.abspath("."))
 
 import os.path
-os.environ['CUDA_VISIBLE_DEVICES'] = "1"
+
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 from datetime import datetime, timedelta
-import json
 import argparse
 import time
-import torch
+import torch.nn as nn
+from torch import optim
 
-from models.PointAttN import PointAttN
-from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation
+from models.PoinTr import PoinTr
 from utils import path_utils
 from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss, ibs_angle_loss, emd_loss
 from utils.train_utils import *
-from dataset import data_INTE
+from dataset import dataset_INTE
 
 
-def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
+def save_model(specs, model, epoch):
+    para_save_dir = specs.get("ParaSaveDir")
+    para_save_path = os.path.join(para_save_dir, specs.get("TAG"))
+    if not os.path.isdir(para_save_path):
+        os.mkdir(para_save_path)
+
+    checkpoint = {
+        "epoch": epoch,
+        "model": model.state_dict(),
+    }
+    checkpoint_filename = os.path.join(para_save_path, "epoch_{}.pth".format(epoch))
+
+    torch.save(checkpoint, checkpoint_filename)
+
+
+def set_bn_momentum_default(bn_momentum):
+    def fn(m):
+        if isinstance(m, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d)):
+            m.momentum = bn_momentum
+    return fn
+
+
+class BNMomentumScheduler(object):
+
+    def __init__(
+            self, model, bn_lambda, last_epoch=-1,
+            setter=set_bn_momentum_default
+    ):
+        if not isinstance(model, nn.Module):
+            raise RuntimeError(
+                "Class '{}' is not a PyTorch nn Module".format(
+                    type(model).__name__
+                )
+            )
+
+        self.model = model
+        self.setter = setter
+        self.lmbd = bn_lambda
+
+        self.step(last_epoch + 1)
+        self.last_epoch = last_epoch
+
+    def step(self, epoch=None):
+        if epoch is None:
+            epoch = self.last_epoch + 1
+
+        self.last_epoch = epoch
+        self.model.apply(self.setter(self.lmbd(epoch)))
+
+    def get_momentum(self, epoch=None):
+        if epoch is None:
+            epoch = self.last_epoch + 1
+        return self.lmbd(epoch)
+
+
+def get_optimizer(base_model):
+    def add_weight_decay(model, weight_decay=1e-5, skip_list=()):
+        decay = []
+        no_decay = []
+        for name, param in model.named_parameters():
+            if not param.requires_grad:
+                continue  # frozen weights
+            if len(param.shape) == 1 or name.endswith(".bias") or name in skip_list:
+                no_decay.append(param)
+            else:
+                decay.append(param)
+        return [
+            {'params': no_decay, 'weight_decay': 0.},
+            {'params': decay, 'weight_decay': weight_decay}]
+    param_groups = add_weight_decay(base_model, weight_decay=0.0005)
+    optimizer = optim.AdamW(param_groups, lr=0.0001, weight_decay=0.0005)
+
+    return optimizer
+
+
+def get_lr_scheduler(base_model, optimizer, last_epoch=-1):
+    warming_up_t = 0
+    lr_lbmd = lambda e: max(0.9 ** ((e - warming_up_t) / 21), 0.02) if e >= warming_up_t else max(e / warming_up_t, 0.001)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lbmd, last_epoch=last_epoch)
+
+    bnm_lmbd = lambda e: max(0.9 * 0.5 ** (e / 21), 0.01)
+    bnscheduler = BNMomentumScheduler(base_model, bnm_lmbd, last_epoch=last_epoch)
+
+    scheduler = [scheduler, bnscheduler]
+
+    return scheduler
+
+
+def train(network, train_dataloader, lr_scheduler, optimizer, epoch, specs, tensorboard_writer):
     logger = LogFactory.get_logger(specs.get("LogOptions"))
     device = specs.get("Device")
 
@@ -37,7 +125,6 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
     logger.info("ibsa_loss_weight: {}".format(ibsa_loss_weight))
 
     train_total_loss_dense = 0
-    train_total_loss_sub_dense = 0
     train_total_loss_coarse = 0
     train_total_loss_medial_axis_surface = 0
     train_total_loss_medial_axis_interaction = 0
@@ -49,29 +136,25 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         optimizer.zero_grad()
 
         pcd_partial = pcd_partial.to(device)
-        pcd_pred_coarse, pcd_pred_sub_dense, pcd_pred_dense = network(pcd_partial)
+        coarse, dense = network(pcd_partial)
 
         pcd_gt = pcd_gt.to(device)
         center = center.to(device)
         radius = radius.to(device)
         direction = direction.to(device)
 
-        loss_dense = cd_loss_L1(pcd_pred_dense, pcd_gt)
-        gt_sub_dense = gather_operation(pcd_gt.transpose(1, 2).contiguous(), furthest_point_sample(pcd_gt, pcd_pred_sub_dense.shape[1])).transpose(1, 2).contiguous()
-        loss_sub_dense = cd_loss_L1(pcd_pred_sub_dense, gt_sub_dense)
-        gt_coarse = gather_operation(gt_sub_dense.transpose(1, 2).contiguous(), furthest_point_sample(gt_sub_dense, pcd_pred_coarse.shape[1])).transpose(1, 2).contiguous()
-        loss_coarse = cd_loss_L1(pcd_pred_dense, gt_coarse)
-        loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
-        loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
-        loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, pcd_pred_dense)
+        loss_coarse = cd_loss_L1(coarse, pcd_gt)
+        loss_dense = cd_loss_L1(dense, pcd_gt)
+        loss_medial_axis_surface = medial_axis_surface_loss(center, radius, dense)
+        loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, dense)
+        loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, dense)
 
-        loss_total = loss_dense + loss_sub_dense + loss_coarse + \
+        loss_total = loss_dense + loss_coarse + \
                     mads_loss_weight * loss_medial_axis_surface + \
                     madi_loss_weight * loss_medial_axis_interaction + \
                     ibsa_loss_weight * loss_ibs_angle
                     
         train_total_loss_dense += loss_dense.item()
-        train_total_loss_sub_dense += loss_sub_dense.item()
         train_total_loss_coarse += loss_coarse.item()
         train_total_loss_medial_axis_surface += loss_medial_axis_surface.item()
         train_total_loss_medial_axis_interaction += loss_medial_axis_interaction.item()
@@ -81,10 +164,9 @@ def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tenso
         loss_total.backward()
         optimizer.step()
 
-    lr_schedule.step()
+    lr_scheduler.step()
 
     record_loss_info(specs, "train_loss_dense", train_total_loss_dense / train_dataloader.__len__(), epoch, tensorboard_writer)
-    record_loss_info(specs, "train_loss_sub_dense", train_total_loss_sub_dense / train_dataloader.__len__(), epoch,tensorboard_writer)
     record_loss_info(specs, "train_loss_coarse", train_total_loss_coarse / train_dataloader.__len__(), epoch, tensorboard_writer)
     record_loss_info(specs, "train_loss_medial_axis_surface", train_total_loss_medial_axis_surface / train_dataloader.__len__(), epoch, tensorboard_writer)
     record_loss_info(specs, "train_loss_medial_axis_interaction", train_total_loss_medial_axis_interaction / train_dataloader.__len__(), epoch, tensorboard_writer)
@@ -99,7 +181,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
     network.eval()
     with torch.no_grad():
         test_total_dense = 0
-        test_total_sub_dense = 0
         test_total_coarse = 0
         test_total_medial_axis_surface = 0
         test_total_medial_axis_interaction = 0
@@ -110,23 +191,21 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             center, radius, direction, pcd_partial, pcd_gt = data
             pcd_partial = pcd_partial.to(device)
 
-            pcd_pred_coarse, pcd_pred_sub_dense, pcd_pred_dense = network(pcd_partial)
+            coarse, dense = network(pcd_partial)
 
             pcd_gt = pcd_gt.to(device)
             center = center.to(device)
             radius = radius.to(device)
             direction = direction.to(device)
 
-            loss_dense = cd_loss_L1(pcd_pred_dense, pcd_gt)
-            loss_sub_dense = cd_loss_L1(pcd_pred_sub_dense, pcd_gt)
-            loss_coarse = cd_loss_L1(pcd_pred_coarse, pcd_gt)
-            loss_medial_axis_surface = medial_axis_surface_loss(center, radius, pcd_pred_dense)
-            loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, pcd_pred_dense)
-            loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, pcd_pred_dense)
-            loss_emd = emd_loss(pcd_pred_dense, pcd_gt)
+            loss_dense = cd_loss_L1(dense, pcd_gt)
+            loss_coarse = cd_loss_L1(coarse, pcd_gt)
+            loss_medial_axis_surface = medial_axis_surface_loss(center, radius, dense)
+            loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, dense)
+            loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, dense)
+            loss_emd = emd_loss(dense, pcd_gt)
 
             test_total_dense += loss_dense.item()
-            test_total_sub_dense += loss_sub_dense.item()
             test_total_coarse += loss_coarse.item()
             test_total_medial_axis_surface += loss_medial_axis_surface.item()
             test_total_medial_axis_interaction += loss_medial_axis_interaction.item()
@@ -136,7 +215,6 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 
         test_avrg_dense = test_total_dense / test_dataloader.__len__()
         record_loss_info(specs, "test_loss_dense", test_total_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
-        record_loss_info(specs, "test_loss_sub_dense", test_total_sub_dense / test_dataloader.__len__(), epoch, tensorboard_writer)
         record_loss_info(specs, "test_loss_coarse", test_total_coarse / test_dataloader.__len__(), epoch, tensorboard_writer)
         record_loss_info(specs, "test_loss_medial_axis_surface", test_total_medial_axis_surface / test_dataloader.__len__(), epoch, tensorboard_writer)
         record_loss_info(specs, "test_loss_medial_axis_interaction", test_total_medial_axis_interaction / test_dataloader.__len__(), epoch, tensorboard_writer)
@@ -164,9 +242,9 @@ def main_function(specs):
     logger.info("current time: {}".format(TIMESTAMP))
     logger.info("There are {} epochs in total".format(epoch_num))
 
-    train_loader, test_loader = get_dataloader(data_INTE.INTEDataset, specs)
+    train_loader, test_loader = get_dataloader(dataset_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
-    network = get_network(specs, PointAttN, checkpoint)
+    network = get_network(specs, PoinTr, checkpoint)
     optimizer = get_optimizer(specs, network, checkpoint)
     lr_scheduler_class, kwargs = get_lr_scheduler_info(specs)
     lr_scheduler = get_lr_scheduler(specs, optimizer, checkpoint, lr_scheduler_class, **kwargs)
@@ -199,7 +277,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/train/specs_train_PointAttN_INTE.json",
+        default="configs/INTE/train/specs_train_PointTr_INTE.json",
         required=False,
         help="The experiment config file."
     )

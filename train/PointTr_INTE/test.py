@@ -11,11 +11,11 @@ import time
 import os.path
 from datetime import datetime, timedelta
 
-from models.PointAttN import PointAttN
+from models.PoinTr import PoinTr
 from utils.metric import *
 from utils.test_utils import *
 from utils import log_utils, path_utils, statistics_utils
-from dataset import data_INTE
+from dataset import dataset_INTE
 
 
 def test(network, test_dataloader, specs):
@@ -43,14 +43,14 @@ def test(network, test_dataloader, specs):
             radius = radius.to(device)
             direction = direction.to(device)
 
-            coarse, fine, pcd_pred = network(pcd_partial)
+            coarse, dense = network(pcd_partial)
 
-            cd_l1 = l1_cd(pcd_pred, pcd_gt)
-            emd_ = emd(pcd_pred, pcd_gt)
-            fscore = f_score(pcd_pred, pcd_gt)
-            mad_s = medial_axis_surface_dist(center, radius, pcd_pred)
-            mad_i = medial_axis_interaction_dist(center, radius, pcd_pred)
-            ibs_a, interact_num = ibs_angle_dist(center, radius, direction, pcd_pred)
+            cd_l1 = l1_cd(dense, pcd_gt)
+            emd_ = emd(dense, pcd_gt)
+            fscore = f_score(dense, pcd_gt)
+            mad_s = medial_axis_surface_dist(center, radius, dense)
+            mad_i = medial_axis_interaction_dist(center, radius, dense)
+            ibs_a, interact_num = ibs_angle_dist(center, radius, direction, dense)
 
             update_loss_dict(dist_dict, filename_list, cd_l1.detach().cpu().numpy(), "cd_l1")
             update_loss_dict(dist_dict, filename_list, emd_.detach().cpu().numpy(), "emd")
@@ -62,7 +62,7 @@ def test(network, test_dataloader, specs):
 
             statistics_utils.append_csv_data(single_csv_data, filename_list, cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num)
 
-            save_result(filename_list, pcd_pred, specs)
+            save_result(filename_list, dense, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))
 
         cal_avrg_dist(dist_dict)
@@ -83,12 +83,11 @@ def main_function(specs):
     logger.info("test device: {}".format(device))
     logger.info("batch size: {}".format(specs.get("BatchSize")))
 
-    test_dataloader = get_dataloader(data_INTE.INTEDataset, specs)
+    test_dataloader = get_dataloader(dataset_INTE.INTEDataset, specs)
     logger.info("init dataloader succeed")
 
-    model = PointAttN().to(device)
     checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(checkpoint["model"])
+    model = get_network(specs, PoinTr, checkpoint)
     logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()
@@ -108,7 +107,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/test/specs_test_PointAttN_INTE.json",
+        default="configs/INTE/test/specs_test_PointTr_INTE.json",
         required=False,
         help="The experiment config file."
     )

@@ -221,8 +221,7 @@ def main_function(specs):
         logger.info("use {} to train".format(time_end_train - time_begin_train))
 
         time_begin_test = time.time()
-        best_cd, best_epoch = test(network, test_loader, lr_scheduler, optimizer, epoch, specs, tensorboard_writer,
-                                   best_cd, best_epoch)
+        best_cd, best_epoch = test(network, test_loader, lr_scheduler, optimizer, epoch, specs, tensorboard_writer, best_cd, best_epoch)
         time_end_test = time.time()
         logger.info("use {} to test".format(time_end_test - time_begin_test))
 

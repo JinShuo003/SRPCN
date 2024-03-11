@@ -13,7 +13,7 @@ import time
 import torch.nn as nn
 from torch import optim
 
-from models.PoinTr import PoinTr
+from models.PoinTr import PoinTr, fps
 from utils import path_utils
 from utils.loss import cd_loss_L1, emd_loss
 from utils.train_utils import *
@@ -129,7 +129,7 @@ def train(network, train_dataloader, lr_scheduler, optimizer, epoch, specs, tens
         pcd_gt = pcd_gt.to(device)
 
         loss_coarse = cd_loss_L1(coarse, pcd_gt)
-        loss_dense = cd_loss_L1(coarse, dense)
+        loss_dense = cd_loss_L1(dense, pcd_gt)
 
         loss_total = loss_coarse + loss_dense
 
@@ -167,7 +167,7 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
 
             loss_dense = cd_loss_L1(dense, pcd_gt)
             loss_coarse = cd_loss_L1(coarse, pcd_gt)
-            loss_emd = emd_loss(dense, pcd_gt)
+            loss_emd = emd_loss(fps(dense, 2048), pcd_gt)
 
             test_total_dense += loss_dense.item()
             test_total_coarse += loss_coarse.item()
@@ -235,7 +235,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/C3d/train/specs_train_AdaPointTr_C3d.json",
+        default="configs/C3d/train/specs_train_PointTr_C3d.json",
         required=False,
         help="The experiment config file."
     )

@@ -21,81 +21,6 @@ from utils.train_utils import *
 from dataset import dataset_INTE
 
 
-class GradualWarmupScheduler(_LRScheduler):
-    """ Gradually warm-up(increasing) learning rate in optimizer.
-    Proposed in 'Accurate, Large Minibatch SGD: Training ImageNet in 1 Hour'.
-
-    Args:
-        optimizer (Optimizer): Wrapped optimizer.
-        multiplier: target learning rate = base lr * multiplier if multiplier > 1.0.
-            if multiplier = 1.0, lr starts from 0 and ends up with the base_lr.
-        total_epoch: target learning rate is reached at total_epoch, gradually
-        after_scheduler: after target_epoch, use this scheduler(eg. ReduceLROnPlateau)
-    """
-
-    def __init__(self,
-                 optimizer,
-                 multiplier,
-                 total_epoch,
-                 after_scheduler=None):
-        self.multiplier = multiplier
-        if self.multiplier < 1.:
-            raise ValueError(
-                'multiplier should be greater thant or equal to 1.')
-        self.total_epoch = total_epoch
-        self.after_scheduler = after_scheduler
-        self.finished = False
-        super(GradualWarmupScheduler, self).__init__(optimizer)
-
-    def get_lr(self):
-        if self.last_epoch > self.total_epoch:
-            if self.after_scheduler:
-                if not self.finished:
-                    self.after_scheduler.base_lrs = [
-                        base_lr * self.multiplier for base_lr in self.base_lrs
-                    ]
-                    self.finished = True
-                return self.after_scheduler.get_last_lr()
-            return [base_lr * self.multiplier for base_lr in self.base_lrs]
-
-        if self.multiplier == 1.0:
-            return [
-                base_lr * (float(self.last_epoch) / self.total_epoch)
-                for base_lr in self.base_lrs
-            ]
-        else:
-            return [
-                base_lr *
-                ((self.multiplier - 1.) * self.last_epoch / self.total_epoch +
-                 1.) for base_lr in self.base_lrs
-            ]
-
-    def step(self, epoch=None, metrics=None):
-        if self.finished and self.after_scheduler:
-            if epoch is None:
-                self.after_scheduler.step(None)
-            else:
-                self.after_scheduler.step(epoch - self.total_epoch)
-            self._last_lr = self.after_scheduler.get_last_lr()
-        else:
-            return super(GradualWarmupScheduler, self).step(epoch)
-
-
-def get_optimizer(model):
-    optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()),
-                                 lr=0.001,
-                                 weight_decay=0,
-                                 betas=(.9, .999))
-    return optimizer
-
-
-def get_lr_scheduler(optimizer):
-    scheduler_steplr = StepLR(optimizer, step_size=1, gamma=0.1 ** (1 / 100))
-    lr_scheduler = GradualWarmupScheduler(optimizer, multiplier=1, total_epoch=20,
-                                          after_scheduler=scheduler_steplr)
-    return lr_scheduler
-
-
 def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
     logger = LogFactory.get_logger(specs.get("LogOptions"))
     device = specs.get("Device")
@@ -275,8 +200,9 @@ def main_function(specs):
     train_loader, test_loader = get_dataloader(dataset_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
     network = get_network(specs, SeedFormer, checkpoint)
-    optimizer = get_optimizer(network)
-    lr_scheduler = get_lr_scheduler(optimizer)
+    optimizer = get_optimizer(specs, network, checkpoint)
+    lr_scheduler_class, kwargs = get_lr_scheduler_info(specs)
+    lr_scheduler = get_lr_scheduler(specs, optimizer, checkpoint, lr_scheduler_class, **kwargs)
     tensorboard_writer = get_tensorboard_writer(specs)
 
     best_cd = 1e8

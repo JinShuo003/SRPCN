@@ -1,5 +1,5 @@
 {
-    "TAG": "SeedFormer_INTE",
+    "TAG": "SeedFormer_INTE_lr1e3",
     "Description" : "model: SeedFormer, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -10,8 +10,18 @@
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 64,
-        "DataLoaderThreads" : 8
+        "BatchSize" : 32,
+        "DataLoaderThreads" : 8,
+        "PreTrain": true,
+        "PreTrainModel": "model_paras/SeedFormer_C3d/epoch_137.pth",
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "LRScheduler": "StepLR",
+            "InitLearningRate": 1e-3,
+            "StepSize": 20,
+            "Gamma": 0.7
+        }
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
@@ -32,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SeedFormer_INTE",
+        "TAG": "SeedFormer_INTE_lr1e3",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

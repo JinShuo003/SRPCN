@@ -11,11 +11,12 @@ import time
 import os.path
 from datetime import datetime, timedelta
 
-from models.PointAttN import PointAttN
+from models.SeedFormer import SeedFormer
+from models.pn2_utils import fps_subsample
 from utils.metric import *
 from utils.test_utils import *
 from utils import log_utils, path_utils, statistics_utils
-from dataset import data_INTE
+from dataset import dataset_INTE
 
 
 def test(network, test_dataloader, specs):
@@ -43,7 +44,8 @@ def test(network, test_dataloader, specs):
             radius = radius.to(device)
             direction = direction.to(device)
 
-            coarse, fine, pcd_pred = network(pcd_partial)
+            Pc, P1, P2, P3 = network(pcd_partial)
+            pcd_pred = P3
 
             cd_l1 = l1_cd(pcd_pred, pcd_gt)
             emd_ = emd(pcd_pred, pcd_gt)
@@ -83,12 +85,11 @@ def main_function(specs):
     logger.info("test device: {}".format(device))
     logger.info("batch size: {}".format(specs.get("BatchSize")))
 
-    test_dataloader = get_dataloader(data_INTE.INTEDataset, specs)
+    test_dataloader = get_dataloader(dataset_INTE.INTEDataset, specs)
     logger.info("init dataloader succeed")
 
-    model = PointAttN().to(device)
     checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(checkpoint["model"])
+    model = get_network(specs, SeedFormer, checkpoint)
     logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()

@@ -1,0 +1,26 @@
+{
+    "TAG": "RBPCDC_INTE_cd",
+    "DataSource" : "data",
+    "Dataset": "INTE",
+    "TestSplit" : "dataset/test_INTE/test_RBPCDC.json",
+    "ModelPath": "model_paras/RBPCDC_INTE_cd/epoch_60.pth",
+    "ScenePatten": "scene\\d+.\\d+",
+    "ViewNamePatten": "scene\\d.\\d{4}_view\\d+",
+    "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
+    "NormalizeParaDir": "data/normalizePara/INTE",
+    "ResultSaveDir": "test_result",
+
+    "Device" : 0,
+    "BatchSize" : 128 ,
+    "DataLoaderThreads" : 8,
+
+    "LogOptions": {
+        "TAG": "RBPCDC_INTE_cd",
+        "Type": "test",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
+    }
+}

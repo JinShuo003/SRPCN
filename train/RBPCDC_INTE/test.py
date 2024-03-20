@@ -39,6 +39,7 @@ def save_pcd(pcd, path, filename):
 
 
 def save_result(filename_list: list, pcd, specs: dict):
+    filename_list = filename_list[0: int(len(filename_list)/2)]
     pcd_pred_path1, pcd_pred_path2 = pcd
     pcd1_pred_path1, pcd2_pred_path1 = pcd_pred_path1
     pcd1_pred_path2, pcd2_pred_path2 = pcd_pred_path2
@@ -46,7 +47,6 @@ def save_result(filename_list: list, pcd, specs: dict):
     save_dir = specs.get("ResultSaveDir")
     tag = specs.get("TAG")
     dataset = specs.get("Dataset")
-    normalize_para_dir = specs.get("NormalizeParaDir")
 
     viewname_patten = specs.get("ViewNamePatten")
     scene_patten = specs.get("ScenePatten")
@@ -76,14 +76,6 @@ def save_result(filename_list: list, pcd, specs: dict):
         pcd2_pred_path1 = get_pcd_from_np(pcd2_pred_path1_batch[index])
         pcd2_pred_path2 = get_pcd_from_np(pcd2_pred_path2_batch[index])
 
-        pcd1_translate, pcd1_scale = get_normalize_para_np(os.path.join(normalize_para_dir, category, "{}_{}.txt".format(scene, 0)))
-        pcd2_translate, pcd2_scale = get_normalize_para_np(os.path.join(normalize_para_dir, category, "{}_{}.txt".format(scene, 1)))
-
-        pcd1_pred_path1 = geometry_utils.normalize_geometry(pcd1_pred_path1, pcd1_translate, pcd1_scale)
-        pcd1_pred_path2 = geometry_utils.normalize_geometry(pcd1_pred_path2, pcd1_translate, pcd1_scale)
-        pcd2_pred_path1 = geometry_utils.normalize_geometry(pcd2_pred_path1, pcd2_translate, pcd2_scale)
-        pcd2_pred_path2 = geometry_utils.normalize_geometry(pcd2_pred_path2, pcd2_translate, pcd2_scale)
-
         save_pcd(pcd1_pred_path1, path1_save_path, pcd1_filename_final)
         save_pcd(pcd1_pred_path2, path2_save_path, pcd1_filename_final)
         save_pcd(pcd2_pred_path1, path1_save_path, pcd2_filename_final)
@@ -104,59 +96,82 @@ def get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sph
     center1, radius1, direction1,  = medial_axis_sphere1
     center2, radius2, direction2,  = medial_axis_sphere2
 
-    pcd1_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_gt, pcd1_centroid, pcd1_scale)
-    pcd1_pred_path1_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_pred_path1, pcd1_centroid,
-                                                                              pcd1_scale)
-    pcd1_pred_path2_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd1_pred_path2, pcd1_centroid,
-                                                                              pcd1_scale)
-    pcd2_gt_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_gt, pcd2_centroid, pcd2_scale)
-    pcd2_pred_path1_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_pred_path1, pcd2_centroid,
-                                                                              pcd2_scale)
-    pcd2_pred_path2_origin = geometry_utils.denormalize_geometry_tensor_batch(pcd2_pred_path2, pcd2_centroid,
-                                                                              pcd2_scale)
+    pcd1_gt_origin = geometry_utils.normalize_geometry_tensor_batch(pcd1_gt, pcd1_centroid, pcd1_scale)
+    pcd1_pred_path1_origin = geometry_utils.normalize_geometry_tensor_batch(pcd1_pred_path1, pcd1_centroid, pcd1_scale)
+    pcd1_pred_path2_origin = geometry_utils.normalize_geometry_tensor_batch(pcd1_pred_path2, pcd1_centroid, pcd1_scale)
+    pcd2_gt_origin = geometry_utils.normalize_geometry_tensor_batch(pcd2_gt, pcd2_centroid, pcd2_scale)
+    pcd2_pred_path1_origin = geometry_utils.normalize_geometry_tensor_batch(pcd2_pred_path1, pcd2_centroid, pcd2_scale)
+    pcd2_pred_path2_origin = geometry_utils.normalize_geometry_tensor_batch(pcd2_pred_path2, pcd2_centroid, pcd2_scale)
 
     cd_l1_pcd1_path1 = l1_cd(pcd1_pred_path1_origin, pcd1_gt_origin)
     cd_l1_pcd1_path2 = l1_cd(pcd1_pred_path2_origin, pcd1_gt_origin)
     cd_l1_pcd2_path1 = l1_cd(pcd2_pred_path1_origin, pcd2_gt_origin)
     cd_l1_pcd2_path2 = l1_cd(pcd2_pred_path2_origin, pcd2_gt_origin)
-    cd_l1 = (cd_l1_pcd1_path1 + cd_l1_pcd1_path2 + cd_l1_pcd2_path1 + cd_l1_pcd2_path2) / 4
+    cd_l1_pcd1 = (cd_l1_pcd1_path1 + cd_l1_pcd1_path2) / 2
+    cd_l1_pcd2 = (cd_l1_pcd2_path1 + cd_l1_pcd2_path2) / 2
+    cd_l1 = torch.cat((cd_l1_pcd1, cd_l1_pcd2), dim=0)
 
     emd_pcd1_path1 = emd(pcd1_pred_path1_origin, pcd1_gt_origin)
     emd_pcd1_path2 = emd(pcd1_pred_path2_origin, pcd1_gt_origin)
     emd_pcd2_path1 = emd(pcd2_pred_path1_origin, pcd2_gt_origin)
     emd_pcd2_path2 = emd(pcd2_pred_path2_origin, pcd2_gt_origin)
-    emd_ = (emd_pcd1_path1 + emd_pcd1_path2 + emd_pcd2_path1 + emd_pcd2_path2) / 4
+    emd_pcd1 = (emd_pcd1_path1 + emd_pcd1_path2) / 2
+    emd_pcd2 = (emd_pcd2_path1 + emd_pcd2_path2) / 2
+    emd_ = torch.cat((emd_pcd1, emd_pcd2), dim=0)
 
     f_score_pcd1_path1 = f_score(pcd1_pred_path1_origin, pcd1_gt_origin)
     f_score_pcd1_path2 = f_score(pcd1_pred_path2_origin, pcd1_gt_origin)
     f_score_pcd2_path1 = f_score(pcd2_pred_path1_origin, pcd2_gt_origin)
     f_score_pcd2_path2 = f_score(pcd2_pred_path2_origin, pcd2_gt_origin)
-    fscore = (f_score_pcd1_path1 + f_score_pcd1_path2 + f_score_pcd2_path1 + f_score_pcd2_path2) / 4
+    f_score_pcd1 = (f_score_pcd1_path1 + f_score_pcd1_path2) / 2
+    f_score_pcd2 = (f_score_pcd2_path1 + f_score_pcd2_path2) / 2
+    f_score_ = torch.cat((f_score_pcd1, f_score_pcd2), dim=0)
 
-    mad_s_pcd1_path1 = medial_axis_surface_dist(center1, radius1, pcd1_pred_path1_origin)
-    mad_s_pcd1_path2 = medial_axis_surface_dist(center1, radius1, pcd1_pred_path2_origin)
-    mad_s_pcd2_path1 = medial_axis_surface_dist(center2, radius2, pcd2_pred_path1_origin)
-    mad_s_pcd2_path2 = medial_axis_surface_dist(center2, radius2, pcd2_pred_path2_origin)
-    mad_s = (mad_s_pcd1_path1 + mad_s_pcd1_path2 + mad_s_pcd2_path1 + mad_s_pcd2_path2) / 4
+    mas_pcd1_path1 = medial_axis_surface_dist(center1, radius1, pcd1_pred_path1_origin)
+    mas_pcd1_path2 = medial_axis_surface_dist(center1, radius1, pcd1_pred_path2_origin)
+    mas_pcd2_path1 = medial_axis_surface_dist(center2, radius2, pcd2_pred_path1_origin)
+    mas_pcd2_path2 = medial_axis_surface_dist(center2, radius2, pcd2_pred_path2_origin)
+    mas_pcd1 = (mas_pcd1_path1 + mas_pcd1_path2) / 2
+    mas_pcd2 = (mas_pcd2_path1 + mas_pcd2_path2) / 2
+    mas_ = torch.cat((mas_pcd1, mas_pcd2), dim=0)
 
-    mad_i_pcd1_path1 = medial_axis_interaction_dist(center1, radius1, pcd1_pred_path1_origin)
-    mad_i_pcd1_path2 = medial_axis_interaction_dist(center1, radius1, pcd1_pred_path2_origin)
-    mad_i_pcd2_path1 = medial_axis_interaction_dist(center2, radius2, pcd2_pred_path1_origin)
-    mad_i_pcd2_path2 = medial_axis_interaction_dist(center2, radius2, pcd2_pred_path2_origin)
-    mad_i = (mad_i_pcd1_path1 + mad_i_pcd1_path2 + mad_i_pcd2_path1 + mad_i_pcd2_path2) / 4
+    mai_pcd1_path1 = medial_axis_interaction_dist(center1, radius1, pcd1_pred_path1_origin)
+    mai_pcd1_path2 = medial_axis_interaction_dist(center1, radius1, pcd1_pred_path2_origin)
+    mai_pcd2_path1 = medial_axis_interaction_dist(center2, radius2, pcd2_pred_path1_origin)
+    mai_pcd2_path2 = medial_axis_interaction_dist(center2, radius2, pcd2_pred_path2_origin)
+    mai_pcd1 = (mai_pcd1_path1 + mai_pcd1_path2) / 2
+    mai_pcd2 = (mai_pcd2_path1 + mai_pcd2_path2) / 2
+    mai_ = torch.cat((mai_pcd1, mai_pcd2), dim=0)
 
-    ibs_a_pcd1_path1, interact_num_pcd1_path1 = ibs_angle_dist(center1, radius1, direction1,
+    ibss_pcd1_path1, interact_num_pcd1_path1 = ibs_angle_dist(center1, radius1, direction1,
                                                                          pcd1_pred_path1_origin)
-    ibs_a_pcd1_path2, interact_num_pcd1_path2 = ibs_angle_dist(center1, radius1, direction1,
+    ibss_pcd1_path2, interact_num_pcd1_path2 = ibs_angle_dist(center1, radius1, direction1,
                                                                          pcd1_pred_path2_origin)
-    ibs_a_pcd2_path1, interact_num_pcd2_path1 = ibs_angle_dist(center2, radius2, direction2,
+    ibss_pcd2_path1, interact_num_pcd2_path1 = ibs_angle_dist(center2, radius2, direction2,
                                                                          pcd2_pred_path1_origin)
-    ibs_a_pcd2_path2, interact_num_pcd2_path2 = ibs_angle_dist(center2, radius2, direction2,
+    ibss_pcd2_path2, interact_num_pcd2_path2 = ibs_angle_dist(center2, radius2, direction2,
                                                                          pcd2_pred_path2_origin)
-    ibs_a = (ibs_a_pcd1_path1 + ibs_a_pcd1_path2 + ibs_a_pcd2_path1 + ibs_a_pcd2_path2) / 4
-    interact_num = (interact_num_pcd1_path1 + interact_num_pcd1_path2 + interact_num_pcd2_path1 + interact_num_pcd2_path2) / 4
+    ibss_pcd1 = (ibss_pcd1_path1 + ibss_pcd1_path2) / 2
+    ibss_pcd2 = (ibss_pcd2_path1 + ibss_pcd2_path2) / 2
+    interact_num_pcd1 = (interact_num_pcd1_path1 + interact_num_pcd1_path2) / 2
+    interact_num_pcd2 = (interact_num_pcd2_path1 + interact_num_pcd2_path2) / 2
+    ibss_ = torch.cat((ibss_pcd1, ibss_pcd2), dim=0)
+    interact_num = torch.cat((interact_num_pcd1, interact_num_pcd2), dim=0)
 
-    return cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num
+    return cd_l1, emd_, f_score_, mas_, mai_, ibss_, interact_num
+
+
+def get_filename_list(specs, idx, test_dataloader):
+    viewname_patten = specs.get("ViewNamePatten")
+    filename1_list = []
+    filename2_list = []
+    for i in idx:
+        viewname = re.match(".*{}".format(viewname_patten), test_dataloader.dataset.pcd1_partial_filenames[i]).group()
+        filename1 = "{}_0.ply".format(viewname)
+        filename2 = "{}_1.ply".format(viewname)
+        filename1_list.append(filename1)
+        filename2_list.append(filename2)
+    return filename1_list + filename2_list
 
 
 def test(model, test_dataloader, specs):
@@ -164,12 +179,12 @@ def test(model, test_dataloader, specs):
     device = specs.get("Device")
 
     dist_dict = {
-        "cd_l1": {},
+        "cd": {},
         "emd": {},
         "fscore": {},
-        "mad_s": {},
-        "mad_i": {},
-        "ibs_a": {},
+        "mas": {},
+        "mai": {},
+        "ibss": {},
         "interact_num": {}
     }
     single_csv_data = {}
@@ -177,7 +192,8 @@ def test(model, test_dataloader, specs):
     network_path2.eval()
     with torch.no_grad():
         for data, idx in test_dataloader:
-            filename_list = [test_dataloader.dataset.pcd1_partial_filenames[i] for i in idx]
+            filename_list = get_filename_list(specs, idx, test_dataloader)
+
             pcd_partial, pcd_gt, pcd_normalize_para, medial_axis_sphere = data
 
             pcd1_partial, pcd2_partial = pcd_partial
@@ -202,17 +218,17 @@ def test(model, test_dataloader, specs):
             center1, radius1, direction1 = medial_axis_sphere1
             center2, radius2, direction2 = medial_axis_sphere2
             medial_axis_sphere = ((center1.to(device), radius1.to(device), direction1.to(device)), (center2.to(device), radius2.to(device), direction2.to(device)))
-            cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num = get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sphere)
+            cd, emd_, fscore, mas, mai, ibss, interact_num = get_evaluation_metrics(pcd_pred, pcd_gt, pcd_normalize_para, medial_axis_sphere)
 
-            update_loss_dict(dist_dict, filename_list, cd_l1.detach().cpu().numpy(), "cd_l1")
+            update_loss_dict(dist_dict, filename_list, cd.detach().cpu().numpy(), "cd")
             update_loss_dict(dist_dict, filename_list, emd_.detach().cpu().numpy(), "emd")
             update_loss_dict(dist_dict, filename_list, fscore.detach().cpu().numpy(), "fscore")
-            update_loss_dict(dist_dict, filename_list, mad_s.detach().cpu().numpy(), "mad_s")
-            update_loss_dict(dist_dict, filename_list, mad_i.detach().cpu().numpy(), "mad_i")
-            update_loss_dict(dist_dict, filename_list, ibs_a.detach().cpu().numpy(), "ibs_a")
+            update_loss_dict(dist_dict, filename_list, mas.detach().cpu().numpy(), "mas")
+            update_loss_dict(dist_dict, filename_list, mai.detach().cpu().numpy(), "mai")
+            update_loss_dict(dist_dict, filename_list, ibss.detach().cpu().numpy(), "ibss")
             update_loss_dict(dist_dict, filename_list, interact_num.detach().cpu().numpy(), "interact_num")
 
-            statistics_utils.append_csv_data(single_csv_data, filename_list, cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num)
+            statistics_utils.append_csv_data(single_csv_data, filename_list, cd, emd_, fscore, mas, mai, ibss, interact_num)
 
             save_result(filename_list, pcd_pred, specs)
             logger.info("saved {} pcds".format(idx.shape[0]))

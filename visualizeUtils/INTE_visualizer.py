@@ -202,17 +202,11 @@ class App:
         self.metrics_info_obj1_layout = None
         self.metrics_info_obj2_layout = None
 
-        self.l1_cd_info_obj1_area = None
-        self.l1_cd_info_obj1_text = None
-        self.l1_cd_value_obj1_area = None
-        self.l1_cd_value_obj1_left = None
-        self.l1_cd_value_obj1_right = None
-
-        self.l2_cd_info_obj1_area = None
-        self.l2_cd_info_obj1_text = None
-        self.l2_cd_value_obj1_area = None
-        self.l2_cd_value_obj1_left = None
-        self.l2_cd_value_obj1_right = None
+        self.cd_info_obj1_area = None
+        self.cd_info_obj1_text = None
+        self.cd_value_obj1_area = None
+        self.cd_value_obj1_left = None
+        self.cd_value_obj1_right = None
 
         self.emd_info_obj1_area = None
         self.emd_info_obj1_text = None
@@ -250,17 +244,11 @@ class App:
         self.inte_value_obj1_left = None
         self.inte_value_obj1_right = None
 
-        self.l1_cd_info_obj2_area = None
-        self.l1_cd_info_obj2_text = None
-        self.l1_cd_value_obj2_area = None
-        self.l1_cd_value_obj2_left = None
-        self.l1_cd_value_obj2_right = None
-
-        self.l2_cd_info_obj2_area = None
-        self.l2_cd_info_obj2_text = None
-        self.l2_cd_value_obj2_area = None
-        self.l2_cd_value_obj2_left = None
-        self.l2_cd_value_obj2_right = None
+        self.cd_info_obj2_area = None
+        self.cd_info_obj2_text = None
+        self.cd_value_obj2_area = None
+        self.cd_value_obj2_left = None
+        self.cd_value_obj2_right = None
 
         self.emd_info_obj2_area = None
         self.emd_info_obj2_text = None
@@ -530,14 +518,14 @@ class App:
         metrics_obj2_l = self.metrics1_dataframe["{}_1".format(self.view_selector.get_item(self.selected_view))].to_numpy()
         metrics_obj2_r = self.metrics2_dataframe["{}_1".format(self.view_selector.get_item(self.selected_view))].to_numpy()
 
-        metrics_tag = ["cd1", "cd2", "emd", "fscore", "mads", "madi", "ibsa", "inte"]
-        metrics_l_container = [self.l1_cd_value_obj1_left, self.l2_cd_value_obj1_left, self.emd_value_obj1_left,
+        metrics_tag = ["cd1", "emd", "fscore", "mads", "madi", "ibsa", "inte"]
+        metrics_l_container = [self.cd_value_obj1_left, self.emd_value_obj1_left,
                                self.fscore_value_obj1_left, self.mads_value_obj1_left, self.madi_value_obj1_left,
                                self.ibsa_value_obj1_left, self.inte_value_obj1_left]
-        metrics_r_container = [self.l1_cd_value_obj1_right, self.l2_cd_value_obj1_right, self.emd_value_obj1_right,
+        metrics_r_container = [self.cd_value_obj1_right, self.emd_value_obj1_right,
                                self.fscore_value_obj1_right, self.mads_value_obj1_right, self.madi_value_obj1_right,
                                self.ibsa_value_obj1_right, self.inte_value_obj1_right]
-        metrics_compare_func = [self.less_than, self.less_than, self.less_than, self.greater_than,
+        metrics_compare_func = [self.less_than, self.less_than, self.greater_than,
                                 self.less_than, self.less_than, self.less_than, self.less_than]
         better_color = self.better_metric_color_obj1
         worse_color = self.worse_metric_color_obj1
@@ -545,13 +533,13 @@ class App:
         self.update_metrics_area(metrics_tag, metrics_obj1_l, metrics_obj1_r, metrics_l_container, metrics_r_container,
                                  metrics_compare_func, better_color, worse_color)
 
-        metrics_l_container = [self.l1_cd_value_obj2_left, self.l2_cd_value_obj2_left, self.emd_value_obj2_left,
+        metrics_l_container = [self.cd_value_obj2_left, self.emd_value_obj2_left,
                                self.fscore_value_obj2_left, self.mads_value_obj2_left, self.madi_value_obj2_left,
                                self.ibsa_value_obj2_left, self.inte_value_obj2_left]
-        metrics_r_container = [self.l1_cd_value_obj2_right, self.l2_cd_value_obj2_right, self.emd_value_obj2_right,
+        metrics_r_container = [self.cd_value_obj2_right, self.emd_value_obj2_right,
                                self.fscore_value_obj2_right, self.mads_value_obj2_right, self.madi_value_obj2_right,
                                self.ibsa_value_obj2_right, self.inte_value_obj2_right]
-        metrics_compare_func = [self.less_than, self.less_than, self.less_than, self.greater_than,
+        metrics_compare_func = [self.less_than, self.less_than, self.greater_than,
                                 self.less_than, self.less_than, self.less_than, self.less_than]
         better_color = self.better_metric_color_obj2
         worse_color = self.worse_metric_color_obj2
@@ -960,25 +948,15 @@ class App:
         self.metrics_info_obj1_layout = gui.Vert(0, gui.Margins(0, 0, 0, 0))
         self.metrics_info_obj2_layout = gui.Vert(0, gui.Margins(0, 0, 0, 0))
 
-        self.l1_cd_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
-        self.l1_cd_info_obj1_text = gui.Label("cd1")
-        self.l1_cd_value_obj1_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
-        self.l1_cd_value_obj1_left = gui.Button("0000.00")
-        self.l1_cd_value_obj1_right = gui.Button("0000.00")
-        self.l1_cd_value_obj1_area.add_child(self.l1_cd_value_obj1_left)
-        self.l1_cd_value_obj1_area.add_child(self.l1_cd_value_obj1_right)
-        self.l1_cd_info_obj1_area.add_child(self.l1_cd_info_obj1_text)
-        self.l1_cd_info_obj1_area.add_child(self.l1_cd_value_obj1_area)
-
-        self.l2_cd_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
-        self.l2_cd_info_obj1_text = gui.Label("cd2")
-        self.l2_cd_value_obj1_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
-        self.l2_cd_value_obj1_left = gui.Button("0000.00")
-        self.l2_cd_value_obj1_right = gui.Button("0000.00")
-        self.l2_cd_value_obj1_area.add_child(self.l2_cd_value_obj1_left)
-        self.l2_cd_value_obj1_area.add_child(self.l2_cd_value_obj1_right)
-        self.l2_cd_info_obj1_area.add_child(self.l2_cd_info_obj1_text)
-        self.l2_cd_info_obj1_area.add_child(self.l2_cd_value_obj1_area)
+        self.cd_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
+        self.cd_info_obj1_text = gui.Label("cd")
+        self.cd_value_obj1_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
+        self.cd_value_obj1_left = gui.Button("0000.00")
+        self.cd_value_obj1_right = gui.Button("0000.00")
+        self.cd_value_obj1_area.add_child(self.cd_value_obj1_left)
+        self.cd_value_obj1_area.add_child(self.cd_value_obj1_right)
+        self.cd_info_obj1_area.add_child(self.cd_info_obj1_text)
+        self.cd_info_obj1_area.add_child(self.cd_value_obj1_area)
 
         self.emd_info_obj1_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
         self.emd_info_obj1_text = gui.Label("emd")
@@ -1040,8 +1018,7 @@ class App:
         self.inte_info_obj1_area.add_child(self.inte_info_obj1_text)
         self.inte_info_obj1_area.add_child(self.inte_value_obj1_area)
 
-        self.metrics_info_obj1_layout.add_child(self.l1_cd_info_obj1_area)
-        self.metrics_info_obj1_layout.add_child(self.l2_cd_info_obj1_area)
+        self.metrics_info_obj1_layout.add_child(self.cd_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.emd_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.fscore_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.mads_info_obj1_area)
@@ -1049,25 +1026,15 @@ class App:
         self.metrics_info_obj1_layout.add_child(self.ibsa_info_obj1_area)
         self.metrics_info_obj1_layout.add_child(self.inte_info_obj1_area)
 
-        self.l1_cd_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
-        self.l1_cd_info_obj2_text = gui.Label("cd1")
-        self.l1_cd_value_obj2_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
-        self.l1_cd_value_obj2_left = gui.Button("0000.00")
-        self.l1_cd_value_obj2_right = gui.Button("0000.00")
-        self.l1_cd_value_obj2_area.add_child(self.l1_cd_value_obj2_left)
-        self.l1_cd_value_obj2_area.add_child(self.l1_cd_value_obj2_right)
-        self.l1_cd_info_obj2_area.add_child(self.l1_cd_info_obj2_text)
-        self.l1_cd_info_obj2_area.add_child(self.l1_cd_value_obj2_area)
-
-        self.l2_cd_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
-        self.l2_cd_info_obj2_text = gui.Label("cd2")
-        self.l2_cd_value_obj2_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
-        self.l2_cd_value_obj2_left = gui.Button("0000.00")
-        self.l2_cd_value_obj2_right = gui.Button("0000.00")
-        self.l2_cd_value_obj2_area.add_child(self.l2_cd_value_obj2_left)
-        self.l2_cd_value_obj2_area.add_child(self.l2_cd_value_obj2_right)
-        self.l2_cd_info_obj2_area.add_child(self.l2_cd_info_obj2_text)
-        self.l2_cd_info_obj2_area.add_child(self.l2_cd_value_obj2_area)
+        self.cd_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
+        self.cd_info_obj2_text = gui.Label("cd")
+        self.cd_value_obj2_area = gui.Horiz(5, gui.Margins(0, 0, 0, 0))
+        self.cd_value_obj2_left = gui.Button("0000.00")
+        self.cd_value_obj2_right = gui.Button("0000.00")
+        self.cd_value_obj2_area.add_child(self.cd_value_obj2_left)
+        self.cd_value_obj2_area.add_child(self.cd_value_obj2_right)
+        self.cd_info_obj2_area.add_child(self.cd_info_obj2_text)
+        self.cd_info_obj2_area.add_child(self.cd_value_obj2_area)
 
         self.emd_info_obj2_area = gui.Vert(0, gui.Margins(0, 0, 0, 0))
         self.emd_info_obj2_text = gui.Label("emd")
@@ -1129,8 +1096,7 @@ class App:
         self.inte_info_obj2_area.add_child(self.inte_info_obj2_text)
         self.inte_info_obj2_area.add_child(self.inte_value_obj2_area)
 
-        self.metrics_info_obj2_layout.add_child(self.l1_cd_info_obj2_area)
-        self.metrics_info_obj2_layout.add_child(self.l2_cd_info_obj2_area)
+        self.metrics_info_obj2_layout.add_child(self.cd_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.emd_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.fscore_info_obj2_area)
         self.metrics_info_obj2_layout.add_child(self.mads_info_obj2_area)

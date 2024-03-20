@@ -36,12 +36,12 @@ C3d_name_dict = {
 
 
 INTE_indicators = [
-    "cd_l1",
+    "cd",
     "emd",
     "fscore",
-    "mad_s",
-    "mad_i",
-    "ibs_a",
+    "mas",
+    "mai",
+    "ibss",
     "interact_num"
 ]
 
@@ -53,12 +53,12 @@ C3d_indicators = [
 ]
 
 indicator_scale = {
-    "cd_l1": 1000,
+    "cd": 1000,
     "emd": 10000,
     "fscore": 1,
-    "mad_s": 1000,
-    "mad_i": 1000000,
-    "ibs_a": 100,
+    "mas": 1000,
+    "mai": 1000000,
+    "ibss": 100,
     "interact_num": 1
 }
 
@@ -74,7 +74,7 @@ def write_avrg_csv_file(csv_path, json_data, dataset: str):
         raise Exception("dataset not support")
 
     scene_name_patten = "scene\\d"
-    scenes = sorted([key for key in json_data["cd_l1"].keys() if re.match(scene_name_patten, key)])
+    scenes = sorted([key for key in json_data["cd"].keys() if re.match(scene_name_patten, key)])
     scene_names = [name_dict[key] for key in scenes]
     index = [i for i in range(1, len(scenes) + 1)]
 

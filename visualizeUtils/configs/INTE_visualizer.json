@@ -3,11 +3,11 @@
     "geometries_dir": {
       "pcd_complete_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
       "pcd_partial_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
-      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads_madi_lr1e4",
-      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN",
+      "pcd_pred1_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4",
+      "pcd_pred2_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_lr1e4",
       "IBS_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
-      "metrics1_filepath": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads_madi_lr1e4\\single_result.csv",
-      "metrics2_filepath": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN\\single_result.csv"
+      "metrics1_filepath": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\single_result.csv",
+      "metrics2_filepath": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_lr1e4\\single_result.csv"
     },
     "format_info": {
       "category_re": "scene\\d",
@@ -26,6 +26,6 @@
     "metrics_layout_width": 200,
     "metrics_latout_height": 200
   },
-  "sub_window_3_name": "PointAttN_INTE_exp_lr1e4_gamma1",
-  "sub_window_4_name": "PointAttN"
+  "sub_window_3_name": "PointAttN_INTE_mads05_madi100_ibsa005_lr1e4",
+  "sub_window_4_name": "PointAttN_INTE"
 }

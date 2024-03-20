@@ -167,8 +167,8 @@ def handle_data_FN(geometries_path: dict, tag: str):
     IBS_mesh.paint_uniform_color((0.7, 0.7, 0.3))
     IBS_aabb = IBS_mesh.get_axis_aligned_bounding_box().scale(1.2, IBS_mesh.get_center())
 
-    test_points_IBS_np = random_utils.get_random_points_in_aabb(IBS_aabb, 2048*4)
-    test_points_pcd_np = random_utils.get_random_points_in_aabb(pcd_aabb, 2048*4)
+    test_points_IBS_np = random_utils.get_random_points_in_aabb(IBS_aabb, 1024*4)
+    test_points_pcd_np = random_utils.get_random_points_in_aabb(pcd_aabb, 1024*4)
     test_points_np = np.concatenate((test_points_IBS_np, test_points_pcd_np), axis=0)
     # test_points_np = test_points_IBS_np
     test_points_pcd = geometry_utils.get_pcd_from_np(test_points_np)
@@ -190,7 +190,7 @@ def handle_data_FN(geometries_path: dict, tag: str):
 
     if specs.get("visualize") and intersect_points_num != 2048:
         visualize(test_points_pcd, IBS_mesh, cosine_sim, closest_center, closest_direction, direction_pred,
-                  False, [mesh])
+                  False, [])
 
 
 def handle_data(specs, filename):

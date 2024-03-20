@@ -13,7 +13,7 @@ import time
 import torch.nn as nn
 from torch import optim
 
-from models.PoinTr import PoinTr
+from models.PoinTr import PoinTr, fps
 from utils import path_utils
 from utils.loss import cd_loss_L1, medial_axis_surface_loss, medial_axis_interaction_loss, ibs_angle_loss, emd_loss
 from utils.train_utils import *
@@ -164,7 +164,8 @@ def train(network, train_dataloader, lr_scheduler, optimizer, epoch, specs, tens
         loss_total.backward()
         optimizer.step()
 
-    lr_scheduler.step()
+    for scheduler_item in lr_scheduler:
+        scheduler_item.step()
 
     record_loss_info(specs, "train_loss_dense", train_total_loss_dense / train_dataloader.__len__(), epoch, tensorboard_writer)
     record_loss_info(specs, "train_loss_coarse", train_total_loss_coarse / train_dataloader.__len__(), epoch, tensorboard_writer)
@@ -203,7 +204,7 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             loss_medial_axis_surface = medial_axis_surface_loss(center, radius, dense)
             loss_medial_axis_interaction = medial_axis_interaction_loss(center, radius, dense)
             loss_ibs_angle, intersect_num = ibs_angle_loss(center, radius, direction, dense)
-            loss_emd = emd_loss(dense, pcd_gt)
+            loss_emd = emd_loss(fps(dense, 2048), pcd_gt)
 
             test_total_dense += loss_dense.item()
             test_total_coarse += loss_coarse.item()
@@ -226,7 +227,7 @@ def test(network, test_dataloader, lr_schedule, optimizer, epoch, specs, tensorb
             best_epoch = epoch
             best_cd = test_avrg_dense
             logger.info('current best epoch: {}, cd: {}'.format(best_epoch, best_cd))
-        save_model(specs, network, lr_schedule, optimizer, epoch)
+        save_model(specs, network, epoch)
 
         return best_cd, best_epoch
 
@@ -245,9 +246,8 @@ def main_function(specs):
     train_loader, test_loader = get_dataloader(dataset_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
     network = get_network(specs, PoinTr, checkpoint)
-    optimizer = get_optimizer(specs, network, checkpoint)
-    lr_scheduler_class, kwargs = get_lr_scheduler_info(specs)
-    lr_scheduler = get_lr_scheduler(specs, optimizer, checkpoint, lr_scheduler_class, **kwargs)
+    optimizer = get_optimizer(network)
+    lr_scheduler = get_lr_scheduler(network, optimizer)
     tensorboard_writer = get_tensorboard_writer(specs)
 
     best_cd = 1e8
@@ -277,7 +277,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/train/specs_train_PointTr_INTE.json",
+        default="configs/INTE/train/specs_train_PoinTr_INTE.json",
         required=False,
         help="The experiment config file."
     )

@@ -17,7 +17,7 @@ from models.SnowFlakeNet import SnowFlakeNet
 from utils import path_utils
 from utils.loss import cd_loss_L1, cd_loss_L2, cd_loss_L2_single, emd_loss, medial_axis_interaction_loss, medial_axis_surface_loss, ibs_angle_loss
 from utils.train_utils import *
-from dataset import data_INTE
+from dataset import dataset_INTE
 
 
 def train(network, train_dataloader, lr_schedule, optimizer, epoch, specs, tensorboard_writer):
@@ -161,7 +161,7 @@ def main_function(specs):
     logger.info("current time: {}".format(TIMESTAMP))
     logger.info("There are {} epochs in total".format(epoch_num))
 
-    train_loader, test_loader = get_dataloader(data_INTE.INTEDataset, specs)
+    train_loader, test_loader = get_dataloader(dataset_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
     network = get_network(specs, SnowFlakeNet, checkpoint)
     optimizer = get_optimizer(specs, network, checkpoint)

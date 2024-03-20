@@ -15,7 +15,7 @@ from models.PointAttN import PointAttN
 from utils.metric import *
 from utils.test_utils import *
 from utils import log_utils, path_utils, statistics_utils
-from dataset import data_INTE
+from dataset import dataset_INTE
 
 
 def test(network, test_dataloader, specs):
@@ -83,12 +83,11 @@ def main_function(specs):
     logger.info("test device: {}".format(device))
     logger.info("batch size: {}".format(specs.get("BatchSize")))
 
-    test_dataloader = get_dataloader(data_INTE.INTEDataset, specs)
+    test_dataloader = get_dataloader(dataset_INTE.INTEDataset, specs)
     logger.info("init dataloader succeed")
 
-    model = PointAttN().to(device)
     checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
-    model.load_state_dict(checkpoint["model"])
+    model = get_network(specs, PointAttN, checkpoint)
     logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()

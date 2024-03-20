@@ -117,6 +117,38 @@ def normalize_geometry(geometry, centroid, scale):
     return geometry_copy
 
 
+def normalize_geometry_tensor(geometry, centroid, scale):
+    """
+    将torch.Tensor归一化到单位球
+    Args:
+        geometry: torch.Tensor, (n, 3)
+        centroid: Geometry的轴对齐包围盒中心点
+        scale: Geometry的尺度
+    Returns:
+        反归一化后的torch.Tensor，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
+    """
+    geometry_copy = copy.deepcopy(geometry)
+    geometry_copy -= centroid
+    geometry_copy /= scale
+    return geometry_copy
+
+
+def normalize_geometry_tensor_batch(geometry, centroid, scale):
+    """
+    将一个batch的torch.Tensor归一化到单位球
+    Args:
+        geometry: torch.Tensor, (B, n, 3)
+        centroid: Geometry的轴对齐包围盒中心点, (B, 3)
+        scale: Geometry的尺度, (B)
+    Returns:
+        反归一化后的torch.Tensor，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
+    """
+    geometry_copy = copy.deepcopy(geometry)
+    geometry_copy -= centroid.unsqueeze(1)
+    geometry_copy /= scale.unsqueeze(1).unsqueeze(2)
+    return geometry_copy
+
+
 def denormalize_geometry(geometry, centroid, scale):
     """
     将open3d.Geometry变换到原有坐标系
@@ -143,9 +175,10 @@ def denormalize_geometry_tensor(geometry, centroid, scale):
     Returns:
         反归一化后的torch.Tensor，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
     """
-    geometry *= scale
-    geometry += centroid
-    return geometry
+    geometry_copy = copy.deepcopy(geometry)
+    geometry_copy *= scale
+    geometry_copy += centroid
+    return geometry_copy
 
 
 def denormalize_geometry_tensor_batch(geometry, centroid, scale):
@@ -158,9 +191,10 @@ def denormalize_geometry_tensor_batch(geometry, centroid, scale):
     Returns:
         反归一化后的torch.Tensor，几何中心位于centroid，轴对齐包围盒的对角线长度为scale
     """
-    geometry *= scale.unsqueeze(1).unsqueeze(2)
-    geometry += centroid.unsqueeze(1)
-    return geometry
+    geometry_copy = copy.deepcopy(geometry)
+    geometry_copy *= scale.unsqueeze(1).unsqueeze(2)
+    geometry_copy += centroid.unsqueeze(1)
+    return geometry_copy
 
 
 def sphere_transform(center, radius, centroid, scale):

@@ -1,6 +1,6 @@
 {
-    "TAG": "SeedFormer_INTE_lr1e4",
-    "Description" : "model: SeedFormer, dataset: INTE_norm",
+    "TAG": "PoinTr_INTE_no_pretrain",
+    "Description" : "model: PoinTr, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
@@ -10,18 +10,12 @@
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 32,
+        "BatchSize" : 31,
         "DataLoaderThreads" : 8,
-        "PreTrain": true,
-        "PreTrainModel": "model_paras/SeedFormer_C3d/epoch_137.pth",
+        "PreTrain": false,
+        "PreTrainModel": "model_paras/PointTr_C3d/epoch_90.pth",
         "ContinueTrain": false,
-        "ContinueFromEpoch": 0,
-        "LearningRateOptions": {
-            "LRScheduler": "StepLR",
-            "InitLearningRate": 1e-4,
-            "StepSize": 20,
-            "Gamma": 0.7
-        }
+        "ContinueFromEpoch": 0
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
@@ -42,7 +36,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SeedFormer_INTE_lr1e4",
+        "TAG": "PoinTr_INTE_no_pretrain",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

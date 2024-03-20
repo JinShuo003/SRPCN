@@ -11,7 +11,7 @@
     "ResultSaveDir": "test_result",
 
     "Device" : 0,
-    "BatchSize" : 128 ,
+    "BatchSize" : 64 ,
     "DataLoaderThreads" : 8,
 
     "LogOptions": {

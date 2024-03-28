@@ -44,8 +44,8 @@ def create_materials():
     """
     params = [
         {'name': 'pointcloud1', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
-        {'name': 'pointcloud2', 'color': (0.921, 0.165, 0.564, 1.0), 'transparent': False},
-        {'name': 'mesh', 'color': (0.794, 0.489, 0.243, 1.0), 'transparent': True}
+        {'name': 'pointcloud2', 'color': (1, 0.8, 0.1, 1.0), 'transparent': False},
+        {'name': 'mesh', 'color': (0.794, 0.489, 0.243, 1.0), 'transparent': False}
     ]
     global protected_material_names
     protected_material_names = [param['name'] for param in params]
@@ -256,7 +256,7 @@ def clear_imported_objects():
             bpy.data.materials.remove(material)
 
 
-def launch_render(base_path: str, img_path: str, filename: str):
+def launch_render(base_path: str, img_path: str, filename: str, additional_info: str):
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     init_scene()
     create_materials()
@@ -266,61 +266,61 @@ def launch_render(base_path: str, img_path: str, filename: str):
 
     camera_obj: Object = bpy.data.objects['Camera']
     camera_location = np.array([0.7359, -0.6926, 0.4958]) * 1.3
+    camera_obj.location = camera_location
 
     base_path = Path(base_path)
+    ibs_path = Path(r"D:\dataset\IBPCDC\IBSMesh\scene1")
     img_path = Path(img_path)
     ply_basename1 = "{}_0".format(filename)
     ply_basename2 = "{}_1".format(filename)
+    ibs_basename = "{}".format("scene1.1012")
     ply_filename1 = "{}.ply".format(ply_basename1)
     ply_filename2 = "{}.ply".format(ply_basename2)
+    ibs_fielname = "{}.obj".format(ibs_basename)
     ply_file1 = base_path / ply_filename1
     ply_file2 = base_path / ply_filename2
-    print(ply_file1.as_posix())
+    ibs_file = ibs_path / ibs_fielname
 
     bpy.ops.wm.ply_import(filepath=ply_file1.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
-    bpy.ops.wm.ply_import(filepath=ply_file2.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
-    bpy.ops.object.empty_add(type='PLAIN_AXES', align='WORLD', location=(0, 0, 0), scale=(1, 1, 1))
-
-    empty_obj = bpy.data.objects['Empty']
-
-    pointcloud = bpy.data.objects[ply_basename1]
-    modifier = pointcloud.modifiers.new('modifier', 'NODES')
+    pointcloud1 = bpy.data.objects[ply_basename1]
+    modifier = pointcloud1.modifiers.new('modifier', 'NODES')
     modifier.node_group = bpy.data.node_groups['pointcloud1 modifier']
 
-    pointcloud = bpy.data.objects[ply_basename2]
-    modifier = pointcloud.modifiers.new('modifier', 'NODES')
+    bpy.ops.wm.ply_import(filepath=ply_file2.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
+    pointcloud2 = bpy.data.objects[ply_basename2]
+    modifier = pointcloud2.modifiers.new('modifier', 'NODES')
     modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
+
+    # bpy.ops.wm.obj_import(filepath=ibs_file.as_posix())
+    # ibs = bpy.data.objects[ibs_basename]
+    # ibs.active_material = bpy.data.materials['mesh']
 
     for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
         camera_obj.location = camera_location * sign
-        track_object(empty_obj)
-        bpy.context.scene.render.filepath = (img_path / f'{view_index}.png').as_posix()
+        track_object(pointcloud1)
+        bpy.context.scene.render.filepath = (img_path / f'{view_index}_{additional_info}.png').as_posix()
         bpy.ops.render.render(write_still=True)
 
 
 if __name__ == '__main__':
-    import argparse
-    arg_parser = argparse.ArgumentParser(description="render pointcloud")
-    arg_parser.add_argument(
-        "--base_path",
-        "-b",
-        dest="base_path",
-        required=True,
-    )
-    arg_parser.add_argument(
-        "--img_path",
-        "-i",
-        dest="img_path",
-        required=True,
-    )
-    arg_parser.add_argument(
-        "--filename",
-        "-f",
-        dest="filename",
-        required=True,
-    )
+    import re
+    file_name = "scene5.1007_view7"
+    category = re.match("scene\\d", file_name).group()
+    scene_name = re.match("scene\\d.\\d{4}", file_name).group()
 
-    args = arg_parser.parse_args()
+    base_path = "D:\\dataset\\IBPCDC\\pcdComplete\\INTE\\{}".format(category)
+    img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, file_name)
+    launch_render(base_path, img_path, scene_name, "complete")
 
-    launch_render(args.base_path, args.img_path, args.filename)
+    base_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\{}".format(category)
+    img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, file_name)
+    launch_render(base_path, img_path, file_name, "input")
+
+    base_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\{}".format(category)
+    img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, file_name)
+    launch_render(base_path, img_path, file_name, "ours")
+
+    # base_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_lr1e4\\{}".format(category)
+    # img_path = "D:\\dataset\\IBPCDC\\render\\PointAttN_INTE_lr1e4\\{}".format(file_name)
+    # launch_render(base_path, img_path, file_name)
 

@@ -2,7 +2,6 @@
 import logging
 # built-in modules
 import sys
-import re
 from itertools import product
 from pathlib import Path
 from typing import List
@@ -23,14 +22,14 @@ def init_scene():
     # the bpy.context module is usually read-only, so we access the current scene through bpy.data
     scene_name: str = bpy.context.scene.name
     scene: Scene = bpy.data.scenes[scene_name]
-    # scene.render.engine = 'BLENDER_EEVEE'
-    scene.render.engine = 'CYCLES'
+    scene.render.engine = 'BLENDER_EEVEE'
+    # scene.render.engine = 'CYCLES'
     # output image settings
     scene.render.image_settings.color_mode = 'RGBA'
     scene.render.image_settings.color_depth = '8'
     scene.render.image_settings.file_format = 'PNG'
     scene.render.resolution_x = 1024
-    scene.render.resolution_y = 2048
+    scene.render.resolution_y = 1024
     scene.render.film_transparent = True  # transparent background
     # remove the default cube and lights created by blender
     for obj in bpy.data.objects:
@@ -44,9 +43,11 @@ def create_materials():
     Create materials for rendering the input point cloud / output mesh
     """
     params = [
-        {'name': 'mesh1', 'color': (1, 0.243, 0.243, 1.0), 'transparent': False},
-        {'name': 'mesh2', 'color': (0.489, 0.794, 0.243, 1.0), 'transparent': False},
-        {'name': 'ibs', 'color': (0.243, 0.489, 0.794, 1.0), 'transparent': True}
+        {'name': 'pointcloud1', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
+        {'name': 'pointcloud2', 'color': (0.921, 0.165, 0.564, 1.0), 'transparent': False},
+        {'name': 'mesh1', 'color': (0.721, 0.165, 0.264, 1.0), 'transparent': False},
+        {'name': 'mesh2', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
+
     ]
     global protected_material_names
     protected_material_names = [param['name'] for param in params]
@@ -73,7 +74,7 @@ def create_materials():
             # blending
             transparent_node = nodes.new('ShaderNodeBsdfTransparent')
             mix_node = nodes.new('ShaderNodeMixShader')
-            mix_node.inputs['Fac'].default_value = 0.3
+            mix_node.inputs['Fac'].default_value = 0.5
 
             # here we have to use index instead of key to access the 'Shader' input
             # of a Mix Shader node, because there are two input slots with the same
@@ -97,6 +98,8 @@ def init_camera():
     Set the camera's position
     """
     camera_obj: Object = bpy.data.objects['Camera']
+    # the location is obtained through GUI
+    camera_obj.location = (0.7359, -0.6926, 0.4958)
 
 
 def init_lights(scale_factor: float = 1):
@@ -178,105 +181,46 @@ def launch_render(base_path: str, img_path: str, filename: str):
     init_lights()
 
     camera_obj: Object = bpy.data.objects['Camera']
+    camera_location = np.array([0.7359, -0.6926, 0.4958]) * 1.3
+    camera_obj.location = camera_location
 
-    category_patten = "scene\\d"
-    category = re.match(category_patten, filename).group()
     base_path = Path(base_path)
     img_path = Path(img_path)
-    mesh_path = base_path / 'mesh' / category
-    ibs_path = base_path / 'IBSMesh' / category
+    obj_basename1 = "{}_0".format(filename)
+    obj_basename2 = "{}_1".format(filename)
+    obj_filename1 = "{}.obj".format(obj_basename1)
+    obj_filename2 = "{}.obj".format(obj_basename2)
+    obj_file1 = base_path / obj_filename1
+    obj_file2 = base_path / obj_filename2
 
-    mesh1_filename = '{}_0'.format(filename)
-    mesh2_filename = '{}_1'.format(filename)
-    ibs_filename = '{}'.format(filename)
-    mesh1_file = mesh_path / '{}.obj'.format(mesh1_filename)
-    mesh2_file = mesh_path / '{}.obj'.format(mesh2_filename)
-    ibs_file = ibs_path / '{}.obj'.format(ibs_filename)
-
-    bpy.ops.wm.obj_import(filepath=mesh1_file.as_posix())
-    bpy.ops.wm.obj_import(filepath=mesh2_file.as_posix())
-    bpy.ops.wm.obj_import(filepath=ibs_file.as_posix())
-
-    mesh1 = bpy.data.objects[mesh1_filename]
-    mesh2 = bpy.data.objects[mesh2_filename]
-    ibs = bpy.data.objects[ibs_filename]
-
+    bpy.ops.wm.obj_import(filepath=obj_file1.as_posix())
+    bpy.ops.wm.obj_import(filepath=obj_file2.as_posix())
+    mesh1 = bpy.data.objects[obj_basename1]
+    mesh2 = bpy.data.objects[obj_basename2]
     mesh1.active_material = bpy.data.materials['mesh1']
     mesh2.active_material = bpy.data.materials['mesh2']
-    ibs.active_material = bpy.data.materials['ibs']
 
-    camera_obj.location = np.array([-1.22, -0.3, 0.6]) * 1
-    track_object(mesh2)
-    bpy.context.scene.render.filepath = (img_path / 'IBS' / '{}.png'.format(filename)).as_posix()
-    bpy.ops.render.render(write_still=True)
+    # bpy.ops.wm.ply_import(filepath=obj_file1.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
+    # bpy.ops.wm.ply_import(filepath=obj_file2.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
 
-
-# 使用命令行渲染，通过arg_parser解析参数
-# if __name__ == '__main__':
-#     import argparse
-#     arg_parser = argparse.ArgumentParser(description="render pointcloud")
-#     arg_parser.add_argument(
-#         "--base_path",
-#         "-b",
-#         dest="base_path",
-#         default="D:\\dataset\\IBPCDC",
-#         required=False,
-#     )
-#     arg_parser.add_argument(
-#         "--output_path",
-#         "-o",
-#         dest="output_path",
-#         default="D:\\dataset\\IBPCDC\\render",
-#         required=False,
-#     )
-#     arg_parser.add_argument(
-#         "--filename",
-#         "-f",
-#         dest="filename",
-#         required=True,
-#     )
-#
-#     args = arg_parser.parse_args()
-#
-#     launch_render(args.base_path, args.output_path, args.filename)
+    for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
+        camera_obj.location = camera_location * sign
+        track_object(mesh1)
+        bpy.context.scene.render.filepath = (img_path / f'{view_index}.png').as_posix()
+        bpy.ops.render.render(write_still=True)
 
 
-# 在blender中渲染，不使用arg_parser
 if __name__ == '__main__':
-    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
 
-    init_scene()
-    create_materials()
-    init_lights()
-    init_camera()
+    base_path = "D:\\dataset\\IBPCDC\\mesh\\scene1"
+    img_path = "D:\\dataset\\IBPCDC\\render\\mesh\\scene1.1019"
+    #
+    # base_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\scene1"
+    # img_path = "D:\\dataset\\IBPCDC\\render\\pcdScan\\scene1.1019_view20"
 
-    camera_obj: Object = bpy.data.objects['Camera']
+    # base_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1"
+    # img_path = "D:\\dataset\\IBPCDC\\render\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1.1019_view20"
+    filename = "scene1.1019"
 
-    base_path = "D:\\dataset\\IBPCDC"
-    img_path = "D:\\dataset\\IBPCDC\\render"
-    filename = "scene2.1000"
-    category_patten = "scene\\d"
-    category = re.match(category_patten, filename).group()
-    base_path = Path(base_path)
-    img_path = Path(img_path)
-    mesh_path = base_path / 'mesh' / category
-    ibs_path = base_path / 'IBSMesh' / category
+    launch_render(base_path, img_path, filename)
 
-    mesh1_filename = '{}_0'.format(filename)
-    mesh2_filename = '{}_1'.format(filename)
-    ibs_filename = '{}'.format(filename)
-    mesh1_file = mesh_path / '{}.obj'.format(mesh1_filename)
-    mesh2_file = mesh_path / '{}.obj'.format(mesh2_filename)
-    ibs_file = ibs_path / '{}.obj'.format(ibs_filename)
-
-    bpy.ops.wm.obj_import(filepath=mesh1_file.as_posix())
-    bpy.ops.wm.obj_import(filepath=mesh2_file.as_posix())
-    bpy.ops.wm.obj_import(filepath=ibs_file.as_posix())
-
-    mesh1 = bpy.data.objects[mesh1_filename]
-    mesh2 = bpy.data.objects[mesh2_filename]
-    ibs = bpy.data.objects[ibs_filename]
-
-    mesh1.active_material = bpy.data.materials['mesh1']
-    mesh2.active_material = bpy.data.materials['mesh2']
-    ibs.active_material = bpy.data.materials['ibs']

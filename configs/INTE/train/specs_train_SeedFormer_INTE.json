@@ -1,5 +1,5 @@
 {
-    "TAG": "SeedFormer_INTE_lr1e4",
+    "TAG": "SeedFormer_INTE_lr5e4",
     "Description" : "model: SeedFormer, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
@@ -18,9 +18,9 @@
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
             "LRScheduler": "StepLR",
-            "InitLearningRate": 1e-4,
-            "StepSize": 20,
-            "Gamma": 0.7
+            "InitLearningRate": 5e-4,
+            "StepSize": 1,
+            "Gamma": 0.977
         }
     },
     "IBSALossOptions": {
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SeedFormer_INTE_lr1e4",
+        "TAG": "SeedFormer_INTE_lr5e4",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

@@ -1,10 +1,11 @@
 {
-    "TAG": "SnowFlakeNet_INTE_mads05_madi100_ibsa001_lr1e3",
+    "TAG": "SeedFormer_INTE_mads05_madi100_ibsa001_lr5e4",
     "DataSource" : "data",
     "Dataset": "INTE",
     "TestSplit" : "dataset/test_INTE/test.json",
-    "ModelPath": "model_paras/SnowFlakeNet_INTE_mads05_madi100_ibsa001_lr1e3/epoch_35.pth",
+    "ModelPath": "model_paras/SeedFormer_INTE_mads05_madi100_ibsa001_lr5e4/epoch_57.pth",
     "ScenePatten": "scene\\d+.\\d+",
+    "ViewNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "NormalizeParaDir": "data/normalizePara/INTE_norm",
     "ResultSaveDir": "test_result",
@@ -14,7 +15,7 @@
     "DataLoaderThreads" : 8,
 
     "LogOptions": {
-        "TAG": "SnowFlakeNet_INTE_mads05_madi100_ibsa001_lr1e3",
+        "TAG": "SeedFormer_INTE_mads05_madi100_ibsa001_lr5e4",
         "Type": "test",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

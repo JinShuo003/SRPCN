@@ -1,5 +1,5 @@
 {
-    "TAG": "SeedFormer_INTE_lr5e4",
+    "TAG": "SeedFormer_INTE_mads05_madi100_ibsa001_lr1e3",
     "Description" : "model: SeedFormer, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",

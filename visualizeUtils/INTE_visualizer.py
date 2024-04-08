@@ -6,6 +6,7 @@ import open3d as o3d
 import open3d.visualization.gui as gui
 import open3d.visualization.rendering as rendering
 import pandas as pd
+import pyperclip
 
 from utils import path_utils
 
@@ -183,6 +184,7 @@ class App:
         self.category_info = None
         self.scene_info = None
         self.view_info = None
+        self.btn_copy_cur_data_info = None
         self.category_info_patten = "category: {}"
         self.scene_info_patten = "scene: {}"
         self.view_info_patten = "view: {}"
@@ -513,6 +515,10 @@ class App:
             self.category_selector.get_item(self.selected_category))
         self.scene_info.text = self.scene_info_patten.format(self.scene_selector.get_item(self.selected_scene))
         self.view_info.text = self.view_info_patten.format(self.view_selector.get_item(self.selected_view))
+
+        if self.flag_pcd_pred1_window_show is False and self.flag_pcd_pred2_window_show is False:
+            return
+
         metrics_obj1_l = self.metrics1_dataframe["{}_0".format(self.view_selector.get_item(self.selected_view))].to_numpy()
         metrics_obj1_r = self.metrics2_dataframe["{}_0".format(self.view_selector.get_item(self.selected_view))].to_numpy()
         metrics_obj2_l = self.metrics1_dataframe["{}_1".format(self.view_selector.get_item(self.selected_view))].to_numpy()
@@ -592,6 +598,10 @@ class App:
         self.on_view_selection_changed(self.view_selector.get_item(self.selected_view + 1), self.selected_view + 1)
         self.load_data()
         self.update_info_area()
+
+    def on_copy_data_info_clicked(self):
+        cur_filename = self.view_selector.get_item(self.selected_view)
+        pyperclip.copy(cur_filename)
 
     def on_show_pcd1_checked(self, is_checked):
         print("show pcd1 checked: ", is_checked)
@@ -938,10 +948,13 @@ class App:
         self.category_info = gui.Label("category: {}".format(""))
         self.scene_info = gui.Label("scene: {}".format(""))
         self.view_info = gui.Label("view: {}".format(""))
+        self.btn_copy_cur_data_info = gui.Button("copy")
+        self.btn_copy_cur_data_info.set_on_clicked(self.on_copy_data_info_clicked)
 
         self.data_info_layout.add_child(self.category_info)
         self.data_info_layout.add_child(self.scene_info)
         self.data_info_layout.add_child(self.view_info)
+        self.data_info_layout.add_child(self.btn_copy_cur_data_info)
 
     def init_metrics_info_area(self):
         self.metrics_info_layout = gui.Vert(0, gui.Margins(self.em, self.em, self.em, self.em))

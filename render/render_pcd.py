@@ -4,7 +4,6 @@ import logging
 import sys
 from itertools import product
 from pathlib import Path
-from typing import List
 
 import bpy
 # third-party packages
@@ -12,7 +11,6 @@ import numpy as np
 from bpy.types import (
     Scene, Material, Object
 )
-from mathutils import Vector, Euler
 
 
 def init_scene():
@@ -265,21 +263,18 @@ def launch_render(base_path: str, img_path: str, filename: str, additional_info:
     create_pointcloud2_modifier()
 
     camera_obj: Object = bpy.data.objects['Camera']
-    camera_location = np.array([0.7359, -0.6926, 0.4958]) * 1.3
+    camera_location = np.array([0.7359, -0.6926, 0.3]) * 1.3
+    # camera_location = np.array([0, -0.8, 0.258]) * 1.3
     camera_obj.location = camera_location
 
     base_path = Path(base_path)
-    ibs_path = Path(r"D:\dataset\IBPCDC\IBSMesh\scene1")
     img_path = Path(img_path)
     ply_basename1 = "{}_0".format(filename)
     ply_basename2 = "{}_1".format(filename)
-    ibs_basename = "{}".format("scene1.1012")
     ply_filename1 = "{}.ply".format(ply_basename1)
     ply_filename2 = "{}.ply".format(ply_basename2)
-    ibs_fielname = "{}.obj".format(ibs_basename)
     ply_file1 = base_path / ply_filename1
     ply_file2 = base_path / ply_filename2
-    ibs_file = ibs_path / ibs_fielname
 
     bpy.ops.wm.ply_import(filepath=ply_file1.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
     pointcloud1 = bpy.data.objects[ply_basename1]
@@ -291,10 +286,6 @@ def launch_render(base_path: str, img_path: str, filename: str, additional_info:
     modifier = pointcloud2.modifiers.new('modifier', 'NODES')
     modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
 
-    # bpy.ops.wm.obj_import(filepath=ibs_file.as_posix())
-    # ibs = bpy.data.objects[ibs_basename]
-    # ibs.active_material = bpy.data.materials['mesh']
-
     for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
         camera_obj.location = camera_location * sign
         track_object(pointcloud1)
@@ -304,23 +295,27 @@ def launch_render(base_path: str, img_path: str, filename: str, additional_info:
 
 if __name__ == '__main__':
     import re
-    file_name = "scene5.1007_view7"
-    category = re.match("scene\\d", file_name).group()
-    scene_name = re.match("scene\\d.\\d{4}", file_name).group()
 
-    base_path = "D:\\dataset\\IBPCDC\\pcdComplete\\INTE\\{}".format(category)
-    img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, file_name)
-    launch_render(base_path, img_path, scene_name, "complete")
+    filename_list = [
+        'scene2.1004_view12'
+    ]
 
-    base_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\{}".format(category)
-    img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, file_name)
-    launch_render(base_path, img_path, file_name, "input")
+    for filename in filename_list:
+        category = re.match("scene\\d", filename).group()
+        scene_name = re.match("scene\\d.\\d{4}", filename).group()
 
-    base_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\{}".format(category)
-    img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, file_name)
-    launch_render(base_path, img_path, file_name, "ours")
+        base_path = "D:\\dataset\\IBPCDC\\pcdComplete\\INTE\\{}".format(category)
+        img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
+        launch_render(base_path, img_path, scene_name, "complete")
 
-    # base_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_lr1e4\\{}".format(category)
-    # img_path = "D:\\dataset\\IBPCDC\\render\\PointAttN_INTE_lr1e4\\{}".format(file_name)
-    # launch_render(base_path, img_path, file_name)
-
+        base_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\{}".format(category)
+        img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
+        launch_render(base_path, img_path, filename, "input")
+        #
+        # base_path = "D:\\dataset\\IBPCDC\\pcdPred\\SeedFormer_INTE_lr1e4\\{}".format(category)
+        # img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
+        # launch_render(base_path, img_path, filename, "SeedFormer")
+        #
+        # base_path = "D:\\dataset\\IBPCDC\\pcdPred\\SeedFormer_INTE_mads05_madi100_ibsa001_lr5e4\\{}".format(category)
+        # img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
+        # launch_render(base_path, img_path, filename, "SeedFormer_ours")

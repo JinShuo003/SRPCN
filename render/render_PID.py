@@ -4,7 +4,6 @@ import logging
 import sys
 from itertools import product
 from pathlib import Path
-from typing import List
 
 import bpy
 # third-party packages
@@ -12,7 +11,6 @@ import numpy as np
 from bpy.types import (
     Scene, Material, Object
 )
-from mathutils import Vector, Euler
 
 
 def init_scene():
@@ -43,11 +41,11 @@ def create_materials():
     Create materials for rendering the input point cloud / output mesh
     """
     params = [
-        {'name': 'pointcloud1', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
-        {'name': 'pointcloud2', 'color': (0.921, 0.165, 0.564, 1.0), 'transparent': False},
-        {'name': 'mesh1', 'color': (0.721, 0.165, 0.264, 1.0), 'transparent': False},
-        {'name': 'mesh2', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
-
+        {'name': 'mesh1', 'color': (0.8, 0.2, 0.2, 1.0), 'transparent': False},
+        {'name': 'mesh2', 'color': (1, 0.8, 0.1, 1.0), 'transparent': False},
+        {'name': 'ibs', 'color': (0.794, 0.289, 0.8, 1.0), 'transparent': False},
+        {'name': 'PID1', 'color': (0.3, 0.8, 0.3, 1.0), 'transparent': False},
+        {'name': 'PID2', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False}
     ]
     global protected_material_names
     protected_material_names = [param['name'] for param in params]
@@ -174,53 +172,49 @@ def clear_imported_objects():
             bpy.data.materials.remove(material)
 
 
-def launch_render(base_path: str, img_path: str, filename: str):
+def launch_render(mesh1_path, mesh2_path, ibs_path, PID1_path, PID2_path):
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     init_scene()
     create_materials()
     init_lights()
 
     camera_obj: Object = bpy.data.objects['Camera']
-    camera_location = np.array([0.7359, -0.6926, 0.4958]) * 1.3
+    camera_location = np.array([0.4, -0.5, 0.1]) * 2.3
     camera_obj.location = camera_location
 
-    base_path = Path(base_path)
-    img_path = Path(img_path)
-    obj_basename1 = "{}_0".format(filename)
-    obj_basename2 = "{}_1".format(filename)
-    obj_filename1 = "{}.obj".format(obj_basename1)
-    obj_filename2 = "{}.obj".format(obj_basename2)
-    obj_file1 = base_path / obj_filename1
-    obj_file2 = base_path / obj_filename2
-
-    bpy.ops.wm.obj_import(filepath=obj_file1.as_posix())
-    bpy.ops.wm.obj_import(filepath=obj_file2.as_posix())
-    mesh1 = bpy.data.objects[obj_basename1]
-    mesh2 = bpy.data.objects[obj_basename2]
+    bpy.ops.wm.obj_import(filepath=mesh1_path)
+    mesh1 = bpy.data.objects["scene1.1000_0"]
     mesh1.active_material = bpy.data.materials['mesh1']
+
+    bpy.ops.wm.obj_import(filepath=mesh2_path)
+    mesh2 = bpy.data.objects["scene1.1000_1"]
     mesh2.active_material = bpy.data.materials['mesh2']
 
-    # bpy.ops.wm.ply_import(filepath=obj_file1.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
-    # bpy.ops.wm.ply_import(filepath=obj_file2.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
+    bpy.ops.wm.obj_import(filepath=ibs_path)
+    ibs = bpy.data.objects["scene1.1000"]
+    ibs.active_material = bpy.data.materials['ibs']
+
+    bpy.ops.wm.obj_import(filepath=PID1_path)
+    PID1 = bpy.data.objects["arrow1"]
+    PID1.active_material = bpy.data.materials['PID1']
+
+    bpy.ops.wm.obj_import(filepath=PID2_path)
+    PID2 = bpy.data.objects["arrow2"]
+    PID2.active_material = bpy.data.materials['PID2']
 
     for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
         camera_obj.location = camera_location * sign
         track_object(mesh1)
-        bpy.context.scene.render.filepath = (img_path / f'{view_index}.png').as_posix()
+        bpy.context.scene.render.filepath = "./result/PID/{}".format(view_index)
         bpy.ops.render.render(write_still=True)
+        break
 
 
 if __name__ == '__main__':
+    mesh1_path = r"D:\dataset\IBPCDC\mesh\scene1\scene1.1000_0.obj"
+    mesh2_path = r"D:\dataset\IBPCDC\mesh\scene1\scene1.1000_1.obj"
+    ibs_path = r"D:\dataset\IBPCDC\IBSMesh\scene1\scene1.1000.obj"
+    PID1_path = r"data\arrow1.obj"
+    PID2_path = r"data\arrow2.obj"
 
-    base_path = "D:\\dataset\\IBPCDC\\mesh\\scene1"
-    img_path = "D:\\dataset\\IBPCDC\\render\\mesh\\scene1.1019"
-    #
-    # pcd_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\scene1"
-    # img_path = "D:\\dataset\\IBPCDC\\render\\pcdScan\\scene1.1019_view20"
-
-    # pcd_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1"
-    # img_path = "D:\\dataset\\IBPCDC\\render\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1.1019_view20"
-    filename = "scene1.1019"
-
-    launch_render(base_path, img_path, filename)
-
+    launch_render(mesh1_path, mesh2_path, ibs_path, PID1_path, PID2_path)

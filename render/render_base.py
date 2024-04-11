@@ -264,17 +264,17 @@ if __name__ == '__main__':
     create_pointcloud1_modifier()
     create_pointcloud2_modifier()
 
-    # base_path = Path('/home/greyishsong/workspace/osp-output')
-    # mesh_path = base_path / 'obj'
+    # pcd_path = Path('/home/greyishsong/workspace/osp-output')
+    # mesh_path = pcd_path / 'obj'
     # pointcloud_path = Path('/home/greyishsong/workspace/scps-output/ply')
-    # img_path = base_path / 'misleaded'
+    # img_path = pcd_path / 'misleaded'
     #
     camera_obj: Object = bpy.data.objects['Camera']
     # the location is obtained through GUI
     camera_location = np.array([0.7359, -0.6926, 0.4958]) * 1.2
     #
     #
-    # with open(base_path / 'problem-misleaded.txt', 'r') as f:
+    # with open(pcd_path / 'problem-misleaded.txt', 'r') as f:
     #     object_indices = f.readlines()
     # object_indices: List[str] = [index.strip() for index in object_indices if index.strip() != '']
 

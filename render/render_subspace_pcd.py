@@ -4,7 +4,6 @@ import logging
 import sys
 from itertools import product
 from pathlib import Path
-from typing import List
 
 import bpy
 # third-party packages
@@ -12,7 +11,6 @@ import numpy as np
 from bpy.types import (
     Scene, Material, Object
 )
-from mathutils import Vector, Euler
 
 
 def init_scene():
@@ -44,10 +42,8 @@ def create_materials():
     """
     params = [
         {'name': 'pointcloud1', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
-        {'name': 'pointcloud2', 'color': (0.921, 0.165, 0.564, 1.0), 'transparent': False},
-        {'name': 'mesh1', 'color': (0.721, 0.165, 0.264, 1.0), 'transparent': False},
-        {'name': 'mesh2', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
-
+        {'name': 'pointcloud2', 'color': (1, 0.8, 0.1, 1.0), 'transparent': False},
+        {'name': 'mesh', 'color': (0.794, 0.289, 0.8, 1.0), 'transparent': False}
     ]
     global protected_material_names
     protected_material_names = [param['name'] for param in params]
@@ -139,6 +135,90 @@ def init_lights(scale_factor: float = 1):
         bpy.context.collection.objects.link(light_obj)
 
 
+def create_pointcloud1_modifier():
+    """
+    Create the geometry nodes as a modifier for point clouds.
+    This modifier will expand each point to a ico sphere for rendering.
+    """
+    # create a node group and enable it as a geometry modifier
+    geom_nodes = bpy.data.node_groups.new('pointcloud1 modifier', 'GeometryNodeTree')
+    geom_nodes.is_modifier = True
+    nodes = geom_nodes.nodes
+    links = geom_nodes.links
+    interface = geom_nodes.interface
+    interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+    interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+
+    # create all node with their properties set
+    input_node = nodes.new('NodeGroupInput')
+    output_node = nodes.new('NodeGroupOutput')
+    mesh_to_points_node = nodes.new('GeometryNodeMeshToPoints')
+    mesh_to_points_node.mode = 'VERTICES'
+    ico_sphere_node = nodes.new('GeometryNodeMeshIcoSphere')
+    ico_sphere_node.inputs['Radius'].default_value = 0.004
+    ico_sphere_node.inputs['Subdivisions'].default_value = 3  # control the smoothness of the ico sphere
+    instance_node = nodes.new('GeometryNodeInstanceOnPoints')
+    material_node = nodes.new('GeometryNodeReplaceMaterial')
+    # only set the New slot of the Replace Material node because we actually
+    # use it to set the material of output instances (spheres), the Old slot
+    # is not used.
+    material_node.inputs['New'].default_value = bpy.data.materials['pointcloud1']
+
+    # link the nodes
+    links.new(input_node.outputs['Geometry'], mesh_to_points_node.inputs['Mesh'])
+    # the PLY file are imported as mesh, so we need to replace each vertex in
+    # the mesh with a point, then we will have a real point cloud in Blender
+    links.new(mesh_to_points_node.outputs['Points'], instance_node.inputs['Points'])
+    # use the pre-defined ico sphere as the template instance. with the
+    # Instance On Points node we can instantiate an instance at each point in
+    # the point cloud
+    links.new(ico_sphere_node.outputs['Mesh'], instance_node.inputs['Instance'])
+    links.new(instance_node.outputs['Instances'], material_node.inputs['Geometry'])
+    links.new(material_node.outputs['Geometry'], output_node.inputs['Geometry'])
+
+
+def create_pointcloud2_modifier():
+    """
+    Create the geometry nodes as a modifier for point clouds.
+    This modifier will expand each point to a ico sphere for rendering.
+    """
+    # create a node group and enable it as a geometry modifier
+    geom_nodes = bpy.data.node_groups.new('pointcloud2 modifier', 'GeometryNodeTree')
+    geom_nodes.is_modifier = True
+    nodes = geom_nodes.nodes
+    links = geom_nodes.links
+    interface = geom_nodes.interface
+    interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
+    interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
+
+    # create all node with their properties set
+    input_node = nodes.new('NodeGroupInput')
+    output_node = nodes.new('NodeGroupOutput')
+    mesh_to_points_node = nodes.new('GeometryNodeMeshToPoints')
+    mesh_to_points_node.mode = 'VERTICES'
+    ico_sphere_node = nodes.new('GeometryNodeMeshIcoSphere')
+    ico_sphere_node.inputs['Radius'].default_value = 0.004
+    ico_sphere_node.inputs['Subdivisions'].default_value = 3  # control the smoothness of the ico sphere
+    instance_node = nodes.new('GeometryNodeInstanceOnPoints')
+    material_node = nodes.new('GeometryNodeReplaceMaterial')
+    # only set the New slot of the Replace Material node because we actually
+    # use it to set the material of output instances (spheres), the Old slot
+    # is not used.
+    material_node.inputs['New'].default_value = bpy.data.materials['pointcloud2']
+
+    # link the nodes
+    links.new(input_node.outputs['Geometry'], mesh_to_points_node.inputs['Mesh'])
+    # the PLY file are imported as mesh, so we need to replace each vertex in
+    # the mesh with a point, then we will have a real point cloud in Blender
+    links.new(mesh_to_points_node.outputs['Points'], instance_node.inputs['Points'])
+    # use the pre-defined ico sphere as the template instance. with the
+    # Instance On Points node we can instantiate an instance at each point in
+    # the point cloud
+    links.new(ico_sphere_node.outputs['Mesh'], instance_node.inputs['Instance'])
+    links.new(instance_node.outputs['Instances'], material_node.inputs['Geometry'])
+    links.new(material_node.outputs['Geometry'], output_node.inputs['Geometry'])
+
+
 def track_object(obj: Object):
     """
     Let the camera track the specified object's center.
@@ -174,53 +254,42 @@ def clear_imported_objects():
             bpy.data.materials.remove(material)
 
 
-def launch_render(base_path: str, img_path: str, filename: str):
+def launch_render(pcd1_path: str, pcd2_path: str, ibs_path: str):
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     init_scene()
     create_materials()
     init_lights()
+    create_pointcloud1_modifier()
+    create_pointcloud2_modifier()
 
     camera_obj: Object = bpy.data.objects['Camera']
-    camera_location = np.array([0.7359, -0.6926, 0.4958]) * 1.3
+    camera_location = np.array([-1, -0.4, 1.2]) * 1
     camera_obj.location = camera_location
 
-    base_path = Path(base_path)
-    img_path = Path(img_path)
-    obj_basename1 = "{}_0".format(filename)
-    obj_basename2 = "{}_1".format(filename)
-    obj_filename1 = "{}.obj".format(obj_basename1)
-    obj_filename2 = "{}.obj".format(obj_basename2)
-    obj_file1 = base_path / obj_filename1
-    obj_file2 = base_path / obj_filename2
+    bpy.ops.wm.ply_import(filepath=pcd1_path, forward_axis='NEGATIVE_Z', up_axis='Y')
+    pointcloud1 = bpy.data.objects["subspace1"]
+    modifier = pointcloud1.modifiers.new('modifier', 'NODES')
+    modifier.node_group = bpy.data.node_groups['pointcloud1 modifier']
 
-    bpy.ops.wm.obj_import(filepath=obj_file1.as_posix())
-    bpy.ops.wm.obj_import(filepath=obj_file2.as_posix())
-    mesh1 = bpy.data.objects[obj_basename1]
-    mesh2 = bpy.data.objects[obj_basename2]
-    mesh1.active_material = bpy.data.materials['mesh1']
-    mesh2.active_material = bpy.data.materials['mesh2']
+    bpy.ops.wm.ply_import(filepath=pcd2_path, forward_axis='NEGATIVE_Z', up_axis='Y')
+    pointcloud2 = bpy.data.objects["subspace2"]
+    modifier = pointcloud2.modifiers.new('modifier', 'NODES')
+    modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
 
-    # bpy.ops.wm.ply_import(filepath=obj_file1.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
-    # bpy.ops.wm.ply_import(filepath=obj_file2.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
+    bpy.ops.wm.obj_import(filepath=ibs_path)
+    mesh = bpy.data.objects["scene6.1005"]
+    mesh.active_material = bpy.data.materials['mesh']
 
     for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
         camera_obj.location = camera_location * sign
-        track_object(mesh1)
-        bpy.context.scene.render.filepath = (img_path / f'{view_index}.png').as_posix()
+        track_object(pointcloud1)
+        bpy.context.scene.render.filepath = "./result/{}".format(view_index)
         bpy.ops.render.render(write_still=True)
+        break
 
 
 if __name__ == '__main__':
-
-    base_path = "D:\\dataset\\IBPCDC\\mesh\\scene1"
-    img_path = "D:\\dataset\\IBPCDC\\render\\mesh\\scene1.1019"
-    #
-    # pcd_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\scene1"
-    # img_path = "D:\\dataset\\IBPCDC\\render\\pcdScan\\scene1.1019_view20"
-
-    # pcd_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1"
-    # img_path = "D:\\dataset\\IBPCDC\\render\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1.1019_view20"
-    filename = "scene1.1019"
-
-    launch_render(base_path, img_path, filename)
-
+    pcd1_path = "subspace1.ply"
+    pcd2_path = "subspace2.ply"
+    ibs_path = r"D:\dataset\IBPCDC\IBSMesh\scene6\scene6.1005.obj"
+    launch_render(pcd1_path, pcd2_path, ibs_path)

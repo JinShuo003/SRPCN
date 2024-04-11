@@ -22,12 +22,12 @@ def test(network, test_dataloader, specs):
     device = specs.get("Device")
 
     dist_dict = {
-        "cd_l1": {},
+        "cd": {},
         "emd": {},
         "fscore": {},
-        "mad_s": {},
-        "mad_i": {},
-        "ibs_a": {},
+        "mas": {},
+        "mai": {},
+        "ibss": {},
         "interact_num": {}
     }
     single_csv_data = {}
@@ -52,12 +52,12 @@ def test(network, test_dataloader, specs):
             mad_i = medial_axis_interaction_dist(center, radius, pcd_pred)
             ibs_a, interact_num = ibs_angle_dist(center, radius, direction, pcd_pred)
 
-            update_loss_dict(dist_dict, filename_list, cd_l1.detach().cpu().numpy(), "cd_l1")
+            update_loss_dict(dist_dict, filename_list, cd_l1.detach().cpu().numpy(), "cd")
             update_loss_dict(dist_dict, filename_list, emd_.detach().cpu().numpy(), "emd")
             update_loss_dict(dist_dict, filename_list, fscore.detach().cpu().numpy(), "fscore")
-            update_loss_dict(dist_dict, filename_list, mad_s.detach().cpu().numpy(), "mad_s")
-            update_loss_dict(dist_dict, filename_list, mad_i.detach().cpu().numpy(), "mad_i")
-            update_loss_dict(dist_dict, filename_list, ibs_a.detach().cpu().numpy(), "ibs_a")
+            update_loss_dict(dist_dict, filename_list, mad_s.detach().cpu().numpy(), "mas")
+            update_loss_dict(dist_dict, filename_list, mad_i.detach().cpu().numpy(), "mai")
+            update_loss_dict(dist_dict, filename_list, ibs_a.detach().cpu().numpy(), "ibss")
             update_loss_dict(dist_dict, filename_list, interact_num.detach().cpu().numpy(), "interact_num")
 
             statistics_utils.append_csv_data(single_csv_data, filename_list, cd_l1, emd_, fscore, mad_s, mad_i, ibs_a, interact_num)

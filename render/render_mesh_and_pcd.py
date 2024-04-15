@@ -1,5 +1,6 @@
 # blender packages
 import logging
+import os.path
 # built-in modules
 import sys
 from itertools import product
@@ -43,7 +44,8 @@ def create_materials():
     params = [
         {'name': 'pointcloud1', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
         {'name': 'pointcloud2', 'color': (1, 0.8, 0.1, 1.0), 'transparent': False},
-        {'name': 'mesh', 'color': (0.794, 0.489, 0.243, 1.0), 'transparent': False}
+        {'name': 'ibs', 'color': (0.794, 0.489, 0.8, 1.0), 'transparent': False},
+        {'name': 'mesh', 'color': (0.794, 0.489, 0.8, 1.0), 'transparent': False}
     ]
     global protected_material_names
     protected_material_names = [param['name'] for param in params]
@@ -124,6 +126,11 @@ def init_lights(scale_factor: float = 1):
             'name': 'point light 1', 'type': 'POINT',
             'location': np.array([-2.163, -0.381, -2.685]), 'energy': 500
         }
+        # },
+        # {
+        #     'name': 'point light 1', 'type': 'POINT',
+        #     'location': np.array([0, 0, -2.685]), 'energy': 500
+        # }
     ]
     for param in params:
         light = bpy.data.lights.new(name=param['name'], type=param['type'])
@@ -135,13 +142,13 @@ def init_lights(scale_factor: float = 1):
         bpy.context.collection.objects.link(light_obj)
 
 
-def create_pointcloud1_modifier():
+def creat_pointcloud_modifier(modifier_name: str, material_name: str, sphere_radius: int = 0.005):
     """
     Create the geometry nodes as a modifier for point clouds.
     This modifier will expand each point to a ico sphere for rendering.
     """
     # create a node group and enable it as a geometry modifier
-    geom_nodes = bpy.data.node_groups.new('pointcloud1 modifier', 'GeometryNodeTree')
+    geom_nodes = bpy.data.node_groups.new('{}'.format(modifier_name), 'GeometryNodeTree')
     geom_nodes.is_modifier = True
     nodes = geom_nodes.nodes
     links = geom_nodes.links
@@ -155,56 +162,14 @@ def create_pointcloud1_modifier():
     mesh_to_points_node = nodes.new('GeometryNodeMeshToPoints')
     mesh_to_points_node.mode = 'VERTICES'
     ico_sphere_node = nodes.new('GeometryNodeMeshIcoSphere')
-    ico_sphere_node.inputs['Radius'].default_value = 0.007
+    ico_sphere_node.inputs['Radius'].default_value = sphere_radius
     ico_sphere_node.inputs['Subdivisions'].default_value = 3  # control the smoothness of the ico sphere
     instance_node = nodes.new('GeometryNodeInstanceOnPoints')
     material_node = nodes.new('GeometryNodeReplaceMaterial')
     # only set the New slot of the Replace Material node because we actually
     # use it to set the material of output instances (spheres), the Old slot
     # is not used.
-    material_node.inputs['New'].default_value = bpy.data.materials['pointcloud1']
-
-    # link the nodes
-    links.new(input_node.outputs['Geometry'], mesh_to_points_node.inputs['Mesh'])
-    # the PLY file are imported as mesh, so we need to replace each vertex in
-    # the mesh with a point, then we will have a real point cloud in Blender
-    links.new(mesh_to_points_node.outputs['Points'], instance_node.inputs['Points'])
-    # use the pre-defined ico sphere as the template instance. with the
-    # Instance On Points node we can instantiate an instance at each point in
-    # the point cloud
-    links.new(ico_sphere_node.outputs['Mesh'], instance_node.inputs['Instance'])
-    links.new(instance_node.outputs['Instances'], material_node.inputs['Geometry'])
-    links.new(material_node.outputs['Geometry'], output_node.inputs['Geometry'])
-
-
-def create_pointcloud2_modifier():
-    """
-    Create the geometry nodes as a modifier for point clouds.
-    This modifier will expand each point to a ico sphere for rendering.
-    """
-    # create a node group and enable it as a geometry modifier
-    geom_nodes = bpy.data.node_groups.new('pointcloud2 modifier', 'GeometryNodeTree')
-    geom_nodes.is_modifier = True
-    nodes = geom_nodes.nodes
-    links = geom_nodes.links
-    interface = geom_nodes.interface
-    interface.new_socket('Geometry', in_out='INPUT', socket_type='NodeSocketGeometry')
-    interface.new_socket('Geometry', in_out='OUTPUT', socket_type='NodeSocketGeometry')
-
-    # create all node with their properties set
-    input_node = nodes.new('NodeGroupInput')
-    output_node = nodes.new('NodeGroupOutput')
-    mesh_to_points_node = nodes.new('GeometryNodeMeshToPoints')
-    mesh_to_points_node.mode = 'VERTICES'
-    ico_sphere_node = nodes.new('GeometryNodeMeshIcoSphere')
-    ico_sphere_node.inputs['Radius'].default_value = 0.007
-    ico_sphere_node.inputs['Subdivisions'].default_value = 3  # control the smoothness of the ico sphere
-    instance_node = nodes.new('GeometryNodeInstanceOnPoints')
-    material_node = nodes.new('GeometryNodeReplaceMaterial')
-    # only set the New slot of the Replace Material node because we actually
-    # use it to set the material of output instances (spheres), the Old slot
-    # is not used.
-    material_node.inputs['New'].default_value = bpy.data.materials['pointcloud2']
+    material_node.inputs['New'].default_value = bpy.data.materials['{}'.format(material_name)]
 
     # link the nodes
     links.new(input_node.outputs['Geometry'], mesh_to_points_node.inputs['Mesh'])
@@ -263,10 +228,8 @@ def launch_render(base_path: str, img_path: str, filename: str, additional_info:
     create_pointcloud2_modifier()
 
     camera_obj: Object = bpy.data.objects['Camera']
-    radius = 1.5
-    camera_location = np.array([-0.1, 0.7, 0.3])
-    camera_location /= np.linalg.norm(camera_location)
-    camera_location *= radius
+    camera_location = np.array([0.7359, -0.6926, 0.4]) * 1.4
+    # camera_location = np.array([0, -0.8, 0.258]) * 1.3
     camera_obj.location = camera_location
 
     base_path = Path(base_path)
@@ -295,42 +258,197 @@ def launch_render(base_path: str, img_path: str, filename: str, additional_info:
         bpy.ops.render.render(write_still=True)
 
 
+def mat_data():
+
+    # mat sphere
+    # name = 'scene1.1000_{}'.format(0)
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_0.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_0']
+    # sphere.active_material = bpy.data.materials['mesh']
+
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_1.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_1.001']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_2.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_2']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_3.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_3']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_4.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_4']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_5.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_5']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_6.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_6']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_7.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_7']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_8.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_8']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_9.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_9']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_10.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_10']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_11.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_11']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_12.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_12']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_13.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_13']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_14.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_14']
+    # sphere.active_material = bpy.data.materials['mesh']
+    #
+    # mat_sphere_path = r'D:\dataset\IBPCDC\render\mesh\mat_sphere\scene1.1000_15.obj'
+    # bpy.ops.wm.obj_import(filepath=mat_sphere_path)
+    # sphere = bpy.data.objects['scene1.1000_15']
+    # sphere.active_material = bpy.data.materials['mesh']
+    pass
+
+
 if __name__ == '__main__':
     import re
 
-    filename_list = [
-        "scene1.1012_view2",
-        "scene1.1017_view5",
-        "scene1.1019_view12",
-        "scene1.1019_view20",
-        "scene1.1019_view23",
-        "scene1.1019_view24",
-        "scene2.1024_view0",
-        "scene2.1028_view15",
-        "scene2.1037_view0",
-        "scene2.1037_view20",
-        "scene2.1042_view20",
-        "scene5.1014_view10",
-        "scene5.1014_view11",
-        "scene5.1015_view19",
-    ]
+    # init
+    logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
+    init_scene()
+    create_materials()
+    init_lights()
+    creat_pointcloud_modifier('pointcloud1 modifier', 'pointcloud1', 0.007)
+    creat_pointcloud_modifier('pointcloud2 modifier', 'pointcloud2', 0.007)
+    creat_pointcloud_modifier('ibs modifier', 'ibs', 0.007)
 
-    for filename in filename_list:
-        category = re.match("scene\\d", filename).group()
-        scene_name = re.match("scene\\d.\\d{4}", filename).group()
+    camera_obj: Object = bpy.data.objects['Camera']
+    radius = 1.4
+    camera_location = np.array([0.5, -1, 0.4])
+    camera_location /= np.linalg.norm(camera_location)
+    camera_location *= radius
+    camera_obj.location = camera_location
 
-        base_path = "D:\\dataset\\IBPCDC\\pcdComplete\\INTE\\{}".format(category)
-        img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
-        launch_render(base_path, img_path, scene_name, "complete")
+    mesh_dir = r"D:\dataset\IBSNet\trainData\mesh"
+    pcd_gt_dir = r"D:\dataset\IBSNet\trainData\pcdComplete"
+    pcd_scan_dir = r"D:\dataset\IBSNet\trainData\pcdScan\diffUDF"
+    pcd_pred_dir = r"D:\dataset\IBPCDC\pcdPred\SeedFormer_INTE_lr1e4"
+    ibs_gt_dir = r"D:\dataset\IBSNet\evaluateData\IBS_pcd_complete"
+    ibs_scan_dir = r"D:\dataset\IBSNet\evaluateData\IBS_pcd_scan"
 
-        base_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\{}".format(category)
-        img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
-        launch_render(base_path, img_path, filename, "input")
+    category_re = "scene\\d"
+    scene_re = "scene\\d.\\d{4}"
+    filename_re = "scene\\d.\\d{4}_view\\d+"
 
-        base_path = r"D:\dataset\IBPCDC\pcdPred\SnowFlakeNet_INTE_lr1e4\{}".format(category)
-        img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
-        launch_render(base_path, img_path, filename, "SnowFlakeNet")
+    filename = "scene1.1031_view14"
+    result_name = "pcd_pred"
 
-        base_path = r"D:\dataset\IBPCDC\pcdPred\SnowFlakeNet_INTE_mads05_madi100_ibsa001_lr1e3\{}".format(category)
-        img_path = "D:\\dataset\\IBPCDC\\render\\{}\\{}".format(scene_name, filename)
-        launch_render(base_path, img_path, filename, "SnowFlakeNet_ours")
+    category = re.match(category_re, filename).group()
+    scene = re.match(scene_re, filename).group()
+
+    mesh1_filename = os.path.join(mesh_dir, category, "{}_0.obj".format(scene))
+    mesh2_filename = os.path.join(mesh_dir, category, "{}_1.obj".format(scene))
+    pcd1_gt = os.path.join(pcd_gt_dir, category, "{}_0.ply".format(scene))
+    pcd2_gt = os.path.join(pcd_gt_dir, category, "{}_1.ply".format(scene))
+    pcd1_scan = os.path.join(pcd_scan_dir, category, "{}_0.ply".format(filename))
+    pcd2_scan = os.path.join(pcd_scan_dir, category, "{}_1.ply".format(filename))
+    pcd1_pred = os.path.join(pcd_pred_dir, category, "{}_0.ply".format(filename))
+    pcd2_pred = os.path.join(pcd_pred_dir, category, "{}_1.ply".format(filename))
+    ibs_gt = os.path.join(ibs_gt_dir, category, "{}.ply".format(scene))
+    ibs_geometric = os.path.join(ibs_scan_dir, category, "{}.ply".format(filename))
+
+    # mesh
+    # bpy.ops.wm.obj_import(filepath=mesh1_filename)
+    # mesh1 = bpy.data.objects['{}_0'.format(scene)]
+    # mesh1.active_material = bpy.data.materials['pointcloud1']
+    #
+    # bpy.ops.wm.obj_import(filepath=mesh2_filename)
+    # mesh2 = bpy.data.objects['{}_1'.format(scene)]
+    # mesh2.active_material = bpy.data.materials['pointcloud2']
+
+    # pcd gt
+    # bpy.ops.wm.ply_import(filepath=pcd1_gt, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # pointcloud1 = bpy.data.objects['{}_0'.format(scene)]
+    # modifier = pointcloud1.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['pointcloud1 modifier']
+    #
+    # bpy.ops.wm.ply_import(filepath=pcd2_gt, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # pointcloud2 = bpy.data.objects['{}_1'.format(scene)]
+    # modifier = pointcloud2.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
+
+    # pcd scan
+    # bpy.ops.wm.ply_import(filepath=pcd1_scan, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # pointcloud1 = bpy.data.objects['{}_0'.format(filename)]
+    # modifier = pointcloud1.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['pointcloud1 modifier']
+    #
+    # bpy.ops.wm.ply_import(filepath=pcd2_scan, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # pointcloud2 = bpy.data.objects['{}_1'.format(filename)]
+    # modifier = pointcloud2.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
+
+    # pcd pred
+    bpy.ops.wm.ply_import(filepath=pcd1_pred, forward_axis='NEGATIVE_Z', up_axis='Y')
+    pointcloud1 = bpy.data.objects['{}_0'.format(filename)]
+    modifier = pointcloud1.modifiers.new('modifier', 'NODES')
+    modifier.node_group = bpy.data.node_groups['pointcloud1 modifier']
+
+    bpy.ops.wm.ply_import(filepath=pcd2_pred, forward_axis='NEGATIVE_Z', up_axis='Y')
+    pointcloud2 = bpy.data.objects['{}_1'.format(filename)]
+    modifier = pointcloud2.modifiers.new('modifier', 'NODES')
+    modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
+
+    # ibs gt
+    # bpy.ops.wm.ply_import(filepath=ibs_gt, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # ibs = bpy.data.objects[scene]
+    # modifier = ibs.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['ibs modifier']
+
+    # ibs geometric
+    # bpy.ops.wm.ply_import(filepath=ibs_geometric, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # ibs = bpy.data.objects[filename]
+    # modifier = ibs.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['ibs modifier']
+
+    save_path = r'D:\dataset\IBPCDC\render\temp'
+    for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
+        camera_obj.location = camera_location * sign
+        track_object(pointcloud1)
+        bpy.context.scene.render.filepath = os.path.join(save_path, '{}.png'.format(result_name))
+        bpy.ops.render.render(write_still=True)
+        break

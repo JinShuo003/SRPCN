@@ -105,11 +105,16 @@ def visualize(pcd, IBS, cosine_sim, closest_center, closest_direction, direction
     direction_pred = direction_pred.numpy()
     arrow_pred_list = []
     arrow_prior_list = []
+
+    # subspace1_points = []
+    # subspace2_points = []
     for i in range(interact_points.shape[0]):
         angle = get_angle_degree(closest_direction[i], direction_pred[i])
         if not interact_points[i] ^ show_positive:
             # print(angle)
             pcd.colors[i] = pcd_color
+            # subspace1_points.append(np.array(pcd.points[i]))
+
             arrow_pred = geometry_utils.get_arrow(direction_pred[i], closest_center[i],
                                                   np.linalg.norm(pcd_np[i] - closest_center[i]))
             arrow_pred.paint_uniform_color(arrow_pred_color)
@@ -118,9 +123,22 @@ def visualize(pcd, IBS, cosine_sim, closest_center, closest_direction, direction
             arrow_prior = geometry_utils.get_arrow(closest_direction[i], closest_center[i], 0.2)
             arrow_prior.paint_uniform_color(arrow_prior_color)
             arrow_prior_list.append(arrow_prior)
+        # else:
+        #     subspace2_points.append(np.array(pcd.points[i]))
 
-    o3d.visualization.draw_geometries([pcd, IBS] + geometry_list, mesh_show_back_face=True, mesh_show_wireframe=True)
-    # o3d.visualization.draw_geometries([pcd, IBS] + arrow_pred_list + arrow_prior_list, mesh_show_back_face=True)
+    # subspace1_points = np.array(subspace1_points)
+    # subspace2_points = np.array(subspace2_points)
+    # subspace1_pcd = o3d.geometry.PointCloud()
+    # subspace2_pcd = o3d.geometry.PointCloud()
+    # subspace1_pcd.points = o3d.utility.Vector3dVector(subspace1_points)
+    # subspace2_pcd.points = o3d.utility.Vector3dVector(subspace2_points)
+    # subspace1_pcd.paint_uniform_color((1, 0, 0))
+    # subspace2_pcd.paint_uniform_color((0, 0, 1))
+
+    # o3d.io.write_point_cloud("../render/subspace1.ply", subspace1_pcd)
+    # o3d.io.write_point_cloud("../render/subspace2.ply", subspace2_pcd)
+    o3d.visualization.draw_geometries([pcd, IBS] + arrow_pred_list + geometry_list, mesh_show_back_face=True, mesh_show_wireframe=True)
+    # o3d.visualization.draw_geometries([subspace1_pcd, subspace2_pcd, IBS], mesh_show_back_face=True, mesh_show_wireframe=True)
 
 
 def handle_data_FP(geometries_path: dict, tag: str):

@@ -1,7 +1,7 @@
 {
   "path_options": {
     "geometries_dir": {
-      "pcd_pred_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e5",
+      "pcd_pred_dir": "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4",
       "IBS_mesh_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
       "IBS_pcd_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE_norm",
       "Medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE_norm",

@@ -170,10 +170,34 @@ class medialAxisDirectionHandler(GeometryHandler):
             center, radius, direction = data["center"], data["radius"], data["direction"]
         arrow_list = []
         for i in range(center.shape[0]):
-            arrow = geometry_utils.get_arrow(direction[i], center[i])
+            arrow = geometry_utils.get_arrow(direction[i], center[i], 0.05)
             arrow_list.append(arrow)
             # if i == 100:
             #     break
+
+        # 组合所有箭头
+        vertices = None
+        faces = None
+        vertices_num = 0
+        for arrow in arrow_list:
+            vertices_cur = np.array(arrow.vertices)
+            faces_cur = np.array(arrow.triangles)
+            if vertices is None:
+                vertices = vertices_cur
+            else:
+                vertices = np.vstack((vertices, vertices_cur))
+            if faces is None:
+                faces = faces_cur
+            else:
+                faces = np.vstack((faces, faces_cur+vertices_num))
+            vertices_num = vertices.shape[0]
+
+        arrow = o3d.geometry.TriangleMesh()
+        arrow.vertices = o3d.utility.Vector3dVector(vertices)
+        arrow.triangles = o3d.utility.Vector3iVector(faces)
+        # o3d.visualization.draw_geometries([arrow])
+
+        o3d.io.write_triangle_mesh("arrow.obj", arrow)
         return arrow_list
 
     def color_geometry(self, medial_axis_sphere, sphere_color):

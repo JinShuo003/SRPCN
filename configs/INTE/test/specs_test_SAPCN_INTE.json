@@ -1,21 +1,21 @@
 {
-    "TAG": "RBPCDC_INTE_cd",
+    "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e5",
     "DataSource" : "data",
     "Dataset": "INTE",
-    "TestSplit" : "dataset/test_INTE/test_RBPCDC.json",
-    "ModelPath": "model_paras/RBPCDC_INTE_cd/epoch_60.pth",
+    "TestSplit" : "dataset/test_INTE/test.json",
+    "ModelPath": "model_paras/PointAttN_INTE_mads05_madi100_ibsa005_lr1e5/epoch_62.pth",
     "ScenePatten": "scene\\d+.\\d+",
-    "ViewNamePatten": "scene\\d.\\d{4}_view\\d+",
+    "ViewNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
-    "NormalizeParaDir": "data/normalizePara/INTE",
+    "NormalizeParaDir": "data/normalizePara/INTE_norm",
     "ResultSaveDir": "test_result",
 
     "Device" : 0,
-    "BatchSize" : 200 ,
+    "BatchSize" : 64 ,
     "DataLoaderThreads" : 8,
 
     "LogOptions": {
-        "TAG": "RBPCDC_INTE_cd",
+        "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e5",
         "Type": "test",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

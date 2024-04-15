@@ -1,0 +1,53 @@
+{
+    "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e4",
+    "Description" : "model: SAPCN, dataset: INTE_norm",
+    "DataSource" : "data",
+    "TrainSplit" : "dataset/train_INTE/train.json",
+    "TestSplit" : "dataset/test_INTE/test.json",
+    "ParaSaveDir" : "model_paras",
+    "TensorboardLogDir" : "tensorboard_logs/INTE/comparison",
+    "Device" : 0,
+    "PcdPointNum": 2048,
+    "TrainOptions": {
+        "NumEpochs" : 400,
+        "BatchSize" : 64,
+        "DataLoaderThreads" : 8,
+        "PreTrain": false,
+        "PreTrainModel": "pretrain_models/PointAttN_C3d/epoch_235.pth",
+        "ContinueTrain": false,
+        "ContinueFromEpoch": 0,
+        "LearningRateOptions": {
+            "LRScheduler": "StepLR",
+            "InitLearningRate": 1e-4,
+            "StepSize": 20,
+            "Gamma": 0.7
+        }
+    },
+    "IBSALossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0.05,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADSLossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 0.5,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "MADILossOptions": {
+        "BeginEpoch": 0,
+        "InitRatio": 100,
+        "StepSize": 10,
+        "Gamma": 1
+    },
+    "LogOptions": {
+        "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e4",
+        "Type": "train",
+        "LogDir" : "logs",
+        "GlobalLevel": "INFO",
+        "FileLevel": "INFO",
+        "StreamLevel": "INFO",
+        "Mode": "w"
+    }
+}

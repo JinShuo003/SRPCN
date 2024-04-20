@@ -368,14 +368,15 @@ if __name__ == '__main__':
     pcd_scan_dir = r"D:\dataset\IBSNet\trainData\pcdScan\diffUDF"
     pcd_pred_dir = r"D:\dataset\IBPCDC\pcdPred\SeedFormer_INTE_lr1e4"
     ibs_gt_dir = r"D:\dataset\IBSNet\evaluateData\IBS_pcd_complete"
+    ibs_mesh_gt_dir = r"D:\dataset\IBPCDC\IBSMesh"
     ibs_scan_dir = r"D:\dataset\IBSNet\evaluateData\IBS_pcd_scan"
 
     category_re = "scene\\d"
     scene_re = "scene\\d.\\d{4}"
     filename_re = "scene\\d.\\d{4}_view\\d+"
 
-    filename = "scene1.1031_view14"
-    result_name = "pcd_pred"
+    filename = "scene1.1030"
+    result_name = "mesh"
 
     category = re.match(category_re, filename).group()
     scene = re.match(scene_re, filename).group()
@@ -389,16 +390,17 @@ if __name__ == '__main__':
     pcd1_pred = os.path.join(pcd_pred_dir, category, "{}_0.ply".format(filename))
     pcd2_pred = os.path.join(pcd_pred_dir, category, "{}_1.ply".format(filename))
     ibs_gt = os.path.join(ibs_gt_dir, category, "{}.ply".format(scene))
+    ibs_mesh_gt = os.path.join(ibs_mesh_gt_dir, category, "{}.obj".format(scene))
     ibs_geometric = os.path.join(ibs_scan_dir, category, "{}.ply".format(filename))
 
     # mesh
-    # bpy.ops.wm.obj_import(filepath=mesh1_filename)
-    # mesh1 = bpy.data.objects['{}_0'.format(scene)]
-    # mesh1.active_material = bpy.data.materials['pointcloud1']
-    #
-    # bpy.ops.wm.obj_import(filepath=mesh2_filename)
-    # mesh2 = bpy.data.objects['{}_1'.format(scene)]
-    # mesh2.active_material = bpy.data.materials['pointcloud2']
+    bpy.ops.wm.obj_import(filepath=mesh1_filename)
+    mesh1 = bpy.data.objects['{}_0'.format(scene)]
+    mesh1.active_material = bpy.data.materials['pointcloud1']
+
+    bpy.ops.wm.obj_import(filepath=mesh2_filename)
+    mesh2 = bpy.data.objects['{}_1'.format(scene)]
+    mesh2.active_material = bpy.data.materials['pointcloud2']
 
     # pcd gt
     # bpy.ops.wm.ply_import(filepath=pcd1_gt, forward_axis='NEGATIVE_Z', up_axis='Y')
@@ -423,21 +425,26 @@ if __name__ == '__main__':
     # modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
 
     # pcd pred
-    bpy.ops.wm.ply_import(filepath=pcd1_pred, forward_axis='NEGATIVE_Z', up_axis='Y')
-    pointcloud1 = bpy.data.objects['{}_0'.format(filename)]
-    modifier = pointcloud1.modifiers.new('modifier', 'NODES')
-    modifier.node_group = bpy.data.node_groups['pointcloud1 modifier']
+    # bpy.ops.wm.ply_import(filepath=pcd1_pred, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # pointcloud1 = bpy.data.objects['{}_0'.format(filename)]
+    # modifier = pointcloud1.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['pointcloud1 modifier']
+    #
+    # bpy.ops.wm.ply_import(filepath=pcd2_pred, forward_axis='NEGATIVE_Z', up_axis='Y')
+    # pointcloud2 = bpy.data.objects['{}_1'.format(filename)]
+    # modifier = pointcloud2.modifiers.new('modifier', 'NODES')
+    # modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
 
-    bpy.ops.wm.ply_import(filepath=pcd2_pred, forward_axis='NEGATIVE_Z', up_axis='Y')
-    pointcloud2 = bpy.data.objects['{}_1'.format(filename)]
-    modifier = pointcloud2.modifiers.new('modifier', 'NODES')
-    modifier.node_group = bpy.data.node_groups['pointcloud2 modifier']
-
-    # ibs gt
+    # ibs pcd gt
     # bpy.ops.wm.ply_import(filepath=ibs_gt, forward_axis='NEGATIVE_Z', up_axis='Y')
     # ibs = bpy.data.objects[scene]
     # modifier = ibs.modifiers.new('modifier', 'NODES')
     # modifier.node_group = bpy.data.node_groups['ibs modifier']
+
+    # ibs mesh gt
+    # bpy.ops.wm.obj_import(filepath=ibs_mesh_gt)
+    # ibs_mesh = bpy.data.objects['{}'.format(scene)]
+    # ibs_mesh.active_material = bpy.data.materials['ibs']
 
     # ibs geometric
     # bpy.ops.wm.ply_import(filepath=ibs_geometric, forward_axis='NEGATIVE_Z', up_axis='Y')
@@ -448,7 +455,7 @@ if __name__ == '__main__':
     save_path = r'D:\dataset\IBPCDC\render\temp'
     for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
         camera_obj.location = camera_location * sign
-        track_object(pointcloud1)
+        track_object(mesh1)
         bpy.context.scene.render.filepath = os.path.join(save_path, '{}.png'.format(result_name))
         bpy.ops.render.render(write_still=True)
         break

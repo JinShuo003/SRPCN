@@ -1,9 +1,9 @@
 {
-    "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e5",
+    "TAG": "SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real",
     "DataSource" : "data",
     "Dataset": "INTE",
     "TestSplit" : "dataset/test_INTE/test.json",
-    "ModelPath": "model_paras/PointAttN_INTE_mads05_madi100_ibsa005_lr1e5/epoch_62.pth",
+    "ModelPath": "/home/data/jinshuo/IBPCDC/model_paras/SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real/epoch_58.pth",
     "ScenePatten": "scene\\d+.\\d+",
     "ViewNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
     "FileNamePatten": "scene\\d.\\d{4}_view\\d+_\\d",
@@ -11,11 +11,11 @@
     "ResultSaveDir": "test_result",
 
     "Device" : 0,
-    "BatchSize" : 64 ,
+    "BatchSize" : 16 ,
     "DataLoaderThreads" : 8,
 
     "LogOptions": {
-        "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e5",
+        "TAG": "SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real",
         "Type": "test",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

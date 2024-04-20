@@ -1,6 +1,6 @@
 {
-    "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e4",
-    "Description" : "model: SAPCN, dataset: INTE_norm",
+    "TAG": "SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real",
+    "Description" : "model: SeedFormer, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
@@ -10,22 +10,22 @@
     "PcdPointNum": 2048,
     "TrainOptions": {
         "NumEpochs" : 400,
-        "BatchSize" : 64,
+        "BatchSize" : 16,
         "DataLoaderThreads" : 8,
         "PreTrain": false,
-        "PreTrainModel": "pretrain_models/PointAttN_C3d/epoch_235.pth",
+        "PreTrainModel": "model_paras/SeedFormer_C3d/epoch_137.pth",
         "ContinueTrain": false,
         "ContinueFromEpoch": 0,
         "LearningRateOptions": {
             "LRScheduler": "StepLR",
-            "InitLearningRate": 1e-4,
-            "StepSize": 20,
-            "Gamma": 0.7
+            "InitLearningRate": 5e-4,
+            "StepSize": 1,
+            "Gamma": 0.977
         }
     },
     "IBSALossOptions": {
         "BeginEpoch": 0,
-        "InitRatio": 0.05,
+        "InitRatio": 0.01,
         "StepSize": 10,
         "Gamma": 1
     },
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SAPCN_INTE_mads05_madi100_ibsa005_lr1e4",
+        "TAG": "SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

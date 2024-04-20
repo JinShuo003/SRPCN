@@ -11,7 +11,7 @@ import time
 import os.path
 from datetime import datetime, timedelta
 
-from models.PointAttN import PointAttN
+from models.SAPCN import SAPCN
 from utils.metric import *
 from utils.test_utils import *
 from utils import log_utils, path_utils, statistics_utils
@@ -43,7 +43,8 @@ def test(network, test_dataloader, specs):
             radius = radius.to(device)
             direction = direction.to(device)
 
-            coarse, fine, pcd_pred = network(pcd_partial)
+            Pc, P1, P2, P3 = network(pcd_partial)
+            pcd_pred = P3
 
             cd_l1 = l1_cd(pcd_pred, pcd_gt)
             emd_ = emd(pcd_pred, pcd_gt)
@@ -87,7 +88,7 @@ def main_function(specs):
     logger.info("init dataloader succeed")
 
     checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
-    model = get_network(specs, PointAttN, checkpoint)
+    model = get_network(specs, SAPCN, checkpoint)
     logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()
@@ -107,7 +108,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/test/specs_test_PointAttN_INTE.json",
+        default="configs/INTE/test/specs_test_SAPCN_INTE.json",
         required=False,
         help="The experiment config file."
     )

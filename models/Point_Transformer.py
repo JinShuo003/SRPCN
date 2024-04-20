@@ -1,28 +1,19 @@
-"""
-Point Transformer V1 for Object Classification
-
-Might be a bit different from the original paper
-
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
-Please cite our work if the code is helpful to you.
-"""
-
-"""
-Point Transformer V1 for Part Segmentation
-
-Might be a bit different from the original paper
-
-Author: Xiaoyang Wu (xiaoyang.wu.cs@gmail.com)
-Please cite our work if the code is helpful to you.
-"""
-
 import einops
 import pointops
 import torch
 import torch.nn as nn
 
-from .utils import LayerNorm1d
+from pn2_utils import k
 
+class LayerNorm1d(nn.BatchNorm1d):
+    def forward(self, input: torch.Tensor) -> torch.Tensor:
+        return (
+            super()
+            .forward(input.transpose(1, 2).contiguous())
+            .transpose(1, 2)
+            .contiguous()
+        )
+    
 
 class PointTransformerLayer(nn.Module):
     def __init__(self, in_planes, out_planes, share_planes=8, nsample=16):

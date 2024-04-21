@@ -12,7 +12,7 @@ import argparse
 import time
 from torch.optim.lr_scheduler import StepLR, _LRScheduler
 
-from models.SAPCN import SAPCN
+from models.RSAPCN import RSAPCN
 from models.pn2_utils import fps_subsample
 from utils import path_utils
 from utils.loss import cd_loss_L1, cd_loss_L1_single, medial_axis_surface_loss, medial_axis_interaction_loss, \
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         "--experiment",
         "-e",
         dest="experiment_config_file",
-        default="configs/INTE/train/specs_train_SAPCN_INTE.json",
+        default="configs/INTE/train/specs_train_RSAPCN_INTE.json",
         required=False,
         help="The experiment config file."
     )

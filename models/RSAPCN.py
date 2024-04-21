@@ -303,7 +303,7 @@ class UpLayer(nn.Module):
         return pcd_new, K_curr
 
 
-class SAPCN(nn.Module):
+class RSAPCN(nn.Module):
     def __init__(self, feat_dim=512, embed_dim=128, num_p0=512, n_knn=20, radius=1, up_factors=[1, 2, 2], seed_factor=2,
                  interpolate='three', attn_channel=True):
         """

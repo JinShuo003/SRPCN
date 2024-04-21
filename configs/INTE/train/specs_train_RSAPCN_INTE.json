@@ -1,6 +1,6 @@
 {
-    "TAG": "SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real",
-    "Description" : "model: SeedFormer, dataset: INTE_norm",
+    "TAG": "RSAPCN_INTE_mads05_madi100_ibsa001_lr5e4",
+    "Description" : "model: RSAPCN, dataset: INTE_norm",
     "DataSource" : "data",
     "TrainSplit" : "dataset/train_INTE/train.json",
     "TestSplit" : "dataset/test_INTE/test.json",
@@ -42,7 +42,7 @@
         "Gamma": 1
     },
     "LogOptions": {
-        "TAG": "SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real",
+        "TAG": "RSAPCN_INTE_mads05_madi100_ibsa001_lr5e4",
         "Type": "train",
         "LogDir" : "logs",
         "GlobalLevel": "INFO",

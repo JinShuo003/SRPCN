@@ -21,3 +21,5 @@ utils/emd/build
 *.pth
 *.pyc
 *.egg
+
+*.zip

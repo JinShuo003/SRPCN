@@ -199,7 +199,7 @@ def main_function(specs):
 
     train_loader, test_loader = get_dataloader(dataset_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
-    network = get_network(specs, SAPCN, checkpoint)
+    network = get_network(specs, RSAPCN, checkpoint)
     optimizer = get_optimizer(specs, network, checkpoint)
     lr_scheduler_class, kwargs = get_lr_scheduler_info(specs)
     lr_scheduler = get_lr_scheduler(specs, optimizer, checkpoint, lr_scheduler_class, **kwargs)

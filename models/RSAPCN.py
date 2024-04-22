@@ -21,14 +21,14 @@ class FeatureExtractor(nn.Module):
 
         self.transformer_in = Transformer(32)
 
-        self.transitionDown_1 = PointNet_SA_Module_KNN(int(points_num / 4), 16, 32, [32, 64])
-        self.transformer_1 = Transformer(64)
+        self.sa1 = PointNet_SA_Module_KNN(int(points_num / 4), 16, 32, [32, 64])
+        self.transformer1 = Transformer(64)
 
-        self.transitionDown_2 = PointNet_SA_Module_KNN(int(points_num / 16), 16, 64, [64, 256])
-        self.transformer_2 = Transformer(256)
+        self.sa2 = PointNet_SA_Module_KNN(int(points_num / 16), 16, 64, [64, 256])
+        self.transformer2 = Transformer(256)
 
-        self.transitionDown_3 = PointNet_SA_Module_KNN(int(points_num / 64), 16, 256, [256, 512])
-        self.transformer_3 = Transformer(512)
+        self.sa3 = PointNet_SA_Module_KNN(int(points_num / 64), 16, 256, [256, 512])
+        self.transformer3 = Transformer(512)
 
         self.mlp_out = nn.Sequential(
             nn.Linear(512, 512),
@@ -54,14 +54,14 @@ class FeatureExtractor(nn.Module):
         point_cloud = point_cloud.permute(0, 2, 1).contiguous()
         feature = self.transformer_in(feature, point_cloud)
 
-        point_cloud1, feature1 = self.transitionDown_1(point_cloud, feature)
-        feature1 = self.transformer_1(feature1, point_cloud1)
+        point_cloud1, feature1 = self.sa1(point_cloud, feature)
+        feature1 = self.transformer1(feature1, point_cloud1)
 
-        point_cloud2, feature2 = self.transitionDown_2(point_cloud1, feature1)
-        feature2 = self.transformer_2(feature2, point_cloud2)
+        point_cloud2, feature2 = self.sa2(point_cloud1, feature1)
+        feature2 = self.transformer2(feature2, point_cloud2)
 
-        point_cloud3, feature3 = self.transitionDown_3(point_cloud2, feature2)
-        feature3= self.transformer_3(feature3, point_cloud3)
+        point_cloud3, feature3 = self.sa3(point_cloud2, feature2)
+        feature3= self.transformer3(feature3, point_cloud3)
 
         feature4 = torch.mean(feature3, dim=-1)
 
@@ -316,7 +316,7 @@ class RSAPCN(nn.Module):
             interpolate: interpolate seed features (nearest/three)
             attn_channel: transformer self-attention dimension (channel/point)
         """
-        super(SAPCN, self).__init__()
+        super(RSAPCN, self).__init__()
         self.num_p0 = num_p0
 
         # Seed Generator
@@ -338,7 +338,7 @@ class RSAPCN(nn.Module):
             partial_cloud: (B, N, 3)
         """
         # Encoder
-        feat, patch_xyz, patch_feat = self.forward_encoder(partial_cloud)
+        feat, patch_xyz, patch_feat = self.forward_encoder(partial_cloud)        # feat: (batch, 512, 1), patch_xyz: (batch, 3, 128), patch_feat: (batch, 256, 128)
 
         # Decoder
         pred_pcds = self.forward_decoder(feat, partial_cloud, patch_xyz, patch_feat)

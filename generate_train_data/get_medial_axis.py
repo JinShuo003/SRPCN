@@ -1,5 +1,5 @@
 """
-计算Medial Axis Sphere
+计算Interaction Space（IS，多个物体间空隙区域的中轴变换）、PSVF（Prior Subspace Vector Field，ibs上定义的向量场），该部分内容需要看论文进行理解
 """
 
 import os

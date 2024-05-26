@@ -8,7 +8,6 @@ import json
 import re
 import argparse
 import time
-import numpy as np
 import open3d as o3d
 import shutil
 

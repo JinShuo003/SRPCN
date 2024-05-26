@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -10,7 +10,6 @@ os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 from datetime import datetime, timedelta
 import argparse
 import time
-from torch.optim.lr_scheduler import StepLR, _LRScheduler
 
 from models.SeedFormer import SeedFormer
 from models.pn2_utils import fps_subsample

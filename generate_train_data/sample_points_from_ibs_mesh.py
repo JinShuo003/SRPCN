@@ -1,5 +1,5 @@
 """
-从IBS上采点
+从ibs mesh获取ibs点云
 """
 import logging
 import multiprocessing

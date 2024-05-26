@@ -1,18 +1,15 @@
-# blender packages
+"""
+调用blender python渲染Mesh
+"""
 import logging
-# built-in modules
+import os.path
 import sys
-from itertools import product
-from pathlib import Path
-from typing import List
 
 import bpy
-# third-party packages
 import numpy as np
 from bpy.types import (
     Scene, Material, Object
 )
-from mathutils import Vector, Euler
 
 
 def init_scene():
@@ -28,8 +25,8 @@ def init_scene():
     scene.render.image_settings.color_mode = 'RGBA'
     scene.render.image_settings.color_depth = '8'
     scene.render.image_settings.file_format = 'PNG'
-    scene.render.resolution_x = 1024
-    scene.render.resolution_y = 1024
+    scene.render.resolution_x = 2048
+    scene.render.resolution_y = 2048
     scene.render.film_transparent = True  # transparent background
     # remove the default cube and lights created by blender
     for obj in bpy.data.objects:
@@ -43,11 +40,7 @@ def create_materials():
     Create materials for rendering the input point cloud / output mesh
     """
     params = [
-        {'name': 'pointcloud1', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
-        {'name': 'pointcloud2', 'color': (0.921, 0.165, 0.564, 1.0), 'transparent': False},
-        {'name': 'mesh1', 'color': (0.721, 0.165, 0.264, 1.0), 'transparent': False},
-        {'name': 'mesh2', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False},
-
+        {'name': 'mesh', 'color': (0.165, 0.564, 0.921, 1.0), 'transparent': False}
     ]
     global protected_material_names
     protected_material_names = [param['name'] for param in params]
@@ -174,53 +167,38 @@ def clear_imported_objects():
             bpy.data.materials.remove(material)
 
 
-def launch_render(base_path: str, img_path: str, filename: str):
+if __name__ == '__main__':
+    # init
     logging.basicConfig(level=logging.DEBUG, stream=sys.stdout)
     init_scene()
     create_materials()
     init_lights()
 
+    # set camera
     camera_obj: Object = bpy.data.objects['Camera']
-    camera_location = np.array([0.7359, -0.6926, 0.4958]) * 1.3
+    radius = 1.5
+    camera_location = np.array([0.6, -0.6, 0.3])
+    camera_location /= np.linalg.norm(camera_location)
+    camera_location *= radius
     camera_obj.location = camera_location
 
-    base_path = Path(base_path)
-    img_path = Path(img_path)
-    obj_basename1 = "{}_0".format(filename)
-    obj_basename2 = "{}_1".format(filename)
-    obj_filename1 = "{}.obj".format(obj_basename1)
-    obj_filename2 = "{}.obj".format(obj_basename2)
-    obj_file1 = base_path / obj_filename1
-    obj_file2 = base_path / obj_filename2
+    # path info
+    cwd = os.getcwd()
+    output_img_path = os.path.join(cwd, 'render_result')
+    filename = r"./test_data/test_mesh.obj"
+    img_name = "test_mesh"
+    basename = os.path.basename(filename)
+    basename, extension = os.path.splitext(basename)
 
-    bpy.ops.wm.obj_import(filepath=obj_file1.as_posix())
-    bpy.ops.wm.obj_import(filepath=obj_file2.as_posix())
-    mesh1 = bpy.data.objects[obj_basename1]
-    mesh2 = bpy.data.objects[obj_basename2]
-    mesh1.active_material = bpy.data.materials['mesh1']
-    mesh2.active_material = bpy.data.materials['mesh2']
+    # import mesh
+    bpy.ops.wm.obj_import(filepath=filename)
+    mesh = bpy.data.objects[basename]
+    mesh.active_material = bpy.data.materials['mesh']
 
-    # bpy.ops.wm.ply_import(filepath=obj_file1.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
-    # bpy.ops.wm.ply_import(filepath=obj_file2.as_posix(), forward_axis='NEGATIVE_Z', up_axis='Y')
-
-    for view_index, sign in enumerate(product(np.array([1, -1]), repeat=3)):
-        camera_obj.location = camera_location * sign
-        track_object(mesh1)
-        bpy.context.scene.render.filepath = (img_path / f'{view_index}.png').as_posix()
-        bpy.ops.render.render(write_still=True)
+    # render
+    track_object(mesh)
+    bpy.context.scene.render.filepath = os.path.join(output_img_path, '{}.png'.format(img_name))
+    bpy.ops.render.render(write_still=True)
 
 
-if __name__ == '__main__':
-
-    base_path = "D:\\dataset\\IBPCDC\\mesh\\scene1"
-    img_path = "D:\\dataset\\IBPCDC\\render\\mesh\\scene1.1019"
-    #
-    # pcd_path = "D:\\dataset\\IBPCDC\\pcdScan\\INTE\\scene1"
-    # img_path = "D:\\dataset\\IBPCDC\\render\\pcdScan\\scene1.1019_view20"
-
-    # pcd_path = "D:\\dataset\\IBPCDC\\pcdPred\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1"
-    # img_path = "D:\\dataset\\IBPCDC\\render\\PointAttN_INTE_mads05_madi100_ibsa005_lr1e4\\scene1.1019_view20"
-    filename = "scene1.1019"
-
-    launch_render(base_path, img_path, filename)
 

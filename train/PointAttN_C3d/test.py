@@ -10,7 +10,6 @@ import re
 import argparse
 import time
 import open3d as o3d
-import numpy as np
 import shutil
 
 from models.PointAttN import PointAttN

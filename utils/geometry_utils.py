@@ -1,3 +1,6 @@
+"""
+几何相关的工具，包括读取、格式转换、获取基本的几何体等
+"""
 import copy
 
 import open3d as o3d

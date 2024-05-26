@@ -1,3 +1,6 @@
+"""
+Completion3d数据集
+"""
 import logging
 import numpy as np
 import os
@@ -6,7 +9,7 @@ import torch.utils.data
 import open3d as o3d
 import re
 
-import utils.workspace as ws
+import workspace as ws
 
 
 def get_instance_filenames(data_source, split):

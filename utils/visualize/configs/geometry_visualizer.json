@@ -1,0 +1,71 @@
+{
+  "path_options": {
+    "required_geometry": {
+      "mesh1": true,
+      "mesh2": true
+    },
+    "geometries_dir": {
+      "mesh_dir": "D:\\dataset\\IBPCDC\\mesh",
+      "ibs_mesh_gt_dir": "D:\\dataset\\IBPCDC\\IBSMesh",
+      "ibs_pcd_gt_dir": "D:\\dataset\\IBPCDC\\IBS\\INTE_norm",
+      "pcd_gt_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
+      "pcd_scan_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
+      "pcd_pred_dir": "D:\\dataset\\IBPCDC\\pcdScan\\INTE",
+      "medial_axis_sphere_dir": "D:\\dataset\\IBPCDC\\MedialAxis\\INTE"
+    },
+    "format_info": {
+      "category_re": "scene\\d",
+      "scene_re": "scene\\d.\\d{4}",
+      "filename_re": "scene\\d.\\d{4}",
+      "handle_category": "scene1",
+      "handle_scene": "scene1.1030",
+      "handle_filename": "scene\\d.\\d{4}"
+    },
+    "filename_tree_dir": "mesh_dir"
+  },
+
+  "visualization_options": {
+    "geometries": {
+      "mesh1": true,
+      "mesh2": true,
+      "ibs_mesh_gt": false,
+      "ibs_pcd_gt": false,
+      "ibs1_pcd_gt": false,
+      "ibs2_pcd_gt": false,
+      "pcd1_gt": false,
+      "pcd2_gt": false,
+      "pcd1_scan": false,
+      "pcd2_scan": false,
+      "pcd1_pred": false,
+      "pcd2_pred": false,
+      "medial_axis_sphere": false,
+      "medial_axis_sphere1": false,
+      "medial_axis_sphere2": false,
+      "medial_axis_origin_direction1": true,
+      "medial_axis_origin_direction2": true,
+      "medial_axis_direction1": false,
+      "medial_axis_direction2": false,
+      "coord_frame": false,
+      "unit_sphere": false
+    },
+    "colors": {
+      "mesh1": [0.7, 0.3, 0.3],
+      "mesh2": [0.3, 0.7, 0.3],
+      "ibs_mesh_gt": [0.3, 0.3, 0.7],
+      "ibs_pcd_gt": [1, 1, 0.3],
+      "ibs1_pcd_gt": [0.7, 0, 0.7],
+      "ibs2_pcd_gt": [0.7, 0, 0.7],
+      "pcd1_gt": [0, 1, 0],
+      "pcd2_gt": [1, 0, 0],
+      "pcd1_scan": [0, 1, 0],
+      "pcd2_scan": [1, 0, 0],
+      "pcd1_pred": [0.7, 0.7, 0],
+      "pcd2_pred": [0, 0.7, 0.7],
+      "medial_axis_sphere": [0.3, 0.7, 0.7],
+      "medial_axis_sphere1": [0.3, 0.7, 0.7],
+      "medial_axis_sphere2": [0.3, 0.7, 0.7],
+      "medial_axis_direction1": [0.3, 0.7, 0.7],
+      "medial_axis_direction2": [0.7, 0.3, 0.7]
+    }
+  }
+}

@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -7,10 +7,8 @@ import os.path
 os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 
 from datetime import datetime, timedelta
-import json
 import argparse
 import time
-import torch
 
 from models.PointAttN import PointAttN
 from pointnet2_ops.pointnet2_utils import furthest_point_sample, gather_operation

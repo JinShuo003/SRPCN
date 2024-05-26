@@ -1,5 +1,7 @@
+"""
+计算ibs的工具
+"""
 import logging
-import random
 import time
 
 import libibs

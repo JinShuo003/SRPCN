@@ -1,3 +1,6 @@
+"""
+日志工具
+"""
 import logging
 import os.path
 

@@ -1,3 +1,8 @@
+"""
+自定义异常
+"""
+
+
 class SampleMethodException(Exception):
     def __init__(self, message="Illegal sample method, surface or IOU are supported"):
         self.message = message

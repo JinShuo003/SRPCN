@@ -1,3 +1,6 @@
+"""
+INTE数据集（即我们的数据集），除了需要读取残缺点云、完整点云外，还需要读取PSVF、IS信息（这两部分需要看论文进行理解）
+"""
 import logging
 import numpy as np
 import os
@@ -6,7 +9,7 @@ import torch.utils.data
 import open3d as o3d
 import re
 
-import utils.workspace as ws
+import workspace as ws
 
 
 def get_instance_filenames(data_source, split):

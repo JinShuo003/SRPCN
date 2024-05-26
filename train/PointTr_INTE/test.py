@@ -1,11 +1,10 @@
-import sys
 import os
+import sys
 
 sys.path.insert(0, "/home/data/jinshuo/IBPCDC")
 
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
-import json
 import argparse
 import time
 import os.path

@@ -5,7 +5,7 @@
         "mesh2": true
       },
       "geometries_dir": {
-        "mesh_dir": "D:\\dataset\\IBPCDC\\mesh"
+        "mesh_dir": "D:\\dataset\\IBPCDC\\real-world\\mesh"
       },
       "format_info": {
         "category_re": "scene\\d",
@@ -15,10 +15,10 @@
         "handle_scene": "scene\\d.\\d{4}",
         "handle_filename": "scene\\d.\\d{4}"
       },
-      "pcd_save_dir": "D:\\dataset\\IBPCDC\\pcdComplete\\INTE",
+      "pcd_save_dir": "D:\\dataset\\IBPCDC\\real-world\\pcdComplete",
       "log_dir": "logs/get_pcd_from_mesh"
   },
-  "use_process_pool": true,
+  "use_process_pool": false,
   "process_num": 10,
   "sample_num": 2048
 }

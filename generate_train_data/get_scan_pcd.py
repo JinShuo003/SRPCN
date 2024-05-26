@@ -1,5 +1,5 @@
 """
-从成对的Mesh采集具有遮挡关系的残缺点云
+从成对的Mesh采集具有遮挡关系的单视角扫描点云
 """
 import logging
 import math

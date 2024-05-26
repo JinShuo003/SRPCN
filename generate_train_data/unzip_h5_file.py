@@ -1,3 +1,6 @@
+"""
+解压Completion3d数据集，并将其组织形式调整为INTE数据集的形式
+"""
 import os.path
 import open3d as o3d
 

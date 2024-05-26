@@ -1,3 +1,6 @@
+"""
+随机数工具
+"""
 import random
 
 import numpy as np

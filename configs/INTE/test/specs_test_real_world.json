@@ -1,6 +1,6 @@
 {
     "TAG": "SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real_world",
-    "DataSource" : "/home/shuojin/RSAPCN/real-world",
+    "DataSource" : "/home/shuojin/data/RSAPCN/real-world",
     "Dataset": "INTE",
     "TestSplit" : "dataset/test_INTE/test_real_world.json",
     "ModelPath": "/home/shuojin/IBPCDC/model_paras/SAPCN_INTE_mads05_madi100_ibsa001_lr1e4_real/epoch_58.pth",
@@ -11,7 +11,7 @@
     "ResultSaveDir": "test_result",
 
     "Device" : 0,
-    "BatchSize" : 16 ,
+    "BatchSize" : 1 ,
     "DataLoaderThreads" : 8,
 
     "LogOptions": {

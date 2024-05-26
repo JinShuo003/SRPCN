@@ -10,7 +10,7 @@ import time
 import os.path
 from datetime import datetime, timedelta
 
-from models.SnowFlakeNet import SnowFlakeNet
+from models.SnowflakeNet import SnowflakeNet
 from utils.metric import *
 from utils.test_utils import *
 from utils import log_utils, path_utils, statistics_utils
@@ -87,7 +87,7 @@ def main_function(specs):
     logger.info("init dataloader succeed")
 
     checkpoint = torch.load(model_path, map_location="cuda:{}".format(device))
-    model = get_network(specs, SnowFlakeNet, checkpoint)
+    model = get_network(specs, SnowflakeNet, checkpoint)
     logger.info("load trained model succeed, epoch: {}".format(checkpoint["epoch"]))
 
     time_begin_test = time.time()

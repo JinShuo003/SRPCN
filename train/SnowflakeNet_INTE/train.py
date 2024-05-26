@@ -11,7 +11,7 @@ import argparse
 import time
 
 from models.pn2_utils import fps_subsample
-from models.SnowFlakeNet import SnowFlakeNet
+from models.SnowflakeNet import SnowflakeNet
 from utils import path_utils
 from utils.loss import cd_loss_L1, cd_loss_L2, cd_loss_L2_single, emd_loss, medial_axis_interaction_loss, medial_axis_surface_loss, ibs_angle_loss
 from utils.train_utils import *
@@ -161,7 +161,7 @@ def main_function(specs):
 
     train_loader, test_loader = get_dataloader(dataset_INTE.INTEDataset, specs)
     checkpoint = get_checkpoint(specs)
-    network = get_network(specs, SnowFlakeNet, checkpoint)
+    network = get_network(specs, SnowflakeNet, checkpoint)
     optimizer = get_optimizer(specs, network, checkpoint)
     lr_scheduler_class, kwargs = get_lr_scheduler_info(specs)
     lr_scheduler = get_lr_scheduler(specs, optimizer, checkpoint, lr_scheduler_class, **kwargs)
